@@ -1,0 +1,28 @@
+# Environment variables
+.env
+
+# Database
+activity.db
+
+# Logs
+role_log.txt
+report_*.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+.env
+.venv
+pip-wheel-metadata/
+
+# IDEs
+.vscode/
+.idea/
