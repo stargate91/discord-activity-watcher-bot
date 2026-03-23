@@ -393,5 +393,13 @@ class DBManager:
         with self._get_connection() as conn:
             conn.execute("DELETE FROM tracked_games WHERE game_substring = ?", (substring,))
             conn.commit()
+    def get_user_recent_games(self, user_id, guild_id, limit=3):
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT role_name FROM game_activity 
+                WHERE user_id = ? AND guild_id = ? 
+                ORDER BY last_played DESC LIMIT ?
+            """, (user_id, guild_id, limit))
+            return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
 
 

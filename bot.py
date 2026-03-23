@@ -100,14 +100,14 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    def __init__(self, user, data, points, voice_mins, social, partners):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily):
         super().__init__()
         # Elegant Blue accent for profile
         container = discord.ui.Container(accent_color=discord.Color.blue())
         
-        # Profile Header with large-ish Avatar via Section accessory
+        # Profile Header with large-ish Avatar
         container.add_item(discord.ui.Section(
-            f"# {user.display_name}\nÖsszesített profilod ezen a szerveren.",
+            f"# {user.display_name} • #{rank}. Helyezés\nÖsszesített profilod a szerveren.",
             accessory=discord.ui.Thumbnail(user.display_avatar.url)
         ))
         
@@ -121,6 +121,19 @@ class ModernProfileView(discord.ui.LayoutView):
             f"🎙️ **Voice idő:** `{int(voice_mins)} perc`"
         )
         container.add_item(discord.ui.TextDisplay(stats_text))
+        
+        # Activity Timing and Averages
+        last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
+        timing_text = (
+            f"📅 **Utoljára aktív:** `{last_active_str}`\n"
+            f"📈 **Napi átlag (30 nap):** `{avg_daily:.2f} üzenet/nap`"
+        )
+        container.add_item(discord.ui.TextDisplay(timing_text))
+        
+        # Recent Games
+        if recent_games:
+            games_text = "🎮 **Legutóbbi játékok:** " + ", ".join([f"`{g}`" for g in recent_games])
+            container.add_item(discord.ui.TextDisplay(games_text))
         
         # Social stats section
         social_lines = []
@@ -403,11 +416,26 @@ async def me(interaction: discord.Interaction):
 
     points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
     
-    # Social Stats
+    # Advanced calculations
     social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
     partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
+    recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
     
-    view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners)
+    # Calculate Rank (All time)
+    all_data = db.get_leaderboard_data(interaction.guild_id)
+    all_scores = []
+    for uid, s in all_data.items():
+        p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
+        all_scores.append((uid, p))
+    all_scores.sort(key=lambda x: x[1], reverse=True)
+    rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+    
+    # Calculate Daily Average (30 days)
+    monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
+    user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+    avg_daily = user_monthly["messages"] / 30
+    
+    view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
     await interaction.response.send_message(view=view, ephemeral=True)
 
 @bot.tree.command(name="status_report", description="[Admin Channel] Generál egy részletes TXT jelentést.")
