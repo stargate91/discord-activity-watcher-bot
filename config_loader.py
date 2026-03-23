@@ -8,6 +8,7 @@ class Config:
     STAGE_1_ROLE_ID = int(os.getenv("STAGE_1_ROLE_ID", "0"))
     STAGE_2_ROLE_ID = int(os.getenv("STAGE_2_ROLE_ID", "0"))
     ADMIN_CHANNEL_ID = int(os.getenv("ADMIN_CHANNEL_ID", "0"))
+    AFK_CHANNEL_ID = int(os.getenv("AFK_CHANNEL_ID", "1275929869703970876"))
     
     # Thresholds in days
 

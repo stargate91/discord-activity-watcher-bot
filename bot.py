@@ -33,51 +33,91 @@ bot = CheekyBot()
 # Track voice session start times: {user_id: join_timestamp}
 voice_start_times = {}
 
-# Franchise mapping: {substring_in_game_name: role_name_suffix}
-GAME_FRANCHISES = {
-    "Counter-Strike": "CS2",
-    "The Sims": "Sims",
-    "Apex Legends": "Apex Legends",
-    "FINAL FANTASY": "Final Fantasy",
-    "Age of Empires": "Age of Empires",
-    "Overwatch": "Overwatch",
-    "Jurassic World Evolution": "Jurassic World Evolution",
-    "Dota": "Dota 2",
-    "League of Legends": "League of Legends",
-    "World of Warcraft": "World of Warcraft",
-    "Space Engineers": "Space Engineers",
-    "Fortnite": "Fortnite",
-    "Stellaris": "Stellaris",
-    "EVE Online": "EVE Online",
-    "Valorant": "Valorant",
-    "Minecraft": "Minecraft"
-}
+# Cache for dynamic game franchises: {substring: role_suffix}
+GAME_FRANCHISES = {}
+
+async def load_game_franchises():
+    """Loads games from DB and includes hardcoded defaults if DB is empty."""
+    global GAME_FRANCHISES
+    db_games = db.get_tracked_games()
+    
+    if not db_games:
+        # Fallback to defaults + save them to DB for first run
+        defaults = {
+            "Counter-Strike": "CS2", "The Sims": "Sims", "Apex Legends": "Apex Legends",
+            "FINAL FANTASY": "Final Fantasy", "Age of Empires": "Age of Empires", 
+            "Overwatch": "Overwatch", "Jurassic World Evolution": "Jurassic World Evolution",
+            "Dota": "Dota 2", "League of Legends": "League of Legends", 
+            "World of Warcraft": "World of Warcraft", "Space Engineers": "Space Engineers",
+            "Fortnite": "Fortnite", "Stellaris": "Stellaris", "EVE Online": "EVE Online",
+            "Valorant": "Valorant", "Minecraft": "Minecraft", "The Bazaar": "The Bazaar"
+        }
+        for sub, suf in defaults.items():
+            db.add_tracked_game(sub, suf)
+        GAME_FRANCHISES = defaults
+    else:
+        GAME_FRANCHISES = db_games
+    print(f"Loaded {len(GAME_FRANCHISES)} tracked games.")
 
 def log_role_assignment(member, role_name):
-    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-    line = f"[{now}] {member} ({member.id}) -> {role_name}\n"
-    with open("role_log.txt", "a", encoding="utf-8") as f:
-        f.write(line)
+    db.log_role(member.id, member.guild.id, role_name)
+
+async def migrate_role_logs():
+    """Migrates existing role_log.txt into the database."""
+    import re
+    if not os.path.exists("role_log.txt"): return
+    
+    print("Migrating role_log.txt to database...")
+    pattern = re.compile(r"\[(.*?)\] .*? \((\d+)\) -> (.*)")
+    
+    with open("role_log.txt", "r", encoding="utf-8") as f:
+        lines = f.readlines()
+        
+    count = 0
+    for line in lines:
+        match = pattern.search(line)
+        if match:
+            ts_str, uid, role = match.groups()
+            # Since we don't have guild_id in the log, we might assume it's the first guild the bot is in, 
+            # OR we just use 0 if it's for global history (less ideal but logs don't have it).
+            # Actually, we can try to find which guild the user belongs to.
+            for guild in bot.guilds:
+                if guild.get_member(int(uid)):
+                    db.log_role(int(uid), guild.id, role, timestamp=ts_str)
+                    count += 1
+                    break
+    
+    if count > 0:
+        os.rename("role_log.txt", "role_log_migrated.txt")
+        print(f"Successfully migrated {count} logs to DB.")
 
 @bot.event
 async def on_presence_update(before, after):
-    """Automatically assigns roles based on the game franchise being played."""
+    """Automatically assigns roles based on the game franchise AND monitors all play activity."""
     if after.bot or not after.guild: return
     for activity in after.activities:
         if activity.type == discord.ActivityType.playing:
-            base_name = activity.name
+            # 1. Track ANY game for stats
+            db.update_game_activity(after.id, after.guild.id, activity.name, bot_assigned=False)
+            
+            # 2. Check if it's a tracked franchise for role assignment
             for franchise_key, role_suffix in GAME_FRANCHISES.items():
                 if franchise_key.lower() in activity.name.lower():
-                    base_name = role_suffix
+                    target_role_name = f"Player: {role_suffix}"
+                    role = discord.utils.get(after.guild.roles, name=target_role_name)
+                    if role:
+                        bot_gave = False
+                        if role not in after.roles:
+                            try: 
+                                await after.add_roles(role)
+                                print(f"Assigned {target_role_name} to {after.name}")
+                                log_role_assignment(after, target_role_name)
+                                bot_gave = True
+                            except discord.Forbidden: pass
+                        
+                        # Update the role-specific activity (for cleanup task)
+                        db.update_game_activity(after.id, after.guild.id, target_role_name, bot_assigned=bot_gave)
                     break
-            target_role_name = f"Player: {base_name}"
-            role = discord.utils.get(after.guild.roles, name=target_role_name)
-            if role and role not in after.roles:
-                try: 
-                    await after.add_roles(role)
-                    print(f"Assigned {target_role_name} to {after.name}")
-                    log_role_assignment(after, target_role_name)
-                except discord.Forbidden: pass
 
 async def handle_member_activity(member: discord.Member, event_type=None):
     if member.bot: return
@@ -105,7 +145,11 @@ async def handle_member_activity(member: discord.Member, event_type=None):
 @bot.event
 async def on_ready():
     # Set Presence
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Looking for slackers... 🤫"))
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Figyelem a lazsálókat... 🤫"))
+    # Load Games and Migrate logs
+    await load_game_franchises()
+    await migrate_role_logs()
+    
     print(f"Bot started as {bot.user}")
     for guild in bot.guilds:
         for m in guild.members:
@@ -117,6 +161,7 @@ async def on_ready():
             if m.voice and m.voice.channel:
                 voice_start_times[m.id] = datetime.datetime.now(datetime.timezone.utc)
     if not check_inactivity_task.is_running(): check_inactivity_task.start()
+    if not cleanup_inactive_roles_task.is_running(): cleanup_inactive_roles_task.start()
 
 @bot.event
 async def on_message(message):
@@ -133,12 +178,17 @@ async def on_voice_state_update(member, before, after):
         # If they were in a channel, record the time spent
         if before.channel is not None:
             start = voice_start_times.pop(member.id, None)
-            if start:
-                mins = (datetime.datetime.now(datetime.timezone.utc) - start).total_seconds() / 60
-                if mins > 0: db.add_voice_minutes(member.id, member.guild.id, mins)
+            # Skip if it was the AFK channel (extra safety) or if no start time was recorded for it
+            if start and before.channel.id != Config.AFK_CHANNEL_ID and before.channel != member.guild.afk_channel:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                mins = (now - start).total_seconds() / 60
+                if mins > 0: 
+                    db.add_voice_minutes(member.id, member.guild.id, mins)
+                    # Log detailed session
+                    db.log_voice_session(member.id, member.guild.id, before.channel.id, start, now, mins)
         
-        # If they joined or moved to a new channel, start recording
-        if after.channel is not None:
+        # If they joined or moved to a new channel, start recording (SKIP if AFK)
+        if after.channel is not None and after.channel.id != Config.AFK_CHANNEL_ID and after.channel != member.guild.afk_channel:
             voice_start_times[member.id] = datetime.datetime.now(datetime.timezone.utc)
             await handle_member_activity(member)
 
@@ -148,7 +198,29 @@ async def on_raw_reaction_add(payload):
         guild = bot.get_guild(payload.guild_id)
         if not guild: return
         member = payload.member or await guild.fetch_member(payload.user_id)
-        if member: await handle_member_activity(member, event_type="reaction")
+        if member: 
+            await handle_member_activity(member, event_type="reaction")
+            
+            # Detailed Reaction Interaction Logging
+            try:
+                channel = bot.get_channel(payload.channel_id)
+                if channel:
+                    # Look for message in cache, otherwise fetch it
+                    message = discord.utils.get(bot.cached_messages, id=payload.message_id)
+                    if not message:
+                        message = await channel.fetch_message(payload.message_id)
+                    
+                    if message and message.author and not message.author.bot:
+                        if message.author.id != member.id: # Don't log self-reactions as "interaction"
+                            db.log_reaction_interaction(
+                                user_id=member.id,
+                                target_user_id=message.author.id,
+                                guild_id=guild.id,
+                                channel_id=channel.id,
+                                message_id=payload.message_id,
+                                emoji=str(payload.emoji)
+                            )
+            except (discord.NotFound, discord.Forbidden): pass
 
 @tasks.loop(hours=Config.CHECK_INTERVAL_HOURS) 
 async def check_inactivity_task():
@@ -174,6 +246,24 @@ async def check_inactivity_task():
                         try: await m.remove_roles(r2)
                         except discord.Forbidden: pass
                     db.set_returned_at(uid, guild.id, None)
+
+@tasks.loop(hours=24)
+async def cleanup_inactive_roles_task():
+    """Eltávolítja a Player rangokat, ha 30 napja nem játszottak az adott játékkal, és a bot adta."""
+    for guild in bot.guilds:
+        inactive = db.get_inactive_games(guild.id, days=30)
+        for uid, role_name in inactive:
+            member = guild.get_member(uid)
+            if not member: continue
+            
+            role = discord.utils.get(guild.roles, name=role_name)
+            if role and role in member.roles:
+                try:
+                    await member.remove_roles(role)
+                    print(f"Removed inactive role {role_name} from {member.name} (30 days inactivity)")
+                    db.remove_game_activity(uid, guild.id, role_name)
+                    db.log_role(uid, guild.id, role_name, action='REMOVED')
+                except discord.Forbidden: pass
 
 # --- COMMANDS ---
 
@@ -214,21 +304,97 @@ async def top(interaction: discord.Interaction, timeframe: str = "alltime"):
     scores.sort(key=lambda x: x[1], reverse=True)
     top_10 = scores[:10]
     
-    embed = discord.Embed(title=f"🏆 {title_text}", color=0xFFD700, timestamp=datetime.datetime.now())
-    embed.set_footer(text="Pontozás: Üzi: 10 | Reakció: 5 | Voice: 2/perc")
+    embed = discord.Embed(
+        title=f"🏆 {title_text}", 
+        color=0xF1C40F, # Vibrant Gold
+        timestamp=datetime.datetime.now()
+    )
+    # 3D Trophy Thumbnail
+    embed.set_thumbnail(url="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/3D/trophy_3d.png")
+    embed.set_footer(text="Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc")
     
     if not top_10:
-        embed.description = "Nincs adat ehhez az időszakhoz."
+        embed.description = "*Nincs elég adat az időszakhoz... Legyél te az első!* 🚀"
     else:
-        desc = ""
+        desc = "───────────────────\n"
         for i, (uid, pts, stats) in enumerate(top_10, 1):
             m = interaction.guild.get_member(uid)
             name = m.mention if m else f"Ismeretlen ({uid})"
-            medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i}.**")
-            desc += f"{medal} {name} - **{pts} pont**\n┗ `💬 {stats['messages']} | 🎭 {stats['reactions']} | 🎙️ {int(stats['voice'])} perc`\n"
-        embed.description = desc
+            
+            # Premium Medal/Number icons
+            medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
+            
+            # Main Line
+            desc += f"{medal} {name} • **{pts:,} pont**\n"
+            # Sub Stats Line (Clean look)
+            desc += f"╰ `💬 {stats['messages']} | 🎭 {stats['reactions']} | 🎙️ {int(stats['voice'])} perc`\n\n"
+        
+        embed.description = desc + "───────────────────"
 
-    # EPHEMERAL: Csak aki hívta látja
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
+async def me(interaction: discord.Interaction):
+    data = db.get_user_data(interaction.user.id, interaction.guild_id)
+    if not data:
+        await interaction.response.send_message("Még nincs adatod az adatbázisban. Írj pár üzenetet előbb!", ephemeral=True)
+        return
+
+    # Add live voice time
+    voice_mins = data["voice_minutes"]
+    if interaction.user.id in voice_start_times:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
+
+    points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
+    
+    # Advanced Social Stats
+    social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
+    partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
+    
+    embed = discord.Embed(
+        title=f"📊 Saját aktivitásod", 
+        description=f"Összesített profilod ezen a szerveren.",
+        color=0x3498db, 
+        timestamp=datetime.datetime.now()
+    )
+    embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+    embed.set_thumbnail(url="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bar%20Chart/3D/bar_chart_3d.png")
+    
+    embed.add_field(name="🏆 Összpontszám", value=f"### **{points:,}**", inline=False)
+    
+    stats_text = (
+        f"💬 **Üzenetek:** `{data['message_count']}`\n"
+        f"🎭 **Reakciók:** `{data['reaction_count']}`\n"
+        f"🎙️ **Voice:** `{int(voice_mins)} perc`"
+    )
+    embed.add_field(name="📈 Alapadatok", value=stats_text, inline=True)
+    
+    # Social Stats Field
+    social_lines = []
+    if social["top_channel"]:
+        ch = bot.get_channel(social["top_channel"])
+        social_lines.append(f"🏠 **Kedvenc szoba:** {ch.mention if ch else 'Ismeretlen'}")
+    if social["top_emoji"]:
+        social_lines.append(f"✨ **Kedvenc emoji:** {social['top_emoji']}")
+    if social["top_target"]:
+        target = interaction.guild.get_member(social["top_target"])
+        social_lines.append(f"🤝 **Legtöbbet neki reagálsz:** {target.mention if target else 'Valaki'}")
+    
+    if partners:
+        p_list = []
+        for pid, _ in partners[:1]: # Csak a legfőbb partnert mutatjuk a profilban
+            pm = interaction.guild.get_member(pid)
+            if pm: p_list.append(pm.mention)
+        if p_list: social_lines.append(f"🫂 **Best Friend (Voice):** {', '.join(p_list)}")
+
+    if social_lines:
+        embed.add_field(name="🤝 Szociális stat (30 nap)", value="\n".join(social_lines), inline=True)
+    else:
+        embed.add_field(name="🤝 Szociális stat", value="*Még nincs elég adatod...*", inline=True)
+
+    embed.set_footer(text=f"Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc • {interaction.guild.name}")
+    
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="status_report", description="[Admin Channel] Generál egy részletes TXT jelentést.")
@@ -262,7 +428,7 @@ async def status_report_slash(interaction: discord.Interaction):
     
     filename = f"report_{interaction.guild_id}.txt"
     with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
-    await interaction.channel.send(file=discord.File(filename)) # A fájlt mindenki látja az admin csatiban, de a szöveg el van rejtve
+    await interaction.followup.send(file=discord.File(filename), ephemeral=True) # Csak aki hívta látja a jelentést
     os.remove(filename)
 
 @bot.tree.command(name="game_role_report", description="[Admin Channel] Letölti a játékos-rang kiosztások naplóját.")
@@ -271,12 +437,93 @@ async def game_role_report(interaction: discord.Interaction):
         await interaction.response.send_message(f"Ez a parancs csak az admin csatornában használható: <#{Config.ADMIN_CHANNEL_ID}>", ephemeral=True)
         return
     
-    if not os.path.exists("role_log.txt") or os.path.getsize("role_log.txt") == 0:
-        await interaction.response.send_message("Még nincs bejegyzés a naplóban.", ephemeral=True)
+    await interaction.response.send_message("Játékos-rang napló generálása...", ephemeral=True)
+    
+    history = db.get_role_history(interaction.guild_id, limit=300)
+    if not history:
+        await interaction.followup.send("Még nincs bejegyzés a naplóban.", ephemeral=True)
         return
 
-    now_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
-    await interaction.response.send_message(f"Itt a játékos-rang napló ({now_str}):", file=discord.File("role_log.txt", filename=f"role_log_{now_str}.txt"), ephemeral=True)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    lines = [f"--- JÁTÉKOS-RANG NAPLÓ: {interaction.guild.name} ---\nGen: {now_utc}\n{'Timestamp':<20} | {'User':<25} | {'Státusz':<10} | {'Role'}"]
+    
+    for uid, role, action, ts in history:
+        m = interaction.guild.get_member(uid)
+        name = str(m) if m else f"Ismeretlen ({uid})"
+        act_text = "ELVÉVE" if action == 'REMOVED' else "ADVA"
+        lines.append(f"{ts[:19]:<20} | {name[:25]:<25} | {act_text:<10} | {role}")
+    
+    filename = f"role_log_{interaction.guild_id}.txt"
+    with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
+    
+    await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+    os.remove(filename)
+
+@bot.tree.command(name="add_game", description="[Admin] Új játék hozzáadása az automata rangosztáshoz.")
+@app_commands.describe(search_name="A játék nevének egy része (pl: Minecraft)", role_suffix="A rang vége (példa: 'Minecraft' -> 'Player: Minecraft')")
+@commands.has_permissions(administrator=True)
+async def add_game(interaction: discord.Interaction, search_name: str, role_suffix: str):
+    db.add_tracked_game(search_name, role_suffix)
+    await load_game_franchises() # Refresh cache
+    await interaction.response.send_message(f"✅ Hozzáadva: Ha a névben szerepel: `{search_name}`, a rang ez lesz: `Player: {role_suffix}`", ephemeral=True)
+
+@bot.tree.command(name="remove_game", description="[Admin] Játék eltávolítása a listából.")
+@app_commands.describe(search_name="A pontos keresési kulcsszó (pl: Minecraft)")
+@commands.has_permissions(administrator=True)
+async def remove_game(interaction: discord.Interaction, search_name: str):
+    db.remove_tracked_game(search_name)
+    await load_game_franchises() # Refresh cache
+    await interaction.response.send_message(f"🗑️ `{search_name}` eltávolítva a figyelési listából.", ephemeral=True)
+
+@bot.tree.command(name="list_games", description="[Admin] Az összes figyelt játék listázása.")
+@commands.has_permissions(administrator=True)
+async def list_games(interaction: discord.Interaction):
+    games = db.get_tracked_games()
+    if not games:
+        await interaction.response.send_message("Nincsenek figyelt játékok.", ephemeral=True)
+        return
+    
+    desc = "\n".join([f"• `{sub}` ➔ `Player: {suf}`" for sub, suf in games.items()])
+    embed = discord.Embed(title="🎮 Figyelt játékok listája", description=desc, color=0x2ecc71)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="game_stats_report", description="[Admin] Játék népszerűségi riport generálása .txt-ben.")
+@app_commands.describe(timeframe="Válasz: alltime (összes) vagy monthly (e havi)")
+@commands.has_permissions(administrator=True)
+async def game_stats_report(interaction: discord.Interaction, timeframe: str = "alltime"):
+    if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+        await interaction.response.send_message(f"Ez a parancs csak az admin csatornában használható: <#{Config.ADMIN_CHANNEL_ID}>", ephemeral=True)
+        return
+        
+    await interaction.response.send_message("Riport generálása...", ephemeral=True)
+    
+    stats = db.get_game_stats_report(interaction.guild_id, timeframe)
+    if not stats:
+        await interaction.followup.send("Nincsenek adatok a választott időszakhoz.", ephemeral=True)
+        return
+
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    title = "HAVI" if timeframe == "monthly" else "ÖSSZESÍTETT"
+    lines = [f"--- JÁTÉK NÉPSZERŰSÉGI RIPORT ({title}) ---", f"Generálva: {now}", ""]
+    lines.append(f"{'Játék neve':<40} | {'Egyedi játékosok':<5}")
+    lines.append("-" * 60)
+
+    for game_name, count in stats:
+        # Skip technical roles that start with "Player: " if you want only clean names, 
+        # but the user might want both. I'll filter for cleaner display.
+        display_name = game_name.replace("Player: ", "")
+        lines.append(f"{display_name[:40]:<40} | {count:<5}")
+    
+    filename = f"game_stats_{timeframe}_{interaction.guild_id}.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    
+    await interaction.followup.send(
+        content=f"📊 Elkészült a(z) `{timeframe}` játék riport ({len(stats)} különböző játék).",
+        file=discord.File(filename), 
+        ephemeral=True
+    )
+    os.remove(filename)
 
 # Run Bot
 if __name__ == "__main__":
