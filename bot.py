@@ -4,6 +4,8 @@ from discord import app_commands
 import datetime
 import asyncio
 import os
+import sys
+import subprocess
 from db_manager import DBManager
 from config_loader import Config
 
@@ -59,6 +61,85 @@ async def load_game_franchises():
         GAME_FRANCHISES = db_games
     print(f"Loaded {len(GAME_FRANCHISES)} tracked games.")
 
+# --- MODERN UI COMPONENTS (Components V2) ---
+
+class ModernLeaderboardView(discord.ui.LayoutView):
+    def __init__(self, title, items, guild):
+        super().__init__()
+        
+        # Gold accent for top 10
+        container = discord.ui.Container(accent_color=discord.Color.from_rgb(241, 196, 15))
+        container.add_item(discord.ui.TextDisplay(f"# 🏆 {title}"))
+        container.add_item(discord.ui.Separator())
+        
+        if not items:
+            container.add_item(discord.ui.TextDisplay("*Nincs elég adat az időszakhoz... Legyél te az első!* 🚀"))
+        else:
+            for i, (uid, pts, stats) in enumerate(items, 1):
+                m = guild.get_member(uid)
+                name = m.mention if m else f"Ismeretlen ({uid})"
+                plain_name = m.display_name if m else f"Ismeretlen ({uid})"
+                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
+                
+                info = f"{medal} {name} • **{pts:,} pont**\n╰ `💬 {stats['messages']} | 🎭 {stats['reactions']} | 🎙️ {int(stats['voice'])} perc`"
+                
+                if i <= 3 and m:
+                    # Top 3 uses Section + Avatar for that premium look
+                    container.add_item(discord.ui.Section(
+                        info,
+                        accessory=discord.ui.Thumbnail(m.display_avatar.url)
+                    ))
+                else:
+                    container.add_item(discord.ui.TextDisplay(info))
+                
+                if i < len(items):
+                    container.add_item(discord.ui.Separator())
+        
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay("### Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc"))
+        self.add_item(container)
+
+class ModernProfileView(discord.ui.LayoutView):
+    def __init__(self, user, data, points, voice_mins, social, partners):
+        super().__init__()
+        # Elegant Blue accent for profile
+        container = discord.ui.Container(accent_color=discord.Color.blue())
+        
+        # Profile Header with large-ish Avatar via Section accessory
+        container.add_item(discord.ui.Section(
+            f"# {user.display_name}\nÖsszesített profilod ezen a szerveren.",
+            accessory=discord.ui.Thumbnail(user.display_avatar.url)
+        ))
+        
+        container.add_item(discord.ui.Separator())
+        
+        # Core Stats summary
+        stats_text = (
+            f"🏆 **Összpontszám:** ### **{points:,}**\n"
+            f"💬 **Üzenetek:** `{data['message_count']}`\n"
+            f"🎭 **Reakciók:** `{data['reaction_count']}`\n"
+            f"🎙️ **Voice idő:** `{int(voice_mins)} perc`"
+        )
+        container.add_item(discord.ui.TextDisplay(stats_text))
+        
+        # Social stats section
+        social_lines = []
+        if social["top_channel"]:
+            social_lines.append(f"🏠 **Kedvenc szoba:** <#{social['top_channel']}>")
+        if social["top_emoji"]:
+            social_lines.append(f"✨ **Kedvenc emoji:** {social['top_emoji']}")
+        if social["top_target"]:
+            social_lines.append(f"🤝 **Fő célpont:** <@{social['top_target']}>")
+        if partners:
+            for pid, _ in partners[:1]:
+                social_lines.append(f"🫂 **Best Friend (Voice):** <@{pid}>")
+        
+        if social_lines:
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.TextDisplay("### 🤝 Szociális statisztikák (30 nap)\n" + "\n".join(social_lines)))
+            
+        self.add_item(container)
+
 def log_role_assignment(member, role_name):
     db.log_role(member.id, member.guild.id, role_name)
 
@@ -97,27 +178,27 @@ async def on_presence_update(before, after):
     if after.bot or not after.guild: return
     for activity in after.activities:
         if activity.type == discord.ActivityType.playing:
-            # 1. Track ANY game for stats
-            db.update_game_activity(after.id, after.guild.id, activity.name, bot_assigned=False)
+            game_to_log = activity.name
+            bot_gave_role = False
             
-            # 2. Check if it's a tracked franchise for role assignment
+            # Check if it's a tracked franchise for role assignment
             for franchise_key, role_suffix in GAME_FRANCHISES.items():
                 if franchise_key.lower() in activity.name.lower():
                     target_role_name = f"Player: {role_suffix}"
+                    game_to_log = target_role_name # Use standardized name
                     role = discord.utils.get(after.guild.roles, name=target_role_name)
                     if role:
-                        bot_gave = False
                         if role not in after.roles:
                             try: 
                                 await after.add_roles(role)
                                 print(f"Assigned {target_role_name} to {after.name}")
                                 log_role_assignment(after, target_role_name)
-                                bot_gave = True
+                                bot_gave_role = True
                             except discord.Forbidden: pass
-                        
-                        # Update the role-specific activity (for cleanup task)
-                        db.update_game_activity(after.id, after.guild.id, target_role_name, bot_assigned=bot_gave)
-                    break
+                    break # Stop at first franchise match
+            
+            # Log the activity (standardized if it matched, raw if not)
+            db.update_game_activity(after.id, after.guild.id, game_to_log, bot_assigned=bot_gave_role)
 
 async def handle_member_activity(member: discord.Member, event_type=None):
     if member.bot: return
@@ -304,34 +385,8 @@ async def top(interaction: discord.Interaction, timeframe: str = "alltime"):
     scores.sort(key=lambda x: x[1], reverse=True)
     top_10 = scores[:10]
     
-    embed = discord.Embed(
-        title=f"🏆 {title_text}", 
-        color=0xF1C40F, # Vibrant Gold
-        timestamp=datetime.datetime.now()
-    )
-    # 3D Trophy Thumbnail
-    embed.set_thumbnail(url="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Trophy/3D/trophy_3d.png")
-    embed.set_footer(text="Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc")
-    
-    if not top_10:
-        embed.description = "*Nincs elég adat az időszakhoz... Legyél te az első!* 🚀"
-    else:
-        desc = "───────────────────\n"
-        for i, (uid, pts, stats) in enumerate(top_10, 1):
-            m = interaction.guild.get_member(uid)
-            name = m.mention if m else f"Ismeretlen ({uid})"
-            
-            # Premium Medal/Number icons
-            medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
-            
-            # Main Line
-            desc += f"{medal} {name} • **{pts:,} pont**\n"
-            # Sub Stats Line (Clean look)
-            desc += f"╰ `💬 {stats['messages']} | 🎭 {stats['reactions']} | 🎙️ {int(stats['voice'])} perc`\n\n"
-        
-        embed.description = desc + "───────────────────"
-
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    view = ModernLeaderboardView(title_text, top_10, interaction.guild)
+    await interaction.response.send_message(view=view, ephemeral=True)
 
 @bot.tree.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
 async def me(interaction: discord.Interaction):
@@ -348,54 +403,12 @@ async def me(interaction: discord.Interaction):
 
     points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
     
-    # Advanced Social Stats
+    # Social Stats
     social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
     partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
     
-    embed = discord.Embed(
-        title=f"📊 Saját aktivitásod", 
-        description=f"Összesített profilod ezen a szerveren.",
-        color=0x3498db, 
-        timestamp=datetime.datetime.now()
-    )
-    embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
-    embed.set_thumbnail(url="https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Bar%20Chart/3D/bar_chart_3d.png")
-    
-    embed.add_field(name="🏆 Összpontszám", value=f"### **{points:,}**", inline=False)
-    
-    stats_text = (
-        f"💬 **Üzenetek:** `{data['message_count']}`\n"
-        f"🎭 **Reakciók:** `{data['reaction_count']}`\n"
-        f"🎙️ **Voice:** `{int(voice_mins)} perc`"
-    )
-    embed.add_field(name="📈 Alapadatok", value=stats_text, inline=True)
-    
-    # Social Stats Field
-    social_lines = []
-    if social["top_channel"]:
-        ch = bot.get_channel(social["top_channel"])
-        social_lines.append(f"🏠 **Kedvenc szoba:** {ch.mention if ch else 'Ismeretlen'}")
-    if social["top_emoji"]:
-        social_lines.append(f"✨ **Kedvenc emoji:** {social['top_emoji']}")
-    if social["top_target"]:
-        target = interaction.guild.get_member(social["top_target"])
-        social_lines.append(f"🤝 **Legtöbbet neki reagálsz:** {target.mention if target else 'Valaki'}")
-    
-    if partners:
-        p_list = []
-        for pid, _ in partners[:1]: # Csak a legfőbb partnert mutatjuk a profilban
-            pm = interaction.guild.get_member(pid)
-            if pm: p_list.append(pm.mention)
-        if p_list: social_lines.append(f"🫂 **Best Friend (Voice):** {', '.join(p_list)}")
-
-    if social_lines:
-        embed.add_field(name="🤝 Szociális stat (30 nap)", value="\n".join(social_lines), inline=True)
-    else:
-        embed.add_field(name="🤝 Szociális stat", value="*Még nincs elég adatod...*", inline=True)
-
-    embed.set_footer(text=f"Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc • {interaction.guild.name}")
-    
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners)
+    await interaction.response.send_message(view=view, ephemeral=True)
 
 @bot.tree.command(name="status_report", description="[Admin Channel] Generál egy részletes TXT jelentést.")
 async def status_report_slash(interaction: discord.Interaction):
@@ -508,10 +521,8 @@ async def game_stats_report(interaction: discord.Interaction, timeframe: str = "
     lines.append(f"{'Játék neve':<40} | {'Egyedi játékosok':<5}")
     lines.append("-" * 60)
 
-    for game_name, count in stats:
-        # Skip technical roles that start with "Player: " if you want only clean names, 
-        # but the user might want both. I'll filter for cleaner display.
-        display_name = game_name.replace("Player: ", "")
+    for display_name, count in stats:
+        # The SQL query already stripped "Player: ", so we just display it.
         lines.append(f"{display_name[:40]:<40} | {count:<5}")
     
     filename = f"game_stats_{timeframe}_{interaction.guild_id}.txt"
@@ -524,6 +535,41 @@ async def game_stats_report(interaction: discord.Interaction, timeframe: str = "
         ephemeral=True
     )
     os.remove(filename)
+
+# --- SYSTEM ADMINISTRATION ---
+
+@bot.tree.command(name="restart", description="[Admin] Bot azonnali újraindítása.")
+@commands.has_permissions(administrator=True)
+async def restart(interaction: discord.Interaction):
+    """Újraindítja a bot folyamatát."""
+    await interaction.response.send_message("🔄 Újraindítás folyamatban...", ephemeral=True)
+    print("Bot restarting...")
+    
+    # Lezárjuk a DB kapcsolatot (opcionális, mert az execv lezárja a file handle-öket)
+    # De tisztább, ha az os.execv-t hívjuk meg a Python értelmezővel
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+@bot.tree.command(name="update", description="[Admin] Git pull és újraindítás a friss kódhoz.")
+@commands.has_permissions(administrator=True)
+async def update(interaction: discord.Interaction):
+    """Git pull-t hajt végre és ha van változás (vagy kényszerítve), újraindul."""
+    await interaction.response.send_message("📡 Frissítések keresése...", ephemeral=True)
+    
+    try:
+        # Futtatjuk a git pull-t
+        result = subprocess.check_output(["git", "pull"], stderr=subprocess.STDOUT).decode('utf-8')
+        print(f"Git Pull: {result}")
+        
+        await interaction.followup.send(f"**Git eredmény:**\n```\n{result}\n```", ephemeral=True)
+        
+        if "Already up to date" in result:
+            await interaction.followup.send("ℹ️ A kód már a legfrissebb. Nem szükséges újraindítás (vagy használd a `/restart`-ot).", ephemeral=True)
+        else:
+            await interaction.followup.send("🚀 Frissítés sikeres! Újraindítás az új kóddal...", ephemeral=True)
+            os.execv(sys.executable, ['python'] + sys.argv)
+            
+    except Exception as e:
+        await interaction.followup.send(f"❌ Hiba a frissítés során: {str(e)}", ephemeral=True)
 
 # Run Bot
 if __name__ == "__main__":

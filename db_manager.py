@@ -258,24 +258,26 @@ class DBManager:
             conn.commit()
 
     def get_game_stats_report(self, guild_id, timeframe="alltime"):
-        """Returns the number of unique players per game."""
+        """Returns the number of unique players per game, merging role-based and raw activity."""
         with self._get_connection() as conn:
+            # We use a CASE to strip 'Player: ' in the grouping, so 'Dota 2' and 'Player: Dota 2' merge.
+            # We count DISTINCT user_id across the merged groups.
+            query = """
+                SELECT 
+                    CASE WHEN role_name LIKE 'Player: %' THEN SUBSTR(role_name, 9) ELSE role_name END as clean_name,
+                    COUNT(DISTINCT user_id) as user_count 
+                FROM game_activity 
+                WHERE guild_id = ? {time_filter}
+                GROUP BY clean_name 
+                ORDER BY user_count DESC
+            """
+            
             if timeframe == "monthly":
                 # Start of current month
                 cutoff = datetime.datetime.now(datetime.timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
-                cursor = conn.execute("""
-                    SELECT role_name, COUNT(DISTINCT user_id) as user_count 
-                    FROM game_activity 
-                    WHERE guild_id = ? AND last_played >= ?
-                    GROUP BY role_name ORDER BY user_count DESC
-                """, (guild_id, cutoff))
+                cursor = conn.execute(query.format(time_filter="AND last_played >= ?"), (guild_id, cutoff))
             else:
-                cursor = conn.execute("""
-                    SELECT role_name, COUNT(DISTINCT user_id) as user_count 
-                    FROM game_activity 
-                    WHERE guild_id = ?
-                    GROUP BY role_name ORDER BY user_count DESC
-                """, (guild_id,))
+                cursor = conn.execute(query.format(time_filter=""), (guild_id,))
             
             return cursor.fetchall()
 
