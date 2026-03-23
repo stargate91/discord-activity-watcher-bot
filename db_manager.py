@@ -401,5 +401,12 @@ class DBManager:
                 ORDER BY last_played DESC LIMIT ?
             """, (user_id, guild_id, limit))
             return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
+    def reset_database(self):
+        """Clears all activity data while keeping configuration (tracked games)."""
+        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history"]
+        with self._get_connection() as conn:
+            for table in tables:
+                conn.execute(f"DELETE FROM {table}")
+            conn.commit()
 
 

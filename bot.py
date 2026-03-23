@@ -153,6 +153,22 @@ class ModernProfileView(discord.ui.LayoutView):
             
         self.add_item(container)
 
+class ConfirmResetView(discord.ui.LayoutView):
+    """Megerősítő ablak az adatbázis törléséhez."""
+    def __init__(self):
+        super().__init__(timeout=60)
+        
+    @discord.ui.button(label="ADATBÁZIS TÖRLÉSE (VÉGLEG)", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        db.reset_database()
+        await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve! Minden aktivitási adat törölve lett.", ephemeral=True)
+        self.stop()
+        
+    @discord.ui.button(label="Mégse", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
+        self.stop()
+
 def log_role_assignment(member, role_name):
     db.log_role(member.id, member.guild.id, role_name)
 
@@ -598,6 +614,17 @@ async def update(interaction: discord.Interaction):
             
     except Exception as e:
         await interaction.followup.send(f"❌ Hiba a frissítés során: {str(e)}", ephemeral=True)
+
+@bot.tree.command(name="reset_database", description="[Admin] MINDEN aktivitási adat végleges törlése.")
+@commands.has_permissions(administrator=True)
+async def reset_database(interaction: discord.Interaction):
+    """Megerősítést kér az adatbázis törléséhez."""
+    view = ConfirmResetView()
+    await interaction.response.send_message(
+        "⚠️ **FIGYELEM!** Ez a parancs törli az összes statisztikát, ranglistát és aktivitási adatot.\nCsak a figyelt játékok beállításai maradnak meg. Biztosan folytatod?", 
+        view=view, 
+        ephemeral=True
+    )
 
 # Run Bot
 if __name__ == "__main__":
