@@ -158,18 +158,29 @@ class ConfirmResetView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__()
         
-    actions = discord.ui.ActionRow()
-    
-    @actions.button(label="ADATBÁZIS TÖRLÉSE (VÉGLEG)", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        db.reset_database()
-        await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve! Minden aktivitási adat törölve lett.", ephemeral=True)
-        self.stop()
+        # Piros keretes konténer a figyelemfelkeltéshez
+        container = discord.ui.Container(accent_color=discord.Color.red())
+        container.add_item(discord.ui.TextDisplay("### ⚠️ FIGYELEM! Végleges törlés\nEz a művelet törli az összes statisztikát és ranglistát. Biztosan folytatod?"))
         
-    @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
-        self.stop()
+        # Műveleti sor a gomboknak
+        actions = discord.ui.ActionRow()
+        
+        @actions.button(label="ADATBÁZIS TÖRLÉSE", style=discord.ButtonStyle.danger)
+        async def confirm_callback(interaction: discord.Interaction, button: discord.ui.Button):
+            try:
+                db.reset_database()
+                await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve!", ephemeral=True)
+            except Exception as e:
+                await interaction.response.send_message(f"❌ Hiba a törlés során: {e}", ephemeral=True)
+            self.stop()
+            
+        @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
+        async def cancel_callback(interaction: discord.Interaction, button: discord.ui.Button):
+            await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
+            self.stop()
+            
+        container.add_item(actions)
+        self.add_item(container)
 
 def log_role_assignment(member, role_name):
     db.log_role(member.id, member.guild.id, role_name)
@@ -621,12 +632,12 @@ async def update(interaction: discord.Interaction):
 @commands.has_permissions(administrator=True)
 async def reset_database(interaction: discord.Interaction):
     """Megerősítést kér az adatbázis törléséhez."""
-    view = ConfirmResetView()
-    await interaction.response.send_message(
-        "⚠️ **FIGYELEM!** Ez a parancs törli az összes statisztikát, ranglistát és aktivitási adatot.\nCsak a figyelt játékok beállításai maradnak meg. Biztosan folytatod?", 
-        view=view, 
-        ephemeral=True
-    )
+    try:
+        view = ConfirmResetView()
+        await interaction.response.send_message(view=view, ephemeral=True)
+    except Exception as e:
+        # Ha itt hiba történik, kiírjuk a Discordon, hogy lássuk mi az
+        await interaction.response.send_message(f"❌ Kritikus hiba a parancs futtatásakor: {str(e)}", ephemeral=True)
 
 # Run Bot
 if __name__ == "__main__":
