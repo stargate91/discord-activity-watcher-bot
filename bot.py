@@ -157,30 +157,29 @@ class ConfirmResetView(discord.ui.LayoutView):
     """Megerősítő ablak az adatbázis törléséhez."""
     def __init__(self):
         super().__init__()
-        
-        # Piros keretes konténer a figyelemfelkeltéshez
+        # Tartalom konténerbe zárva
         container = discord.ui.Container(accent_color=discord.Color.red())
         container.add_item(discord.ui.TextDisplay("### ⚠️ FIGYELEM! Végleges törlés\nEz a művelet törli az összes statisztikát és ranglistát. Biztosan folytatod?"))
-        
-        # Műveleti sor a gomboknak
-        actions = discord.ui.ActionRow()
-        
-        @actions.button(label="ADATBÁZIS TÖRLÉSE", style=discord.ButtonStyle.danger)
-        async def confirm_callback(interaction: discord.Interaction, button: discord.ui.Button):
-            try:
-                db.reset_database()
-                await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve!", ephemeral=True)
-            except Exception as e:
-                await interaction.response.send_message(f"❌ Hiba a törlés során: {e}", ephemeral=True)
-            self.stop()
-            
-        @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
-        async def cancel_callback(interaction: discord.Interaction, button: discord.ui.Button):
-            await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
-            self.stop()
-            
-        container.add_item(actions)
         self.add_item(container)
+        
+        # Műveleti sor hozzáadása a gombokhoz (külön a konténertől)
+        self.add_item(self.actions)
+
+    actions = discord.ui.ActionRow()
+    
+    @actions.button(label="ADATBÁZIS TÖRLÉSE", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            db.reset_database()
+            await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve!", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Hiba: {e}", ephemeral=True)
+        self.stop()
+            
+    @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
+        self.stop()
 
 def log_role_assignment(member, role_name):
     db.log_role(member.id, member.guild.id, role_name)
