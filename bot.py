@@ -156,15 +156,17 @@ class ModernProfileView(discord.ui.LayoutView):
 class ConfirmResetView(discord.ui.LayoutView):
     """Megerősítő ablak az adatbázis törléséhez."""
     def __init__(self):
-        super().__init__(timeout=60)
+        super().__init__()
         
-    @discord.ui.button(label="ADATBÁZIS TÖRLÉSE (VÉGLEG)", style=discord.ButtonStyle.danger)
+    actions = discord.ui.ActionRow()
+    
+    @actions.button(label="ADATBÁZIS TÖRLÉSE (VÉGLEG)", style=discord.ButtonStyle.danger)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
         db.reset_database()
         await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve! Minden aktivitási adat törölve lett.", ephemeral=True)
         self.stop()
         
-    @discord.ui.button(label="Mégse", style=discord.ButtonStyle.secondary)
+    @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
         self.stop()
