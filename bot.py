@@ -153,33 +153,6 @@ class ModernProfileView(discord.ui.LayoutView):
             
         self.add_item(container)
 
-class ConfirmResetView(discord.ui.LayoutView):
-    """Megerősítő ablak az adatbázis törléséhez."""
-    def __init__(self):
-        super().__init__()
-        # Tartalom konténerbe zárva
-        container = discord.ui.Container(accent_color=discord.Color.red())
-        container.add_item(discord.ui.TextDisplay("### ⚠️ FIGYELEM! Végleges törlés\nEz a művelet törli az összes statisztikát és ranglistát. Biztosan folytatod?"))
-        self.add_item(container)
-        
-        # Műveleti sor hozzáadása a gombokhoz (külön a konténertől)
-        self.add_item(self.actions)
-
-    actions = discord.ui.ActionRow()
-    
-    @actions.button(label="ADATBÁZIS TÖRLÉSE", style=discord.ButtonStyle.danger)
-    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        try:
-            db.reset_database()
-            await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve!", ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"❌ Hiba: {e}", ephemeral=True)
-        self.stop()
-            
-    @actions.button(label="Mégse", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("❌ Művelet megszakítva.", ephemeral=True)
-        self.stop()
 
 def log_role_assignment(member, role_name):
     db.log_role(member.id, member.guild.id, role_name)
@@ -630,13 +603,12 @@ async def update(interaction: discord.Interaction):
 @bot.tree.command(name="reset_database", description="[Admin] MINDEN aktivitási adat végleges törlése.")
 @commands.has_permissions(administrator=True)
 async def reset_database(interaction: discord.Interaction):
-    """Megerősítést kér az adatbázis törléséhez."""
+    """Közvetlenül törli az adatbázis tartalmát."""
     try:
-        view = ConfirmResetView()
-        await interaction.response.send_message(view=view, ephemeral=True)
+        db.reset_database()
+        await interaction.response.send_message("✅ Az adatbázis sikeresen kiürítve! Minden aktivitási adat törölve lett.", ephemeral=True)
     except Exception as e:
-        # Ha itt hiba történik, kiírjuk a Discordon, hogy lássuk mi az
-        await interaction.response.send_message(f"❌ Kritikus hiba a parancs futtatásakor: {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Hiba történt a törlés során: {e}", ephemeral=True)
 
 # Run Bot
 if __name__ == "__main__":
