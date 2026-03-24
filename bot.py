@@ -24,10 +24,11 @@ class CheekyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=intents)
         
-    async def setup_hook(self):
         # Sync Slash Commands
         if Config.GUILD_ID:
             guild = discord.Object(id=Config.GUILD_ID)
+            # Clear global commands from this bot identity to prevent crossover
+            self.tree.clear_commands(guild=None)
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
             log.info(f"Slash commands synced to guild {Config.GUILD_ID} (Instant).")
@@ -262,9 +263,10 @@ async def on_ready():
             # Ensure member exists in DB
             if not db.get_user_data(m.id, guild.id):
                 db.update_activity(m.id, guild.id)
-            # Pick up members already in voice channels
+            # Pick up members already in voice channels (SKIP if AFK)
             if m.voice and m.voice.channel:
-                voice_start_times[m.id] = datetime.datetime.now(datetime.timezone.utc)
+                if m.voice.channel.id != Config.AFK_CHANNEL_ID and m.voice.channel != guild.afk_channel:
+                    voice_start_times[m.id] = datetime.datetime.now(datetime.timezone.utc)
     if not check_inactivity_task.is_running(): check_inactivity_task.start()
     if not cleanup_inactive_roles_task.is_running(): cleanup_inactive_roles_task.start()
 
