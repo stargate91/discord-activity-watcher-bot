@@ -4,8 +4,7 @@ from discord import app_commands
 import datetime
 import asyncio
 import os
-import sys
-import subprocess
+from core.logger import log
 from db_manager import DBManager
 from config_loader import Config
 
@@ -28,7 +27,7 @@ class CheekyBot(commands.Bot):
     async def setup_hook(self):
         # Sync Slash Commands
         await self.tree.sync()
-        print("Slash commands synced.")
+        log.info("Slash commands synced.")
 
 bot = CheekyBot()
 
@@ -59,7 +58,7 @@ async def load_game_franchises():
         GAME_FRANCHISES = defaults
     else:
         GAME_FRANCHISES = db_games
-    print(f"Loaded {len(GAME_FRANCHISES)} tracked games.")
+    log.info(f"Loaded {len(GAME_FRANCHISES)} tracked games.")
 
 # --- MODERN UI COMPONENTS (Components V2) ---
 
@@ -162,7 +161,7 @@ async def migrate_role_logs():
     import re
     if not os.path.exists("role_log.txt"): return
     
-    print("Migrating role_log.txt to database...")
+    log.info("Migrating role_log.txt to database...")
     pattern = re.compile(r"\[(.*?)\] .*? \((\d+)\) -> (.*)")
     
     with open("role_log.txt", "r", encoding="utf-8") as f:
@@ -184,7 +183,7 @@ async def migrate_role_logs():
     
     if count > 0:
         os.rename("role_log.txt", "role_log_migrated.txt")
-        print(f"Successfully migrated {count} logs to DB.")
+        log.info(f"Successfully migrated {count} logs to DB.")
 
 @bot.event
 async def on_presence_update(before, after):
@@ -205,7 +204,7 @@ async def on_presence_update(before, after):
                         if role not in after.roles:
                             try: 
                                 await after.add_roles(role)
-                                print(f"Assigned {target_role_name} to {after.name}")
+                                log.info(f"Assigned {target_role_name} to {after.name}")
                                 log_role_assignment(after, target_role_name)
                                 bot_gave_role = True
                             except discord.Forbidden: pass
@@ -245,7 +244,7 @@ async def on_ready():
     await load_game_franchises()
     await migrate_role_logs()
     
-    print(f"Bot started as {bot.user}")
+    log.info(f"Bot started as {bot.user}")
     for guild in bot.guilds:
         for m in guild.members:
             if m.bot: continue
@@ -355,20 +354,10 @@ async def cleanup_inactive_roles_task():
             if role and role in member.roles:
                 try:
                     await member.remove_roles(role)
-                    print(f"Removed inactive role {role_name} from {member.name} (30 days inactivity)")
+                    log.info(f"Removed inactive role {role_name} from {member.name} (30 days inactivity)")
                     db.remove_game_activity(uid, guild.id, role_name)
                     db.log_role(uid, guild.id, role_name, action='REMOVED')
                 except discord.Forbidden: pass
-
-# --- COMMANDS ---
-
-@bot.command()
-@commands.is_owner()
-async def sync(ctx):
-    """Szinkronizálja a parancsokat az aktuális szerverre (azonnali frissítés)."""
-    bot.tree.copy_global_to(guild=ctx.guild)
-    synced = await bot.tree.sync(guild=ctx.guild)
-    await ctx.send(f"✅ Sikeresen szinkronizáltam {len(synced)} slash parancsot ezen a szerveren!")
 
 # --- SLASH COMMANDS ---
 
@@ -567,39 +556,6 @@ async def game_stats_report(interaction: discord.Interaction, timeframe: str = "
 
 # --- SYSTEM ADMINISTRATION ---
 
-@bot.tree.command(name="restart", description="[Admin] Bot azonnali újraindítása.")
-@commands.has_permissions(administrator=True)
-async def restart(interaction: discord.Interaction):
-    """Újraindítja a bot folyamatát."""
-    await interaction.response.send_message("🔄 Újraindítás folyamatban...", ephemeral=True)
-    print("Bot restarting...")
-    
-    # Lezárjuk a DB kapcsolatot (opcionális, mert az execv lezárja a file handle-öket)
-    # De tisztább, ha az os.execv-t hívjuk meg a Python értelmezővel
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-@bot.tree.command(name="update", description="[Admin] Git pull és újraindítás a friss kódhoz.")
-@commands.has_permissions(administrator=True)
-async def update(interaction: discord.Interaction):
-    """Git pull-t hajt végre és ha van változás (vagy kényszerítve), újraindul."""
-    await interaction.response.send_message("📡 Frissítések keresése...", ephemeral=True)
-    
-    try:
-        # Futtatjuk a git pull-t
-        result = subprocess.check_output(["git", "pull"], stderr=subprocess.STDOUT).decode('utf-8')
-        print(f"Git Pull: {result}")
-        
-        await interaction.followup.send(f"**Git eredmény:**\n```\n{result}\n```", ephemeral=True)
-        
-        if "Already up to date" in result:
-            await interaction.followup.send("ℹ️ A kód már a legfrissebb. Nem szükséges újraindítás (vagy használd a `/restart`-ot).", ephemeral=True)
-        else:
-            await interaction.followup.send("🚀 Frissítés sikeres! Újraindítás az új kóddal...", ephemeral=True)
-            os.execv(sys.executable, ['python'] + sys.argv)
-            
-    except Exception as e:
-        await interaction.followup.send(f"❌ Hiba a frissítés során: {str(e)}", ephemeral=True)
-
 @bot.tree.command(name="reset_database", description="[Admin] MINDEN aktivitási adat végleges törlése.")
 @commands.has_permissions(administrator=True)
 async def reset_database(interaction: discord.Interaction):
@@ -613,4 +569,4 @@ async def reset_database(interaction: discord.Interaction):
 # Run Bot
 if __name__ == "__main__":
     if not Config.validate(): bot.run(Config.TOKEN)
-    else: print("Config Error")
+    else: log.error("Config Error")
