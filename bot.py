@@ -34,6 +34,10 @@ class CheekyBot(commands.Bot):
 
 bot = CheekyBot()
 
+# Clear global commands from this bot identity to prevent crossover
+# DO THIS IMMEDIATELY before decorators register new ones
+bot.tree.clear_commands(guild=None)
+
 # Track voice session start times: {user_id: join_timestamp}
 voice_start_times = {}
 
