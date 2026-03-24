@@ -21,14 +21,10 @@ intents.message_content = True
 intents.presences = True
 
 class CheekyBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
-        
+    async def setup_hook(self):
         # Sync Slash Commands
         if Config.GUILD_ID:
             guild = discord.Object(id=Config.GUILD_ID)
-            # Clear global commands from this bot identity to prevent crossover
-            self.tree.clear_commands(guild=None)
             self.tree.copy_global_to(guild=guild)
             await self.tree.sync(guild=guild)
             log.info(f"Slash commands synced to guild {Config.GUILD_ID} (Instant).")
