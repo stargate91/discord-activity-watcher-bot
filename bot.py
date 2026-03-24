@@ -219,8 +219,13 @@ async def on_presence_update(before, after):
             # Log the activity (standardized if it matched, raw if not)
             db.update_game_activity(after.id, after.guild.id, game_to_log, bot_assigned=bot_gave_role)
 
-async def handle_member_activity(member: discord.Member, event_type=None):
+async def handle_member_activity(member: discord.Member, event_type=None, channel_id=None):
     if member.bot: return
+    
+    # Check for excluded channels
+    if channel_id and channel_id in Config.EXCLUDED_CHANNELS:
+        return
+        
     db.update_activity(member.id, member.guild.id)
     if event_type == "message": db.increment_messages(member.id, member.guild.id)
     elif event_type == "reaction": db.increment_reactions(member.id, member.guild.id)
@@ -266,7 +271,7 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     if message.author.bot or not message.guild: return
-    await handle_member_activity(message.author, event_type="message")
+    await handle_member_activity(message.author, event_type="message", channel_id=message.channel.id)
     await bot.process_commands(message)
 
 @bot.event
@@ -299,7 +304,7 @@ async def on_raw_reaction_add(payload):
         if not guild: return
         member = payload.member or await guild.fetch_member(payload.user_id)
         if member: 
-            await handle_member_activity(member, event_type="reaction")
+            await handle_member_activity(member, event_type="reaction", channel_id=payload.channel_id)
             
             # Detailed Reaction Interaction Logging
             try:

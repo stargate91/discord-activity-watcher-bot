@@ -17,6 +17,8 @@ class Config:
     STAGE_2_DAYS = int(os.getenv("STAGE_2_DAYS", "21")) # default 3 weeks (if they have role 1)
     
     CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "12")) # How often to check all users
+    
+    EXCLUDED_CHANNELS = [int(i.strip()) for i in os.getenv("EXCLUDED_CHANNELS", "").split(",") if i.strip()]
 
     @classmethod
     def validate(cls):
