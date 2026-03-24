@@ -26,8 +26,14 @@ class CheekyBot(commands.Bot):
         
     async def setup_hook(self):
         # Sync Slash Commands
-        await self.tree.sync()
-        log.info("Slash commands synced.")
+        if Config.GUILD_ID:
+            guild = discord.Object(id=Config.GUILD_ID)
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            log.info(f"Slash commands synced to guild {Config.GUILD_ID} (Instant).")
+        else:
+            await self.tree.sync()
+            log.info("Slash commands synced globally.")
 
 bot = CheekyBot()
 
