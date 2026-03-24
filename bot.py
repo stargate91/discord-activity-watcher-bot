@@ -21,6 +21,9 @@ intents.message_content = True
 intents.presences = True
 
 class CheekyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents)
+        
     async def setup_hook(self):
         # Sync Slash Commands
         if Config.GUILD_ID:
