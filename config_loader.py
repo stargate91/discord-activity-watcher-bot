@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Override=True is critical on Windows/Manager setup to prevent inheriting parent’s token
+load_dotenv(override=True)
 
 class Config:
     TOKEN = os.getenv("DISCORD_TOKEN")
@@ -19,7 +20,6 @@ class Config:
     CHECK_INTERVAL_HOURS = int(os.getenv("CHECK_INTERVAL_HOURS", "12")) # How often to check all users
     
     EXCLUDED_CHANNELS = [int(i.strip()) for i in os.getenv("EXCLUDED_CHANNELS", "").split(",") if i.strip()]
-    AFK_CHANNEL_ID = int(os.getenv("AFK_CHANNEL_ID", "0"))
 
     @classmethod
     def validate(cls):
