@@ -86,7 +86,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         title_map = {"weekly": "Heti Top 10", "monthly": "Havi Top 10", "alltime": "Összesített Top 10"}
         title_text = title_map.get(self.timeframe, "Top 10")
 
-        container = discord.ui.Container(accent_color=discord.Color.from_rgb(241, 196, 15))
+        container = discord.ui.Container(accent_color=discord.Color.blue())
         container.add_item(discord.ui.TextDisplay(f"# {title_text}"))
         container.add_item(discord.ui.Separator())
         
@@ -489,7 +489,9 @@ async def on_interaction(interaction: discord.Interaction):
                     all_scores.append((uid, p))
                 all_scores.sort(key=lambda x: x[1], reverse=True)
                 rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
-                avg_daily = db.get_user_daily_average(interaction.user.id, interaction.guild_id, days=30)
+                monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
+                user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+                avg_daily = user_monthly["messages"] / 30
                 
                 view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe=timeframe)
             
