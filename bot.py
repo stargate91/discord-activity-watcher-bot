@@ -74,11 +74,12 @@ async def load_game_franchises():
 # --- MODERN UI COMPONENTS (Components V2) ---
 
 class ModernLeaderboardView(discord.ui.LayoutView):
-    def __init__(self, items, timeframe, guild, user_data=None):
+    def __init__(self, items, timeframe, guild, user_data=None, show_user=False):
         super().__init__()
         self.guild = guild
         self.timeframe = timeframe
         self.user_data = user_data # (user_obj, points, stats, rank)
+        self.show_user = show_user
         self.setup_layout(items)
 
     def setup_layout(self, items):
@@ -115,21 +116,25 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 btn.disabled = True
             row.add_item(btn)
         
-        if self.user_data:
-            user, pts, stats, rank = self.user_data
-            info = f"**Te vagy itt: #{rank}. Helyen** — **{pts:,} pont**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
-            container.add_item(discord.ui.Section(
-                info,
-                accessory=discord.ui.Thumbnail(user.display_avatar.url)
-            ))
-            container.add_item(discord.ui.Separator())
+        # 4. Interactivity: Buttons for timeframe switching
+        row = discord.ui.ActionRow()
+        for tf, label in [("weekly", "Heti"), ("monthly", "Havi"), ("alltime", "Összesített")]:
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{tf}")
+            if tf == self.timeframe:
+                btn.style = discord.ButtonStyle.primary
+                btn.disabled = True
+            row.add_item(btn)
+        
+        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.secondary, custom_id=f"top:show_me")
+        row.add_item(btn_me)
 
         container.add_item(row)
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime"):
         super().__init__()
+        self.timeframe = timeframe
         container = discord.ui.Container(accent_color=discord.Color.blue())
         
         # 1. Header Section
@@ -174,7 +179,19 @@ class ModernProfileView(discord.ui.LayoutView):
         if recent_games:
             games_text = " — ".join([f"`{g}`" for g in recent_games])
             container.add_item(discord.ui.TextDisplay("### 🎮 Legutóbbi játékok\n" + games_text))
-            
+        
+        container.add_item(discord.ui.Separator())
+        
+        # 6. Buttons for switching (Interactivity)
+        row = discord.ui.ActionRow()
+        for tf, label in [("weekly", "Heti"), ("monthly", "Havi"), ("alltime", "Összesített")]:
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{tf}")
+            row.add_item(btn)
+        
+        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.primary, custom_id=f"top:show_me", disabled=True)
+        row.add_item(btn_me)
+        
+        container.add_item(row)
         self.add_item(container)
 
 
@@ -438,9 +455,44 @@ async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
         custom_id = interaction.data.get("custom_id", "")
         if custom_id.startswith("top:"):
-            timeframe = custom_id.split(":")[1]
-            top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
-            view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
+            parts = custom_id.split(":")
+            action = parts[1]
+            
+            # Identify current timeframe
+            if hasattr(interaction.message, "view") and hasattr(interaction.message.view, "timeframe"):
+                timeframe = interaction.message.view.timeframe
+            else:
+                timeframe = "alltime"
+                
+            if action in ["weekly", "monthly", "alltime"]:
+                timeframe = action
+                top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
+                view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
+            elif action == "show_me":
+                # Get the /me style data
+                data = db.get_user_data(interaction.user.id, interaction.guild_id)
+                if not data:
+                    await interaction.response.send_message("Még nincs adatod. Írj pár üzenetet!", ephemeral=True)
+                    return
+                voice_mins = data["voice_minutes"]
+                if interaction.user.id in voice_start_times:
+                    now_utc = datetime.datetime.now(datetime.timezone.utc)
+                    voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
+                points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
+                social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
+                partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
+                recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
+                all_data = db.get_leaderboard_data(interaction.guild_id)
+                all_scores = []
+                for uid, s in all_data.items():
+                    p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
+                    all_scores.append((uid, p))
+                all_scores.sort(key=lambda x: x[1], reverse=True)
+                rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+                avg_daily = db.get_user_daily_average(interaction.user.id, interaction.guild_id, days=30)
+                
+                view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe=timeframe)
+            
             await interaction.response.edit_message(view=view)
 
 @bot.tree.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
