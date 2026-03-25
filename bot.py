@@ -135,7 +135,7 @@ class ModernProfileView(discord.ui.LayoutView):
             f"**Összpontszám:** ### **{points:,}**\n"
             f"**Üzenetek:** `{data['message_count']}` | **Reakciók:** `{data['reaction_count']}` | **Voice:** `{int(voice_mins)}p`"
         )
-        container.add_item(discord.ui.Section("### 📊 Aktivitás\n" + stats_text))
+        container.add_item(discord.ui.Section("### 📊 Aktivitás\n" + stats_text, accessory=None))
         
         # 3. Stats Section
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
@@ -143,7 +143,7 @@ class ModernProfileView(discord.ui.LayoutView):
             f"**Utoljára aktív:** `{last_active_str}`\n"
             f"**Napi átlag (30 nap):** `{avg_daily:.2f} üzenet/nap`"
         )
-        container.add_item(discord.ui.Section("### 📈 Statisztikák\n" + timing_text))
+        container.add_item(discord.ui.Section("### 📈 Statisztikák\n" + timing_text, accessory=None))
         
         # 4. Social Section
         social_lines = []
@@ -158,12 +158,12 @@ class ModernProfileView(discord.ui.LayoutView):
                 social_lines.append(f"**Best Friend (Voice):** <@{pid}>")
         
         if social_lines:
-            container.add_item(discord.ui.Section("### 🤝 Közösség (30 nap)\n" + "\n".join(social_lines)))
+            container.add_item(discord.ui.Section("### 🤝 Közösség (30 nap)\n" + "\n".join(social_lines), accessory=None))
         
         # 5. Games Section
         if recent_games:
             games_text = " — ".join([f"`{g}`" for g in recent_games])
-            container.add_item(discord.ui.Section("### 🎮 Legutóbbi játékok\n" + games_text))
+            container.add_item(discord.ui.Section("### 🎮 Legutóbbi játékok\n" + games_text, accessory=None))
             
         self.add_item(container)
 
