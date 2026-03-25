@@ -74,13 +74,14 @@ async def load_game_franchises():
 # --- MODERN UI COMPONENTS (Components V2) ---
 
 class ModernLeaderboardView(discord.ui.LayoutView):
-    def __init__(self, items, timeframe, guild, user_data=None, show_user=False, static=False):
+    def __init__(self, items, timeframe, guild, user_data=None, show_user=False, static=False, shared_by=None):
         super().__init__()
         self.guild = guild
         self.timeframe = timeframe
         self.user_data = user_data # (user_obj, points, stats, rank)
         self.show_user = show_user
         self.static = static
+        self.shared_by = shared_by
         self.setup_layout(items)
 
     def setup_layout(self, items):
@@ -88,6 +89,10 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         title_text = title_map.get(self.timeframe, "Top 10")
 
         container = discord.ui.Container(accent_color=discord.Color.blue())
+        if self.shared_by:
+            container.add_item(discord.ui.TextDisplay(f"📊 **{self.shared_by}** megosztotta ezt a ranglistát:"))
+            container.add_item(discord.ui.Separator())
+
         container.add_item(discord.ui.TextDisplay(f"# {title_text}"))
         container.add_item(discord.ui.Separator())
         
@@ -140,14 +145,19 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime", static=False):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
+        self.shared_by = shared_by
         # Store for sharing
         self.user_data_full = (user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
         container = discord.ui.Container(accent_color=discord.Color.blue())
         
+        if self.shared_by:
+            container.add_item(discord.ui.TextDisplay(f"📊 **{self.shared_by}** megosztotta a profilját:"))
+            container.add_item(discord.ui.Separator())
+
         # 1. Header Section
         container.add_item(discord.ui.Section(
             f"# {user.display_name} • #{rank}. Helyezés\nÖsszesített profilod a szerveren.",
@@ -557,12 +567,12 @@ async def on_interaction(interaction: discord.Interaction):
                     monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
                     user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
                     avg_daily = user_monthly["messages"] / 30
-                    view_shared = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True)
+                    view_shared = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True, shared_by=interaction.user.display_name)
                 else:
                     top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
-                    view_shared = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats, static=True)
+                    view_shared = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)
 
-                await interaction.channel.send(f"📊 **{interaction.user.display_name}** megosztotta statisztikáit:", view=view_shared)
+                await interaction.channel.send(view=view_shared)
                 await interaction.response.send_message("Sikeresen megosztva a csatornán! ✅", ephemeral=True)
                 return
             
