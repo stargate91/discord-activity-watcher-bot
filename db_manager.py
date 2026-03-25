@@ -89,6 +89,16 @@ class DBManager:
                     role_suffix TEXT
                 )
             """)
+            # Active Voice Sessions (Persistence across restarts)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS active_voice_sessions (
+                    user_id INTEGER,
+                    guild_id INTEGER,
+                    channel_id INTEGER,
+                    joined_at TIMESTAMP,
+                    PRIMARY KEY (user_id, guild_id)
+                )
+            """)
             
             # Migrations for user_activity
             for col, ctype in [("returned_at", "TIMESTAMP DEFAULT NULL"), ("message_count", "INTEGER DEFAULT 0"), 
@@ -403,10 +413,48 @@ class DBManager:
             return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
     def reset_database(self):
         """Clears all activity data while keeping configuration (tracked games)."""
-        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history"]
+        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions"]
         with self._get_connection() as conn:
             for table in tables:
                 conn.execute(f"DELETE FROM {table}")
             conn.commit()
+
+    # --- VOICE PERSISTENCE ---
+
+    def start_voice_session(self, user_id, guild_id, channel_id, joined_at):
+        """Records the start of a voice session in the database."""
+        joined_at_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET 
+                    channel_id = excluded.channel_id,
+                    joined_at = excluded.joined_at
+            """, (user_id, guild_id, channel_id, joined_at_str))
+            conn.commit()
+
+    def end_voice_session(self, user_id, guild_id):
+        """Removes an active voice session and returns the joined_at time."""
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT joined_at FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            row = cursor.fetchone()
+            if row:
+                conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+                conn.commit()
+                return datetime.datetime.fromisoformat(row[0])
+            return None
+
+    def get_active_voice_sessions(self, guild_id=None):
+        """Returns all currently active voice sessions."""
+        with self._get_connection() as conn:
+            if guild_id:
+                cursor = conn.execute("SELECT user_id, channel_id, joined_at FROM active_voice_sessions WHERE guild_id = ?", (guild_id,))
+            else:
+                cursor = conn.execute("SELECT user_id, channel_id, joined_at FROM active_voice_sessions")
+            
+            rows = cursor.fetchall()
+            # Returns {user_id: joined_at_datetime}
+            return {row[0]: datetime.datetime.fromisoformat(row[2]) for row in rows}
 
 

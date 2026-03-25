@@ -1,0 +1,195 @@
+import discord
+from discord.ext import tasks, commands
+import datetime
+from core.logger import log
+from config_loader import Config
+from core.messages import Messages
+
+class EventsCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.db = bot.db
+        self.tracker = bot.tracker
+        
+    def cog_load(self):
+        if not self.check_inactivity_task.is_running():
+            self.check_inactivity_task.start()
+        if not self.cleanup_inactive_roles_task.is_running():
+            self.cleanup_inactive_roles_task.start()
+
+    def cog_unload(self):
+        self.check_inactivity_task.cancel()
+        self.cleanup_inactive_roles_task.cancel()
+
+    async def handle_member_activity(self, member: discord.Member, event_type=None, channel_id=None):
+        if member.bot: return
+        if channel_id and channel_id in Config.EXCLUDED_CHANNELS: return
+            
+        self.db.update_activity(member.id, member.guild.id)
+        if event_type == "message":
+            self.db.increment_messages(member.id, member.guild.id)
+        elif event_type == "reaction":
+            self.db.increment_reactions(member.id, member.guild.id)
+        
+        stage1_role = member.guild.get_role(Config.STAGE_1_ROLE_ID)
+        stage2_role = member.guild.get_role(Config.STAGE_2_ROLE_ID)
+        
+        if stage1_role and stage1_role in member.roles:
+            try:
+                if stage2_role and stage2_role not in member.roles:
+                    await member.add_roles(stage2_role)
+                await member.remove_roles(stage1_role)
+                self.db.set_returned_at(member.id, member.guild.id, datetime.datetime.now(datetime.timezone.utc))
+            except discord.Forbidden: pass
+        elif stage2_role and stage2_role in member.roles:
+            data = self.db.get_user_data(member.id, member.guild.id)
+            if data and data["returned_at"]:
+                delta = datetime.datetime.now(datetime.timezone.utc) - data["returned_at"].astimezone(datetime.timezone.utc)
+                if 60 <= delta.total_seconds() <= (Config.STAGE_2_GRACE_DAYS * 24 * 3600):
+                    try: 
+                        await member.remove_roles(stage2_role)
+                        self.db.set_returned_at(member.id, member.guild.id, None)
+                    except discord.Forbidden: pass
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=Messages.PRESENCE_WATCHING))
+        await self.bot.load_game_franchises()
+        await self.bot.migrate_role_logs()
+        
+        log.info(f"Cog Events: Bot ready as {self.bot.user}")
+        
+        # 1. Load active sessions from DB
+        db_sessions = self.db.get_active_voice_sessions()
+        
+        # 2. Sync with current voice state across all guilds
+        for guild in self.bot.guilds:
+            # Sync user data existence
+            for m in guild.members:
+                if m.bot: continue
+                if not self.db.get_user_data(m.id, guild.id):
+                    self.db.update_activity(m.id, guild.id)
+            
+            # Sync voice sessions
+            for m in guild.members:
+                if m.bot: continue
+                is_in_voice = m.voice and m.voice.channel and m.voice.channel.id != Config.AFK_CHANNEL_ID and m.voice.channel != guild.afk_channel
+                
+                # Case A: In voice now
+                if is_in_voice:
+                    if m.id in db_sessions:
+                        # Continue existing session
+                        self.bot.voice_start_times[m.id] = db_sessions[m.id]
+                    else:
+                        # New session (bot missed the join event)
+                        now = datetime.datetime.now(datetime.timezone.utc)
+                        self.bot.voice_start_times[m.id] = now
+                        self.db.start_voice_session(m.id, guild.id, m.voice.channel.id, now)
+                
+                # Case B: In DB session but NOT in voice now (bot missed the leave event)
+                elif m.id in db_sessions:
+                    # Close the stale session
+                    start = self.db.end_voice_session(m.id, guild.id)
+                    if start:
+                        now = datetime.datetime.now(datetime.timezone.utc)
+                        mins = (now - start).total_seconds() / 60
+                        if mins > 0:
+                            self.db.add_voice_minutes(m.id, guild.id, mins)
+                            log.info(f"Closed stale voice session for {m} ({int(mins)} mins credited)")
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot or not message.guild: return
+        await self.handle_member_activity(message.author, event_type="message", channel_id=message.channel.id)
+
+    @commands.Cog.listener()
+    async def on_presence_update(self, before, after):
+        await self.tracker.handle_presence_update(before, after)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if member.bot: return
+        
+        # Detect Channel Change (Join, Leave, Move)
+        if before.channel != after.channel:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            
+            # Step 1: Handle LEAVE or MOVE AWAY from a valid channel
+            is_leaving_valid = before.channel is not None and before.channel.id != Config.AFK_CHANNEL_ID and before.channel != member.guild.afk_channel
+            if is_leaving_valid:
+                # End session in DB and remove from memory cache
+                start = self.db.end_voice_session(member.id, member.guild.id)
+                self.bot.voice_start_times.pop(member.id, None)
+                
+                if start:
+                    mins = (now - start).total_seconds() / 60
+                    if mins > 0: 
+                        self.db.add_voice_minutes(member.id, member.guild.id, mins)
+                        self.db.log_voice_session(member.id, member.guild.id, before.channel.id, start, now, mins)
+            
+            # Step 2: Handle JOIN or MOVE TO a valid channel
+            is_joining_valid = after.channel is not None and after.channel.id != Config.AFK_CHANNEL_ID and after.channel != member.guild.afk_channel
+            if is_joining_valid:
+                # Start session in DB and update memory cache
+                self.db.start_voice_session(member.id, member.guild.id, after.channel.id, now)
+                self.bot.voice_start_times[member.id] = now
+                await self.handle_member_activity(member)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        if payload.guild_id:
+            guild = self.bot.get_guild(payload.guild_id)
+            if not guild: return
+            member = payload.member or await guild.fetch_member(payload.user_id)
+            if member: 
+                await self.handle_member_activity(member, event_type="reaction", channel_id=payload.channel_id)
+                try:
+                    channel = self.bot.get_channel(payload.channel_id)
+                    if channel:
+                        message = discord.utils.get(self.bot.cached_messages, id=payload.message_id)
+                        if not message:
+                            message = await channel.fetch_message(payload.message_id)
+                        
+                        if message and message.author and not message.author.bot:
+                            if message.author.id != member.id:
+                                self.db.log_reaction_interaction(
+                                    user_id=member.id,
+                                    target_user_id=message.author.id,
+                                    guild_id=guild.id,
+                                    channel_id=channel.id,
+                                    message_id=payload.message_id,
+                                    emoji=str(payload.emoji)
+                                )
+                except (discord.NotFound, discord.Forbidden): pass
+
+    @tasks.loop(hours=Config.CHECK_INTERVAL_HOURS) 
+    async def check_inactivity_task(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for guild in self.bot.guilds:
+            r1, r2 = guild.get_role(Config.STAGE_1_ROLE_ID), guild.get_role(Config.STAGE_2_ROLE_ID)
+            if not r1: continue
+            data = self.db.get_all_guild_data(guild.id)
+            for uid, d in data.items():
+                m = guild.get_member(uid)
+                if not m: continue
+                inactive_days = (now - d["last_active"].astimezone(datetime.timezone.utc)).days
+                if inactive_days >= Config.STAGE_1_DAYS:
+                    if r1 not in m.roles:
+                        try:
+                            await m.add_roles(r1)
+                            if r2 and r2 in m.roles: await m.remove_roles(r2)
+                            self.db.set_returned_at(uid, guild.id, None)
+                        except discord.Forbidden: pass
+                elif d["returned_at"]:
+                    if (now - d["returned_at"].astimezone(datetime.timezone.utc)).days >= Config.STAGE_2_GRACE_DAYS:
+                        if r2 and r2 in m.roles:
+                            try: await m.remove_roles(r2)
+                            except discord.Forbidden: pass
+                        self.db.set_returned_at(uid, guild.id, None)
+
+    @tasks.loop(hours=24)
+    async def cleanup_inactive_roles_task(self):
+        await self.tracker.cleanup_inactive_roles(self.bot)
+
+async def setup(bot):
+    await bot.add_cog(EventsCog(bot))
