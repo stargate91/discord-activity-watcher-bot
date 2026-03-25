@@ -442,7 +442,7 @@ def get_top_data(guild, user=None, timeframe="alltime"):
     data = db.get_leaderboard_data(guild.id, days)
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     
-    # Add live voice session time
+    # Add live voice session time for everyone in the guild
     for uid, start in voice_start_times.items():
         m = guild.get_member(uid)
         if m and m.guild.id == guild.id:
@@ -453,23 +453,32 @@ def get_top_data(guild, user=None, timeframe="alltime"):
                 data[uid] = {"messages": 0, "reactions": 0, "voice": curr_mins}
 
     scores = []
+    user_full_stats = None # Will store (user, db_data_row, total_pts, total_voice_mins, rank)
+    
     for uid, stats in data.items():
         points = (stats["messages"] * 10) + (stats["reactions"] * 5) + (int(stats["voice"]) * 2)
-        if points > 0: scores.append((uid, points, stats))
+        if points > 0:
+            scores.append((uid, points, stats))
     
     scores.sort(key=lambda x: x[1], reverse=True)
     
     top_10 = scores[:10]
     
-    # Find specific user data for the footer
-    user_data = None
     if user:
         rank = next((i for i, (uid, _, _) in enumerate(scores, 1) if uid == user.id), "N/A")
         if rank != "N/A":
             u_entry = next(x for x in scores if x[0] == user.id)
-            user_data = (user, u_entry[1], u_entry[2], rank)
+            # Reconstruct DB-style data dict for the profile view
+            db_compat_data = {
+                "message_count": u_entry[2]["messages"],
+                "reaction_count": u_entry[2]["reactions"],
+                "voice_minutes": u_entry[2]["voice"], # This already includes live time
+                "last_active": now_utc # Approximation
+            }
+            # user_full_stats format: (user, db_compat_data, points, voice_mins, rank)
+            user_full_stats = (user, db_compat_data, u_entry[1], u_entry[2]["voice"], rank)
             
-    return top_10, user_data
+    return top_10, user_full_stats
 
 @bot.tree.command(name="top", description="Mutatja a heti, havi vagy összesített toplistát.")
 @app_commands.describe(timeframe="Válassz időszakot (weekly, monthly, alltime)")
@@ -499,26 +508,17 @@ async def on_interaction(interaction: discord.Interaction):
                 top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
                 view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
             elif action == "show_me":
-                # Get the /me style data
-                data = db.get_user_data(interaction.user.id, interaction.guild_id)
-                if not data:
-                    await interaction.response.send_message("Még nincs adatod. Írj pár üzenetet!", ephemeral=True)
+                top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
+                if not u_stats:
+                    await interaction.response.send_message("Még nincs elég adatod ehhez az időszakhoz. Írj pár üzenetet! 🚀", ephemeral=True)
                     return
-                voice_mins = data["voice_minutes"]
-                if interaction.user.id in voice_start_times:
-                    now_utc = datetime.datetime.now(datetime.timezone.utc)
-                    voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
-                points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
+                
+                # u_stats: (user, db_data, points, voice_mins, rank)
+                user, data, points, voice_mins, rank = u_stats
+                
                 social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
                 partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
                 recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
-                all_data = db.get_leaderboard_data(interaction.guild_id)
-                all_scores = []
-                for uid, s in all_data.items():
-                    p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
-                    all_scores.append((uid, p))
-                all_scores.sort(key=lambda x: x[1], reverse=True)
-                rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
                 
                 monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
                 user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
@@ -546,28 +546,22 @@ async def on_interaction(interaction: discord.Interaction):
                     # Since it's gone in the new request ("ne legyen alatta"), we don't worry.
                 
                 # RE-FIX: I'll just use the share logic from before but fetch data based on current_tf
+            elif action == "share":
                 if timeframe == "me":
-                    # Re-calculate profile
-                    data = db.get_user_data(interaction.user.id, interaction.guild_id)
-                    voice_mins = data["voice_minutes"]
-                    if interaction.user.id in voice_start_times:
-                        now_utc = datetime.datetime.now(datetime.timezone.utc)
-                        voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
-                    points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
-                    social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
-                    partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
-                    recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
-                    all_data = db.get_leaderboard_data(interaction.guild_id)
-                    all_scores = []
-                    for uid, s in all_data.items():
-                        p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
-                        all_scores.append((uid, p))
-                    all_scores.sort(key=lambda x: x[1], reverse=True)
-                    rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+                    # For profile sharing, we default to alltime for now or the last known tf
+                    _, u_stats = get_top_data(interaction.guild, interaction.user, "alltime")
+                    if not u_stats: return
+                    user, data, points, voice_mins, rank = u_stats
+                    
+                    social = db.get_user_social_stats(user.id, interaction.guild_id, days=30)
+                    partners = db.get_top_voice_partners(user.id, interaction.guild_id, days=30)
+                    recent_games = db.get_user_recent_games(user.id, interaction.guild_id, limit=3)
+                    
                     monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
-                    user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+                    user_monthly = monthly_data.get(user.id, {"messages":0})
                     avg_daily = user_monthly["messages"] / 30
-                    view_shared = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True, shared_by=interaction.user.display_name)
+                    
+                    view_shared = ModernProfileView(user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True, shared_by=interaction.user.display_name)
                 else:
                     top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
                     view_shared = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)
@@ -580,39 +574,27 @@ async def on_interaction(interaction: discord.Interaction):
 
 @bot.tree.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
 async def me(interaction: discord.Interaction):
-    data = db.get_user_data(interaction.user.id, interaction.guild_id)
-    if not data:
+    # Use centralized logic for points and rank
+    _, u_stats = get_top_data(interaction.guild, interaction.user, "alltime")
+    
+    if not u_stats:
         await interaction.response.send_message("Még nincs adatod az adatbázisban. Írj pár üzenetet előbb!", ephemeral=True)
         return
 
-    # Add live voice time
-    voice_mins = data["voice_minutes"]
-    if interaction.user.id in voice_start_times:
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
-        voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
-
-    points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
+    # u_stats: (user, db_data, points, voice_mins, rank)
+    user, data, points, voice_mins, rank = u_stats
     
     # Advanced calculations
-    social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
-    partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
-    recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
-    
-    # Calculate Rank (All time)
-    all_data = db.get_leaderboard_data(interaction.guild_id)
-    all_scores = []
-    for uid, s in all_data.items():
-        p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
-        all_scores.append((uid, p))
-    all_scores.sort(key=lambda x: x[1], reverse=True)
-    rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+    social = db.get_user_social_stats(user.id, interaction.guild_id, days=30)
+    partners = db.get_top_voice_partners(user.id, interaction.guild_id, days=30)
+    recent_games = db.get_user_recent_games(user.id, interaction.guild_id, limit=3)
     
     # Calculate Daily Average (30 days)
     monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
-    user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+    user_monthly = monthly_data.get(user.id, {"messages":0})
     avg_daily = user_monthly["messages"] / 30
     
-    view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
+    view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
     await interaction.response.send_message(view=view, ephemeral=True)
 
 @bot.tree.command(name="status_report", description="[Admin Channel] Generál egy részletes TXT jelentést.")
