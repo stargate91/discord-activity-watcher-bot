@@ -41,15 +41,8 @@ class CheekyBot(commands.Bot):
                 except Exception as e:
                     log.error(f"Failed to load extension {filename}: {e}")
 
-        # Sync Slash Commands
-        if Config.GUILD_ID:
-            guild = discord.Object(id=Config.GUILD_ID)
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            log.info(f"Slash commands synced to guild {Config.GUILD_ID} (Instant).")
-        else:
-            await self.tree.sync()
-            log.info("Slash commands synced globally.")
+        # Extensions are loaded, manual sync required via !sync
+        log.info("Extensions loaded. Use !sync to propagate slash commands.")
 
     # Shared Helper methods accessible from Cogs via self.bot
     def get_top_data(self, guild, user=None, timeframe="alltime"):

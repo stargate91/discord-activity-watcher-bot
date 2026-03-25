@@ -80,5 +80,48 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
+    @commands.command()
+    @commands.guild_only()
+    @commands.is_owner()
+    async def sync(self, ctx: commands.Context, spec: str | None = None):
+        """
+        Manually sync slash commands.
+        Usage: 
+          !sync        -> Syncs to the current guild.
+          !sync copy   -> Copies global to current guild and syncs.
+          !sync global -> Syncs globally (takes ~1hr).
+        """
+        if spec == "global":
+            synced = await self.bot.tree.sync()
+            await ctx.send(f"Synced {len(synced)} commands globally.")
+        elif spec == "copy":
+            self.bot.tree.copy_global_to(guild=ctx.guild)
+            synced = await self.bot.tree.sync(guild=ctx.guild)
+            await ctx.send(f"Copied global and synced {len(synced)} commands to this guild.")
+        else:
+            synced = await self.bot.tree.sync(guild=ctx.guild)
+            await ctx.send(f"Synced {len(synced)} commands to this guild.")
+
+    @app_commands.command(name="sync", description="[Owner] Slash parancsok manuális szinkronizálása.")
+    @app_commands.describe(mode="Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
+        if not await self.bot.is_owner(interaction.user):
+            await interaction.response.send_message("Csak a bot tulajdonosa használhatja ezt.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        if mode == "global":
+            synced = await self.bot.tree.sync()
+            await interaction.followup.send(f"Synced {len(synced)} commands globally.")
+        elif mode == "copy":
+            self.bot.tree.copy_global_to(guild=interaction.guild)
+            synced = await self.bot.tree.sync(guild=interaction.guild)
+            await interaction.followup.send(f"Copied global and synced {len(synced)} commands to this guild.")
+        else:
+            synced = await self.bot.tree.sync(guild=interaction.guild)
+            await interaction.followup.send(f"Synced {len(synced)} commands to this guild.")
+
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
