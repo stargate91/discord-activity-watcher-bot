@@ -74,12 +74,13 @@ async def load_game_franchises():
 # --- MODERN UI COMPONENTS (Components V2) ---
 
 class ModernLeaderboardView(discord.ui.LayoutView):
-    def __init__(self, items, timeframe, guild, user_data=None, show_user=False):
+    def __init__(self, items, timeframe, guild, user_data=None, show_user=False, static=False):
         super().__init__()
         self.guild = guild
         self.timeframe = timeframe
         self.user_data = user_data # (user_obj, points, stats, rank)
         self.show_user = show_user
+        self.static = static
         self.setup_layout(items)
 
     def setup_layout(self, items):
@@ -116,6 +117,10 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 btn.disabled = True
             row.add_item(btn)
         
+        if self.static:
+            self.add_item(container)
+            return
+
         # 4. Interactivity: Buttons for timeframe switching
         row = discord.ui.ActionRow()
         for tf, label in [("weekly", "Heti"), ("monthly", "Havi"), ("alltime", "Összesített")]:
@@ -128,13 +133,19 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.secondary, custom_id=f"top:show_me")
         row.add_item(btn_me)
 
+        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:share")
+        row.add_item(btn_share)
+
         container.add_item(row)
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime"):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime", static=False):
         super().__init__()
         self.timeframe = timeframe
+        self.static = static
+        # Store for sharing
+        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
         container = discord.ui.Container(accent_color=discord.Color.blue())
         
         # 1. Header Section
@@ -180,6 +191,10 @@ class ModernProfileView(discord.ui.LayoutView):
             games_text = " — ".join([f"`{g}`" for g in recent_games])
             container.add_item(discord.ui.TextDisplay("### 🎮 Legutóbbi játékok\n" + games_text))
         
+        if self.static:
+            self.add_item(container)
+            return
+
         container.add_item(discord.ui.Separator())
         
         # 6. Buttons for switching (Interactivity)
@@ -191,6 +206,9 @@ class ModernProfileView(discord.ui.LayoutView):
         btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.primary, custom_id=f"top:show_me", disabled=True)
         row.add_item(btn_me)
         
+        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:share")
+        row.add_item(btn_share)
+
         container.add_item(row)
         self.add_item(container)
 
@@ -494,6 +512,19 @@ async def on_interaction(interaction: discord.Interaction):
                 avg_daily = user_monthly["messages"] / 30
                 
                 view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe=timeframe)
+            elif action == "share":
+                if isinstance(interaction.message.view, ModernLeaderboardView):
+                    mv = interaction.message.view
+                    top_10, u_stats = get_top_data(interaction.guild, interaction.user, mv.timeframe)
+                    view_shared = ModernLeaderboardView(top_10, mv.timeframe, interaction.guild, u_stats, show_user=mv.show_user, static=True)
+                else:
+                    pv = interaction.message.view
+                    u, d, p, v, s, pr, r, g, a = pv.user_data_full
+                    view_shared = ModernProfileView(u, d, p, v, s, pr, r, g, a, timeframe=pv.timeframe, static=True)
+                
+                await interaction.channel.send(f"📊 **{interaction.user.display_name}** megosztotta statisztikáit:", view=view_shared)
+                await interaction.response.send_message("Sikeresen megosztva a csatornán! ✅", ephemeral=True)
+                return
             
             await interaction.response.edit_message(view=view)
 
