@@ -124,16 +124,16 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         # 4. Interactivity: Buttons for timeframe switching
         row = discord.ui.ActionRow()
         for tf, label in [("weekly", "Heti"), ("monthly", "Havi"), ("alltime", "Összesített")]:
-            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{tf}")
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
             if tf == self.timeframe:
                 btn.style = discord.ButtonStyle.primary
                 btn.disabled = True
             row.add_item(btn)
         
-        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.secondary, custom_id=f"top:show_me")
+        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:show_me")
         row.add_item(btn_me)
 
-        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:share")
+        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
         row.add_item(btn_share)
 
         container.add_item(row)
@@ -200,13 +200,13 @@ class ModernProfileView(discord.ui.LayoutView):
         # 6. Buttons for switching (Interactivity)
         row = discord.ui.ActionRow()
         for tf, label in [("weekly", "Heti"), ("monthly", "Havi"), ("alltime", "Összesített")]:
-            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{tf}")
+            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
             row.add_item(btn)
         
-        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.primary, custom_id=f"top:show_me", disabled=True)
+        btn_me = discord.ui.Button(label="Saját helyezésem", style=discord.ButtonStyle.primary, custom_id=f"top:{self.timeframe}:show_me", disabled=True)
         row.add_item(btn_me)
         
-        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:share")
+        btn_share = discord.ui.Button(label="Megosztás", style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
         row.add_item(btn_share)
 
         container.add_item(row)
@@ -473,15 +473,17 @@ async def on_interaction(interaction: discord.Interaction):
     if interaction.type == discord.InteractionType.component:
         custom_id = interaction.data.get("custom_id", "")
         if custom_id.startswith("top:"):
+            # Format: top:current_tf:action
             parts = custom_id.split(":")
-            action = parts[1]
-            
-            # Identify current timeframe
-            if hasattr(interaction.message, "view") and hasattr(interaction.message.view, "timeframe"):
-                timeframe = interaction.message.view.timeframe
+            if len(parts) >= 3:
+                current_tf = parts[1]
+                action = parts[2]
             else:
-                timeframe = "alltime"
-                
+                # Fallback for old buttons if any
+                current_tf = "alltime"
+                action = parts[1]
+            
+            timeframe = current_tf
             if action in ["weekly", "monthly", "alltime"]:
                 timeframe = action
                 top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
@@ -507,21 +509,59 @@ async def on_interaction(interaction: discord.Interaction):
                     all_scores.append((uid, p))
                 all_scores.sort(key=lambda x: x[1], reverse=True)
                 rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+                
                 monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
                 user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
                 avg_daily = user_monthly["messages"] / 30
                 
-                view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe=timeframe)
+                view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="me")
             elif action == "share":
-                if isinstance(interaction.message.view, ModernLeaderboardView):
-                    mv = interaction.message.view
-                    top_10, u_stats = get_top_data(interaction.guild, interaction.user, mv.timeframe)
-                    view_shared = ModernLeaderboardView(top_10, mv.timeframe, interaction.guild, u_stats, show_user=mv.show_user, static=True)
-                else:
-                    pv = interaction.message.view
-                    u, d, p, v, s, pr, r, g, a = pv.user_data_full
-                    view_shared = ModernProfileView(u, d, p, v, s, pr, r, g, a, timeframe=pv.timeframe, static=True)
+                # We need to recreate the shared view. 
+                # Since we don't have the message.view object, we determine it based on the current context.
+                # If we are in 'show_me' mode, we share the profile. 
+                # How do we know if we are in show_me mode? 
+                # Actually, the custom_id encoding doesn't tell us if we are CURRENTLY seeing a profile or leaderboard.
+                # BUT, if current_tf was encoded as 'me', we could know.
+                # Let's use 'me' as a special timeframe value in custom_id for profile view.
                 
+                if current_tf == "me":
+                    # Share profile (re-fetching/calculating is necessary since we lack view object)
+                    # For simplicity, I'll fetch /me data again
+                    pass # logic below
+                else:
+                    # Share leaderboard
+                    top_10, u_stats = get_top_data(interaction.guild, interaction.user, current_tf)
+                    view_shared = ModernLeaderboardView(top_10, current_tf, interaction.guild, u_stats, static=True)
+                    # If we wanted to share "Your Rank" section, we'd need to know if it was visible.
+                    # Since it's gone in the new request ("ne legyen alatta"), we don't worry.
+                
+                # RE-FIX: I'll just use the share logic from before but fetch data based on current_tf
+                if timeframe == "me":
+                    # Re-calculate profile
+                    data = db.get_user_data(interaction.user.id, interaction.guild_id)
+                    voice_mins = data["voice_minutes"]
+                    if interaction.user.id in voice_start_times:
+                        now_utc = datetime.datetime.now(datetime.timezone.utc)
+                        voice_mins += (now_utc - voice_start_times[interaction.user.id]).total_seconds() / 60
+                    points = (data["message_count"] * 10) + (data["reaction_count"] * 5) + (int(voice_mins) * 2)
+                    social = db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=30)
+                    partners = db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=30)
+                    recent_games = db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=3)
+                    all_data = db.get_leaderboard_data(interaction.guild_id)
+                    all_scores = []
+                    for uid, s in all_data.items():
+                        p = (s["messages"] * 10) + (s["reactions"] * 5) + (int(s["voice"]) * 2)
+                        all_scores.append((uid, p))
+                    all_scores.sort(key=lambda x: x[1], reverse=True)
+                    rank = next((i for i, (uid, _) in enumerate(all_scores, 1) if uid == interaction.user.id), "N/A")
+                    monthly_data = db.get_leaderboard_data(interaction.guild_id, days=30)
+                    user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+                    avg_daily = user_monthly["messages"] / 30
+                    view_shared = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True)
+                else:
+                    top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
+                    view_shared = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats, static=True)
+
                 await interaction.channel.send(f"📊 **{interaction.user.display_name}** megosztotta statisztikáit:", view=view_shared)
                 await interaction.response.send_message("Sikeresen megosztva a csatornán! ✅", ephemeral=True)
                 return
