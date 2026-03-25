@@ -78,7 +78,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         
         # Gold accent for top 10
         container = discord.ui.Container(accent_color=discord.Color.from_rgb(241, 196, 15))
-        container.add_item(discord.ui.TextDisplay(f"# 🏆 {title}"))
+        container.add_item(discord.ui.TextDisplay(f"# {title}"))
         container.add_item(discord.ui.Separator())
         
         if not items:
@@ -87,25 +87,18 @@ class ModernLeaderboardView(discord.ui.LayoutView):
             for i, (uid, pts, stats) in enumerate(items, 1):
                 m = guild.get_member(uid)
                 name = m.mention if m else f"Ismeretlen ({uid})"
-                plain_name = m.display_name if m else f"Ismeretlen ({uid})"
                 medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
                 
-                info = f"{medal} {name} • **{pts:,} pont**\n╰ `💬 {stats['messages']} | 🎭 {stats['reactions']} | 🎙️ {int(stats['voice'])} perc`"
+                # Simplified stats line without excessive emojis
+                info = f"{medal} {name} — **{pts:,} pont**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
                 
-                if i <= 3 and m:
-                    # Top 3 uses Section + Avatar for that premium look
-                    container.add_item(discord.ui.Section(
-                        info,
-                        accessory=discord.ui.Thumbnail(m.display_avatar.url)
-                    ))
-                else:
-                    container.add_item(discord.ui.TextDisplay(info))
+                container.add_item(discord.ui.TextDisplay(info))
                 
                 if i < len(items):
                     container.add_item(discord.ui.Separator())
         
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay("### Pontozás: 💬 10 | 🎭 5 | 🎙️ 2/perc"))
+        container.add_item(discord.ui.TextDisplay("### Pontozás: üzenet 10 | reakció 5 | voice 2/perc"))
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
@@ -122,43 +115,43 @@ class ModernProfileView(discord.ui.LayoutView):
         
         container.add_item(discord.ui.Separator())
         
-        # Core Stats summary
+        # Core Stats summary without emojis
         stats_text = (
-            f"🏆 **Összpontszám:** ### **{points:,}**\n"
-            f"💬 **Üzenetek:** `{data['message_count']}`\n"
-            f"🎭 **Reakciók:** `{data['reaction_count']}`\n"
-            f"🎙️ **Voice idő:** `{int(voice_mins)} perc`"
+            f"**Összpontszám:** ### **{points:,}**\n"
+            f"**Üzenetek:** `{data['message_count']}`\n"
+            f"**Reakciók:** `{data['reaction_count']}`\n"
+            f"**Voice idő:** `{int(voice_mins)} perc`"
         )
         container.add_item(discord.ui.TextDisplay(stats_text))
         
         # Activity Timing and Averages
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
         timing_text = (
-            f"📅 **Utoljára aktív:** `{last_active_str}`\n"
-            f"📈 **Napi átlag (30 nap):** `{avg_daily:.2f} üzenet/nap`"
+            f"**Utoljára aktív:** `{last_active_str}`\n"
+            f"**Napi átlag (30 nap):** `{avg_daily:.2f} üzenet/nap`"
         )
         container.add_item(discord.ui.TextDisplay(timing_text))
         
         # Recent Games
         if recent_games:
-            games_text = "🎮 **Legutóbbi játékok:** " + ", ".join([f"`{g}`" for g in recent_games])
+            games_text = "**Legutóbbi játékok:** " + ", ".join([f"`{g}`" for g in recent_games])
             container.add_item(discord.ui.TextDisplay(games_text))
         
-        # Social stats section
+        # Social stats section without icons
         social_lines = []
         if social["top_channel"]:
-            social_lines.append(f"🏠 **Kedvenc szoba:** <#{social['top_channel']}>")
+            social_lines.append(f"**Kedvenc szoba:** <#{social['top_channel']}>")
         if social["top_emoji"]:
-            social_lines.append(f"✨ **Kedvenc emoji:** {social['top_emoji']}")
+            social_lines.append(f"**Kedvenc emoji:** {social['top_emoji']}")
         if social["top_target"]:
-            social_lines.append(f"🤝 **Fő célpont:** <@{social['top_target']}>")
+            social_lines.append(f"**Fő célpont:** <@{social['top_target']}>")
         if partners:
             for pid, _ in partners[:1]:
-                social_lines.append(f"🫂 **Best Friend (Voice):** <@{pid}>")
+                social_lines.append(f"**Best Friend (Voice):** <@{pid}>")
         
         if social_lines:
             container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.TextDisplay("### 🤝 Szociális statisztikák (30 nap)\n" + "\n".join(social_lines)))
+            container.add_item(discord.ui.TextDisplay("### Szociális statisztikák (30 nap)\n" + "\n".join(social_lines)))
             
         self.add_item(container)
 
