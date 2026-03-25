@@ -74,10 +74,11 @@ async def load_game_franchises():
 # --- MODERN UI COMPONENTS (Components V2) ---
 
 class ModernLeaderboardView(discord.ui.LayoutView):
-    def __init__(self, items, timeframe, guild):
+    def __init__(self, items, timeframe, guild, user_data=None):
         super().__init__()
         self.guild = guild
         self.timeframe = timeframe
+        self.user_data = user_data # (user_obj, points, stats, rank)
         self.setup_layout(items)
 
     def setup_layout(self, items):
@@ -114,6 +115,15 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 btn.disabled = True
             row.add_item(btn)
         
+        if self.user_data:
+            user, pts, stats, rank = self.user_data
+            info = f"**Te vagy itt: #{rank}. Helyen** — **{pts:,} pont**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
+            container.add_item(discord.ui.Section(
+                info,
+                accessory=discord.ui.Thumbnail(user.display_avatar.url)
+            ))
+            container.add_item(discord.ui.Separator())
+
         container.add_item(row)
         self.add_item(container)
 
@@ -135,7 +145,7 @@ class ModernProfileView(discord.ui.LayoutView):
             f"**Összpontszám:** ### **{points:,}**\n"
             f"**Üzenetek:** `{data['message_count']}` | **Reakciók:** `{data['reaction_count']}` | **Voice:** `{int(voice_mins)}p`"
         )
-        container.add_item(discord.ui.Section("### 📊 Aktivitás\n" + stats_text, accessory=None))
+        container.add_item(discord.ui.TextDisplay("### 📊 Aktivitás\n" + stats_text))
         
         # 3. Stats Section
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
@@ -143,7 +153,7 @@ class ModernProfileView(discord.ui.LayoutView):
             f"**Utoljára aktív:** `{last_active_str}`\n"
             f"**Napi átlag (30 nap):** `{avg_daily:.2f} üzenet/nap`"
         )
-        container.add_item(discord.ui.Section("### 📈 Statisztikák\n" + timing_text, accessory=None))
+        container.add_item(discord.ui.TextDisplay("### 📈 Statisztikák\n" + timing_text))
         
         # 4. Social Section
         social_lines = []
@@ -158,12 +168,12 @@ class ModernProfileView(discord.ui.LayoutView):
                 social_lines.append(f"**Best Friend (Voice):** <@{pid}>")
         
         if social_lines:
-            container.add_item(discord.ui.Section("### 🤝 Közösség (30 nap)\n" + "\n".join(social_lines), accessory=None))
+            container.add_item(discord.ui.TextDisplay("### 🤝 Közösség (30 nap)\n" + "\n".join(social_lines)))
         
         # 5. Games Section
         if recent_games:
             games_text = " — ".join([f"`{g}`" for g in recent_games])
-            container.add_item(discord.ui.Section("### 🎮 Legutóbbi játékok\n" + games_text, accessory=None))
+            container.add_item(discord.ui.TextDisplay("### 🎮 Legutóbbi játékok\n" + games_text))
             
         self.add_item(container)
 
@@ -382,7 +392,7 @@ async def cleanup_inactive_roles_task():
 
 # --- SLASH COMMANDS ---
 
-def get_top_data(guild, timeframe="alltime"):
+def get_top_data(guild, user=None, timeframe="alltime"):
     days = {"weekly": 7, "monthly": 30, "alltime": None}.get(timeframe.lower(), None)
     data = db.get_leaderboard_data(guild.id, days)
     now_utc = datetime.datetime.now(datetime.timezone.utc)
@@ -403,13 +413,24 @@ def get_top_data(guild, timeframe="alltime"):
         if points > 0: scores.append((uid, points, stats))
     
     scores.sort(key=lambda x: x[1], reverse=True)
-    return scores[:10]
+    
+    top_10 = scores[:10]
+    
+    # Find specific user data for the footer
+    user_data = None
+    if user:
+        rank = next((i for i, (uid, _, _) in enumerate(scores, 1) if uid == user.id), "N/A")
+        if rank != "N/A":
+            u_entry = next(x for x in scores if x[0] == user.id)
+            user_data = (user, u_entry[1], u_entry[2], rank)
+            
+    return top_10, user_data
 
 @bot.tree.command(name="top", description="Mutatja a heti, havi vagy összesített toplistát.")
 @app_commands.describe(timeframe="Válassz időszakot (weekly, monthly, alltime)")
 async def top(interaction: discord.Interaction, timeframe: str = "alltime"):
-    top_10 = get_top_data(interaction.guild, timeframe)
-    view = ModernLeaderboardView(top_10, timeframe, interaction.guild)
+    top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
+    view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
     await interaction.response.send_message(view=view, ephemeral=True)
 
 @bot.event
@@ -418,8 +439,8 @@ async def on_interaction(interaction: discord.Interaction):
         custom_id = interaction.data.get("custom_id", "")
         if custom_id.startswith("top:"):
             timeframe = custom_id.split(":")[1]
-            top_10 = get_top_data(interaction.guild, timeframe)
-            view = ModernLeaderboardView(top_10, timeframe, interaction.guild)
+            top_10, u_stats = get_top_data(interaction.guild, interaction.user, timeframe)
+            view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
             await interaction.response.edit_message(view=view)
 
 @bot.tree.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
