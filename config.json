@@ -1,0 +1,33 @@
+{
+    "roles": {
+        "stage_1_id": 1485292108410781768,
+        "stage_2_id": 1485292507477836000
+    },
+    "channels": {
+        "guild_id": 1083433370815582240,
+        "admin_id": 1486516075905417216,
+        "stats_id": 1486515344674787399,
+        "afk_id": 1275929869703970876,
+        "excluded": [1482994023298760894, 1483493747365908511]
+    },
+    "thresholds": {
+        "stage_1_days": 14,
+        "stage_2_days": 21,
+        "stage_2_grace_days": 7,
+        "inactive_game_days": 30,
+        "social_stats_days": 30,
+        "check_interval_hours": 12
+    },
+    "scoring": {
+        "points_message": 10,
+        "points_reaction": 5,
+        "points_voice_per_min": 2
+    },
+    "ui": {
+        "leaderboard_limit": 10,
+        "report_log_limit": 300,
+        "color_primary": "0x3498db",
+        "color_success": "0x2ecc71",
+        "recent_games_limit": 3
+    }
+}

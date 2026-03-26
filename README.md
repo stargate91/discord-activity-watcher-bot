@@ -1,67 +1,59 @@
 # 👁️ Watcher Bot - Activity & Role Manager
 
-A powerful Discord bot designed to monitor user activity, manage roles for inactive/returning members, and provide a competitive leaderboard system.
+A professional Discord bot designed for high-precision activity monitoring, automatic game role management, and incentivizing server engagement through a clean, modern leaderboard system.
 
 ## ✨ Features
 
--   **Activity Tracking**: Logs messages, reactions, and voice channel minutes.
--   **Live Voice Tracking**: Accurately tracks voice session minutes even across channel moves and bot restarts.
--   **Inactivity Management**:
-    -   **Stage 1 (Inactive)**: Automatically assigns a role to users who haven't been active for a set period (e.g., 14 days).
-    -   **Stage 2 (Returning)**: Automatically assigns a role to returning users who show activity after being in Stage 1.
--   **Leaderboard System**:
-    -   **Points**: Messages (10 pts), Reactions (5 pts), Voice (2 pts/minute).
-    -   **Timeframes**: Weekly, Monthly, and All-time stats.
-    -   **Live Data**: Current voice sessions are included in real-time scores.
--   **Auto Game Roles**: Automatically assigns "Player: {Game}" roles based on user's current activity (e.g., Playing League of Legends).
--   **Admin Tools**:
-    -   Detailed status reports in TXT format.
-    -   Logging of all game role assignments.
-    -   Manual slash command synchronization.
+-   **Modular Architecture**: Built with `discord.py` Cogs for easy scaling and maintenance.
+-   **Bulletproof Voice Tracking**: Real-time minute tracking that persists across channel moves and bot restarts via an SQLite backend.
+-   **Smart Role Management**:
+    -   **Stage 1 (Inactive)**: Automatic assignment for users inactive for X days.
+    -   **Stage 2 (Returning)**: Grace period for returning users after inactivity.
+    -   **Auto Game Roles**: Dynamic role assignment based on the user's current game (e.g., *Player: Minecraft*).
+-   **Configurable Restrictions**:
+    -   Dedicated **Stats Channel** for public commands (`/top`, `/me`).
+    -   Dedicated **Admin Channel** for reports and system management.
+-   **Multilingual Hungarian Support**: All user-facing messages are centralized and localized.
 
 ## 🚀 Setup & Installation
 
 ### 1. Prerequisites
--   Python 3.8+
+-   Python 3.10+
 -   Discord Bot Token ([Developer Portal](https://discord.com/developers/applications))
--   **Required Intents**: `Server Members`, `Presence`, `Message Content`, `Voice States`.
+-   **Privileged Intents**: `Server Members`, `Presence`, `Message Content`, `Voice States`.
 
 ### 2. Configuration
-Create a `.env` file in the root directory:
+The bot uses a hybrid approach to separate secrets from settings:
 
-```env
-DISCORD_TOKEN=your_token_here
-STAGE_1_ROLE_ID=id_of_inactive_role
-STAGE_2_ROLE_ID=id_of_returning_role
-ADMIN_CHANNEL_ID=id_of_admin_channel
-STAGE_1_DAYS=14
-STAGE_2_DAYS=21
-CHECK_INTERVAL_HOURS=12
-```
+1.  **[.env](file:///.env)**:
+    ```env
+    DISCORD_TOKEN=your_token_here
+    ```
+2.  **[config.json](file:///config.json)**: Edit this file to manage all your Role IDs, Channel IDs, point values, and inactivity thresholds.
 
-### 3. Installation
+### 3. Running the Bot
 ```bash
 pip install -r requirements.txt
-```
-
-### 4. Running the Bot
-```bash
 python bot.py
 ```
 
 ## 🛠️ Commands
 
-### 👤 User Commands (Slash)
--   `/top [timeframe: weekly/monthly/alltime]` - Display the top 10 most active members.
+### 📊 Stats Commands (Stats Channel only)
+-   `/top [timeframe]` - Display the top 10 most active members (Weekly, Monthly, All-time).
+-   `/me` - Display your personal activity profile, ranking, and top games.
 
-### 🛡️ Admin Commands (Slash - Admin Channel only)
--   `/status_report` - Generates a detailed TXT report of all members' activity and role status.
--   `/game_role_report` - Downloads the full history of game role assignments (`role_log.txt`).
+### 🛡️ Admin Commands (Admin Channel only)
+-   `/status_report` - Generates a detailed TXT report of all members' activity.
+-   `/game_stats_report` - Generates a report on the popularity of different games in the server.
+-   `/game_role_report` - Downloads the history of all automatic game role assignments.
+-   `/add_game` / `/remove_game` - Manage which game franchises the bot monitors.
+-   `/reset_database` - Wipes all activity data while keeping configuration intact.
 
-### ⚙️ Utility Commands (Prefix)
--   `!sync` - Immediately synchronizes slash commands to the current server (Bot Owner only).
+### ⚙️ System Commands
+-   `!sync` / `/sync` - Manually propagate slash commands. Use `!sync copy` for the first run! (Owner only).
 
-## 📄 Database & Logs
--   `activity.db`: SQLite database storing all user stats.
--   `role_log.txt`: Text log of all automatic game role assignments.
--   `.gitignore`: Properly configured to protect your data and secrets.
+## 📄 Data Management
+-   **`activity.db`**: SQLite database storing all user stats, active sessions, and history.
+-   **`core/messages.py`**: Central repository for all Hungarian text strings.
+-   **`cogs/`**: The core logic split into specialized modules (Stats, Events, Admin, Games).
