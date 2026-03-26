@@ -25,10 +25,9 @@ class StatsCog(commands.Cog):
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @app_commands.command(name="me", description=Messages.DESC_ME)
-    @app_commands.describe(member=Messages.CMD_ME_MEMBER_DESC)
-    async def me(self, interaction: discord.Interaction, member: discord.Member = None):
+    async def me(self, interaction: discord.Interaction):
         # This command shows your personal profile card with all your points
-        target = member or interaction.user
+        target = interaction.user
         main_id = Config.get_main_id(target.id)
         
         # If the user is an 'alt' account, we show the main account's stats instead
