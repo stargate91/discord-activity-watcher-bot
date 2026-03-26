@@ -34,7 +34,7 @@ class CheekyBot(commands.Bot):
 
         # Load Cogs
         for filename in os.listdir("./cogs"):
-            if filename.endswith(".py"):
+            if filename.endswith(".py") and filename != "__init__.py":
                 try:
                     await self.load_extension(f"cogs.{filename[:-3]}")
                     log.info(f"Loaded extension: {filename}")

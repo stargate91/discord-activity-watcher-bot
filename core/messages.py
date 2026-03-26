@@ -18,6 +18,8 @@ class Messages:
     BTN_MY_RANK = "Saját helyezésem"
     BTN_SHARE = "Megosztás"
     
+    DESC_ME = "Saját vagy más statisztikájának megtekintése."
+    
     # --- Profile ---
     PROFILE_SHARED_BY = "📊 **{user}** megosztotta a profilját:"
     PROFILE_RANK = "Helyezés"
