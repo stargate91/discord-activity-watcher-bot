@@ -35,7 +35,7 @@ class StatsCog(commands.Cog):
             await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
             return
 
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         
         try:
             # Use the main_id for stat retrieval
@@ -63,7 +63,7 @@ class StatsCog(commands.Cog):
             avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
             
             view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
-            await interaction.followup.send(view=view)
+            await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f"❌ Hiba történt a statisztikák betöltésekor: {e}", ephemeral=True)
 
