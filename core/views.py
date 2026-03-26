@@ -30,7 +30,11 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         else:
             for i, (uid, pts, stats) in enumerate(items, 1):
                 m = self.guild.get_member(uid)
-                name = m.mention if m else Messages.LB_UNKNOWN_USER.format(id=uid)
+                if self.static:
+                    name = f"**{m.display_name}**" if m else Messages.LB_UNKNOWN_USER.format(id=uid)
+                else:
+                    name = m.mention if m else Messages.LB_UNKNOWN_USER.format(id=uid)
+                
                 medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
                 
                 info = f"{medal} {name} — **{pts:,} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
@@ -104,14 +108,29 @@ class ModernProfileView(discord.ui.LayoutView):
         # 4. Social Section
         social_lines = []
         if social["top_channel"]:
-            social_lines.append(Messages.SOCIAL_FAV_ROOM.format(id=social['top_channel']))
+            ch = user.guild.get_channel(social['top_channel'])
+            name = f"#{ch.name}" if ch else f"#{social['top_channel']}"
+            if self.static:
+                social_lines.append(f"**Kedvenc szoba:** {name}")
+            else:
+                social_lines.append(Messages.SOCIAL_FAV_ROOM.format(id=social['top_channel']))
         if social["top_emoji"]:
             social_lines.append(Messages.SOCIAL_FAV_EMOJI.format(emoji=social['top_emoji']))
         if social["top_target"]:
-            social_lines.append(Messages.SOCIAL_MAIN_TARGET.format(id=social['top_target']))
+            target = user.guild.get_member(social['top_target'])
+            name = f"**{target.display_name}**" if target else f"**{social['top_target']}**"
+            if self.static:
+                social_lines.append(f"**Fő célpont:** {name}")
+            else:
+                social_lines.append(Messages.SOCIAL_MAIN_TARGET.format(id=social['top_target']))
         if partners:
             for pid, _ in partners[:1]:
-                social_lines.append(Messages.SOCIAL_BEST_FRIEND.format(id=pid))
+                p = user.guild.get_member(pid)
+                name = f"**{p.display_name}**" if p else f"**{pid}**"
+                if self.static:
+                    social_lines.append(f"**Best Friend (Voice):** {name}")
+                else:
+                    social_lines.append(Messages.SOCIAL_BEST_FRIEND.format(id=pid))
         
         if social_lines:
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
