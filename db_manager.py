@@ -355,8 +355,8 @@ class DBManager:
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 SELECT s2.user_id, SUM(
-                    (MIN(strftime('%s', s1.end_time), strftime('%s', s2.end_time)) - 
-                     MAX(strftime('%s', s1.start_time), strftime('%s', s2.start_time))) / 60.0
+                    (MIN(julianday(s1.end_time), julianday(s2.end_time)) - 
+                     MAX(julianday(s1.start_time), julianday(s2.start_time))) * 1440.0
                 ) as overlap_mins
                 FROM voice_sessions s1
                 JOIN voice_sessions s2 ON s1.guild_id = s2.guild_id 

@@ -137,7 +137,7 @@ class ModernProfileView(discord.ui.LayoutView):
         
         # 5. Games Section (Top 3 by Playtime)
         if top_games:
-            games_text = " — ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1])}p)" for g in top_games])
+            games_text = " — ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
         if self.static:

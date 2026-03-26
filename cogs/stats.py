@@ -37,32 +37,35 @@ class StatsCog(commands.Cog):
 
         await interaction.response.defer()
         
-        # Use the main_id for stat retrieval
-        _, user_full_stats = self.bot.engine.get_leaderboard(
-            interaction.guild, 
-            user=main_member, 
-            live_voice_times=self.bot.voice_start_times
-        )
-        
-        if not user_full_stats:
-            await interaction.followup.send(Messages.ERR_NO_DATA, ephemeral=True)
-            return
+        try:
+            # Use the main_id for stat retrieval
+            _, user_full_stats = self.bot.engine.get_leaderboard(
+                interaction.guild, 
+                user=main_member, 
+                live_voice_times=self.bot.voice_start_times
+            )
+            
+            if not user_full_stats:
+                await interaction.followup.send(Messages.ERR_NO_DATA, ephemeral=True)
+                return
 
-        # user_full_stats: (user, db_data, points, voice_mins, rank)
-        user, data, points, voice_mins, rank = user_full_stats
-        
-        # Advanced calculations
-        social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-        partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-        top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
-        
-        # Calculate Daily Average (30 days)
-        monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-        user_monthly = monthly_data.get(user.id, {"messages":0})
-        avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
-        
-        view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
-        await interaction.response.send_message(view=view, ephemeral=True)
+            # user_full_stats: (user, db_data, points, voice_mins, rank)
+            user, data, points, voice_mins, rank = user_full_stats
+            
+            # Advanced calculations
+            social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+            partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+            top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
+            
+            # Calculate Daily Average (30 days)
+            monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+            user_monthly = monthly_data.get(user.id, {"messages":0})
+            avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
+            
+            view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
+            await interaction.followup.send(view=view)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Hiba történt a statisztikák betöltésekor: {e}", ephemeral=True)
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):

@@ -48,7 +48,7 @@ class StatsEngine:
             user_id = Config.get_main_id(user.id)
             rank = next((i for i, (uid, _, _) in enumerate(scores, 1) if uid == user_id), "N/A")
             if rank != "N/A":
-                u_entry = next(x for x in scores if x[0] == user.id)
+                u_entry = next(x for x in scores if x[0] == user_id)
                 # Reconstruct DB-style data dict for the profile view
                 db_compat_data = {
                     "message_count": u_entry[2]["messages"],
