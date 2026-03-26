@@ -12,9 +12,17 @@ class StatsCog(commands.Cog):
         self.db = bot.db
         self.engine = bot.engine
         
-        # Dynamically fill placeholders in slash command descriptions
+        # Initial format (placeholders to IDs)
         for cmd in self.get_app_commands():
-            cmd.description = Config.format_desc(cmd.description)
+             if not hasattr(cmd, "_raw_desc"):
+                 cmd._raw_desc = cmd.description
+             cmd.description = Config.format_desc(cmd._raw_desc)
+
+    def refresh_descriptions(self, guild):
+        """Re-formats all slash command descriptions using actual names from the guild."""
+        for cmd in self.get_app_commands():
+             if hasattr(cmd, "_raw_desc"):
+                 cmd.description = Config.format_desc(cmd._raw_desc, guild)
 
     @app_commands.command(name="top", description=Messages.CMD_TOP_DESC)
     @app_commands.describe(timeframe=Messages.CMD_TOP_TF_DESC)

@@ -30,9 +30,11 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
         
-        # Dynamically fill placeholders in slash command descriptions
+        # Initial format (placeholders to IDs)
         for cmd in self.get_app_commands():
-            cmd.description = Config.format_desc(cmd.description)
+             if not hasattr(cmd, "_raw_desc"):
+                 cmd._raw_desc = cmd.description
+             cmd.description = Config.format_desc(cmd._raw_desc)
 
     @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
     async def status_report(self, interaction: discord.Interaction):
@@ -117,6 +119,11 @@ class AdminCog(commands.Cog):
     @commands.guild_only()
     @is_admin()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
+        # Refresh descriptions before syncing
+        for cog in self.bot.cogs.values():
+            if hasattr(cog, "refresh_descriptions"):
+                cog.refresh_descriptions(ctx.guild)
+
         # Only check the channel if the user has permission
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
@@ -157,6 +164,11 @@ class AdminCog(commands.Cog):
     @app_commands.describe(mode=Messages.CMD_SYNC_MODE_DESC)
     @is_admin_interaction()
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
+        # Refresh descriptions before syncing
+        for cog in self.bot.cogs.values():
+            if hasattr(cog, "refresh_descriptions"):
+                cog.refresh_descriptions(interaction.guild)
+
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -247,14 +259,14 @@ class AdminCog(commands.Cog):
         for cmd in self.bot.tree.get_commands():
             if isinstance(cmd, app_commands.Group):
                 for sub in cmd.commands:
-                    slash_cmds.append((f"{cmd.name} {sub.name}", sub.description))
+                    slash_cmds.append((f"{cmd.name} {sub.name}", Config.format_desc(sub.description, target.guild)))
             else:
                 desc = cmd.description
                 tech_detail = tech_map.get(cmd.name)
                 if tech_detail:
                     desc += f"\n   - **Tech:** {tech_detail}"
                 
-                slash_cmds.append((cmd.name, desc))
+                slash_cmds.append((cmd.name, Config.format_desc(desc, target.guild)))
 
         view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
         
@@ -262,6 +274,12 @@ class AdminCog(commands.Cog):
             await target.send(view=view)
         else:
             await target.response.send_message(view=view)
+
+    def refresh_descriptions(self, guild):
+        """Re-formats all slash command descriptions using actual names from the guild."""
+        for cmd in self.get_app_commands():
+             if hasattr(cmd, "_raw_desc"):
+                 cmd.description = Config.format_desc(cmd._raw_desc, guild)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
