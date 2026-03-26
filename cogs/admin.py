@@ -235,7 +235,7 @@ class AdminCog(commands.Cog):
         prefix_cmds = []
         prefix_map = {
             f"sync{Config.SUFFIX}": Messages.CMD_SYNC_DESC,
-            f"clear_commands{Config.SUFFIX}": "Commands clearing tool. (Global + Guild)",
+            f"clear_commands{Config.SUFFIX}": Messages.CMD_CLEAR_HELP,
             f"info{Config.SUFFIX}": Messages.CMD_INFO_DESC,
             f"info_dev{Config.SUFFIX}": Messages.CMD_INFO_DEV_DESC
         }

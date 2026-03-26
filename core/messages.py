@@ -96,6 +96,7 @@ class Messages:
         "INFO_DEV_PREFIX": "### Prefix parancsok (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### Slash parancsok\n",
         "CMD_INFO_DEV_DESC": "Kilistázza az összes parancsot az adminoknak.",
+        "CMD_CLEAR_HELP": "[@{role_id}] Parancsok törlése. (Globális + Szerver)",
         "CMD_INFO_DESC": "Általános ismertető a botról.",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
@@ -196,6 +197,7 @@ class Messages:
         "INFO_DEV_PREFIX": "### Prefix Commands (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### Slash Commands\n",
         "CMD_INFO_DEV_DESC": "Lists all commands for administrators.",
+        "CMD_CLEAR_HELP": "[@{role_id}] Commands clearing tool. (Global + Guild)",
         "CMD_INFO_DESC": "General introduction to the bot.",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
@@ -280,6 +282,7 @@ class Messages:
     CMD_GAME_REPORT_DESC = ""
     CMD_INFO_DEV_DESC = ""
     CMD_INFO_DESC = ""
+    CMD_CLEAR_HELP = ""
     INFO_DEV_TITLE = ""
     INFO_DEV_PREFIX = ""
     INFO_DEV_SLASH = ""

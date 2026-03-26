@@ -224,7 +224,7 @@ class ModernDevInfoView(discord.ui.LayoutView):
         if prefix_cmds:
             container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
             for name, help_text in prefix_cmds:
-                container.add_item(discord.ui.TextDisplay(f"**{Config.PREFIX}{name}**\n╰ *{help_text or '---'}*"))
+                container.add_item(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}**\n╰ *{help_text or '---'}*"))
             
             container.add_item(discord.ui.Separator())
 
@@ -232,7 +232,7 @@ class ModernDevInfoView(discord.ui.LayoutView):
         if slash_cmds:
             container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
             for name, desc in slash_cmds:
-                container.add_item(discord.ui.TextDisplay(f"**/{name}**\n╰ *{desc}*"))
+                container.add_item(discord.ui.TextDisplay(f"• **/{name}**\n╰ *{desc}*"))
             
             container.add_item(discord.ui.Separator())
 
