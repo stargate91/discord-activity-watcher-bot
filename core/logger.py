@@ -3,15 +3,15 @@ from logging.handlers import RotatingFileHandler
 import os
 
 def setup_logger(name="ActivityBot", log_file="activity_bot.log", level=logging.INFO):
-    """Function to setup as many loggers as you want"""
+    # This part sets up the bot's 'notebook' where it writes down everything it does
     
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    # Ensure the log file is in a consistent location (project root)
-    # If the bot is started by the manager, cwd will be the bot's path.
+    # If the log file gets too big (5MB), the bot starts a new one so it doesn't take up too much space
     handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=3, encoding='utf-8')
     handler.setFormatter(formatter)
 
+    # This part also shows the same messages in the black command window (terminal)
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
@@ -22,5 +22,5 @@ def setup_logger(name="ActivityBot", log_file="activity_bot.log", level=logging.
 
     return logger
 
-# Initialize the global logger
+# Create the main logger that the rest of the bot will use
 log = setup_logger()

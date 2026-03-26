@@ -8,12 +8,12 @@ from core.game_tracker import GameTracker
 from core.stats_engine import StatsEngine
 from core.messages import Messages
 
-# Set language
+# Pick the language from our settings so the bot knows how to talk (HU/EN)
 Messages.load_language(Config.LANGUAGE)
 
 class CheekyBot(commands.Bot):
     def __init__(self):
-        # Init Intents
+        # Tell Discord what things the bot is allowed to see (messages, voice, who is online etc.)
         intents = discord.Intents.default()
         intents.members = True
         intents.messages = True
@@ -24,19 +24,19 @@ class CheekyBot(commands.Bot):
         
         super().__init__(command_prefix="!", intents=intents)
         
-        # Initialize Core Modules
+        # Set up the database and the special tools for tracking games and stats
         self.db = DBManager()
         self.tracker = GameTracker(self.db, self)
         self.engine = StatsEngine(self.db)
         
-        # Track voice session start times: {user_id: join_timestamp}
+        # A simple dictionary to remember when people joined a voice channel
         self.voice_start_times = {}
 
     async def setup_hook(self):
-        # Clear global commands from this bot identity to prevent crossover
+        # Make sure we don't have old or double commands hanging around on Discord
         self.tree.clear_commands(guild=None)
 
-        # Load Cogs
+        # Go through the 'cogs' folder and turn on every feature file we find
         for filename in os.listdir("./cogs"):
             if filename.endswith(".py") and filename != "__init__.py":
                 try:
@@ -45,10 +45,10 @@ class CheekyBot(commands.Bot):
                 except Exception as e:
                     log.error(f"Failed to load extension {filename}: {e}")
 
-        # Extensions are loaded, manual sync required via !sync
+        # Remind the admin to sync the commands so they actually show up in Discord
         log.info("Extensions loaded. Use !sync to propagate slash commands.")
 
-    # Shared Helper methods accessible from Cogs via self.bot
+    # These are shortcut functions that other parts of the bot can use easily
     def get_top_data(self, guild, user=None, timeframe="alltime"):
         return self.engine.get_leaderboard(guild, user, timeframe, self.voice_start_times)
 

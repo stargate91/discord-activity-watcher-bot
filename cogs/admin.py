@@ -13,17 +13,19 @@ class AdminCog(commands.Cog):
 
     @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
     async def status_report(self, interaction: discord.Interaction):
+        # Check if we are in the right channel to use admin commands
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
 
         await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=True)
-        
+        # Start building a text report with everyone's stats
         now = datetime.datetime.now(datetime.timezone.utc)
         guild_data = self.db.get_all_guild_data(interaction.guild_id)
         r1, r2 = interaction.guild.get_role(Config.STAGE_1_ROLE_ID), interaction.guild.get_role(Config.STAGE_2_ROLE_ID)
         lines = [Messages.REPORT_TITLE_HEADER.format(guild=interaction.guild.name, now=now)]
         
+        # Go through every person in the server and add their numbers to the list
         for m in interaction.guild.members:
             if m.bot: continue
             d = guild_data.get(m.id)
@@ -39,13 +41,16 @@ class AdminCog(commands.Cog):
             det = Messages.REPORT_INACTIVE if s == Messages.REPORT_STAGE_1 else (Messages.REPORT_S2_RETURN.format(days=7-(now-d['returned_at'].astimezone(datetime.timezone.utc)).days) if s == Messages.REPORT_STAGE_2 and d["returned_at"] else Messages.REPORT_S1_LIMIT.format(days=Config.STAGE_1_DAYS-(now-d['last_active'].astimezone(datetime.timezone.utc)).days))
             lines.append(f"{str(m)[:25]:<25} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
         
+        # Save everything into a .txt file and send it to the admin
         filename = f"report_{interaction.guild_id}.txt"
         with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+        # Delete the file from the computer after sending it
         os.remove(filename)
 
     @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     async def game_role_report(self, interaction: discord.Interaction):
+        # This command creates a report showing when the bot gave or took away game roles
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -74,6 +79,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="reset_database", description=Messages.CMD_RESET_DB_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def reset_database(self, interaction: discord.Interaction):
+        # DANGER: This command deletes ALL stats from the database!
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -100,6 +106,7 @@ class AdminCog(commands.Cog):
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await ctx.send(f"Copied global and synced {len(synced)} commands to this guild.")
         else:
+            # Sync commands only for this specific server (guild)
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await ctx.send(f"Synced {len(synced)} commands to this guild.")
 
@@ -107,6 +114,7 @@ class AdminCog(commands.Cog):
     @commands.guild_only()
     @commands.is_owner()
     async def clear_commands_prefix(self, ctx: commands.Context):
+        # This part removes all the slash commands from Discord for this bot
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
             return

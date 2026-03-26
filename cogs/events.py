@@ -22,6 +22,7 @@ class EventsCog(commands.Cog):
         self.cleanup_inactive_roles_task.cancel()
 
     async def handle_member_activity(self, member: discord.Member, event_type=None, channel_id=None):
+        # This part updates the database whenever someone sends a message or adds a reaction
         if member.bot: return
         if channel_id and channel_id in Config.EXCLUDED_CHANNELS: return
             
@@ -41,6 +42,7 @@ class EventsCog(commands.Cog):
         # Determine current stats from DB
         data = self.db.get_user_data(main_id, member.guild.id)
         
+        # This part handles the 'Inactive' (Stage 1) and 'Returned' (Stage 2) roles
         for m in all_linked:
             if stage1_role and stage1_role in m.roles:
                 try:
@@ -60,16 +62,18 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        # This runs when the bot starts up and is ready to work
         await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=Messages.PRESENCE_WATCHING))
         await self.bot.load_game_franchises()
         await self.bot.migrate_role_logs()
         
         log.info(f"Cog Events: Bot ready as {self.bot.user}")
         
-        # 1. Load active sessions from DB
+        # 1. Load active voice sessions from the database
         db_sessions = self.db.get_active_voice_sessions()
         
-        # 2. Sync with current voice state across all guilds
+        # 2. Sync with current voice channels across all servers (guilds)
+        # We do this so if someone joined while the bot was offline, we don't miss them!
         for guild in self.bot.guilds:
             # Sync user data existence
             for m in guild.members:
@@ -120,6 +124,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        # This runs every time someone sends a message
         if message.author.bot or not message.guild: return
         await self.handle_member_activity(message.author, event_type="message", channel_id=message.channel.id)
 
@@ -129,6 +134,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        # This runs when someone joins, leaves, or moves between voice channels
         if member.bot: return
         
         main_id = Config.get_main_id(member.id)
@@ -170,6 +176,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
+        # This runs when someone adds a reaction (emoji) to a message
         if payload.guild_id:
             guild = self.bot.get_guild(payload.guild_id)
             if not guild: return
@@ -199,6 +206,7 @@ class EventsCog(commands.Cog):
 
     @tasks.loop(hours=Config.CHECK_INTERVAL_HOURS) 
     async def check_inactivity_task(self):
+        # This background task runs every few hours to check who is 'lazy' (inactive)
         now = datetime.datetime.now(datetime.timezone.utc)
         for guild in self.bot.guilds:
             r1, r2 = guild.get_role(Config.STAGE_1_ROLE_ID), guild.get_role(Config.STAGE_2_ROLE_ID)

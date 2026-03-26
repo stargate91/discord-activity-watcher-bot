@@ -16,6 +16,8 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name=Messages.CMD_ADD_GAME_NAME_DESC, role_suffix=Messages.CMD_ADD_GAME_SUFFIX_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
+        # This command adds a new game for the bot to track
+        # Example: 'Minecraft' -> the bot will look for people playing it and give them a role
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -28,6 +30,7 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name=Messages.CMD_REMOVE_GAME_NAME_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
+        # This command stops the bot from tracking a specific game
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -39,6 +42,7 @@ class GamesCog(commands.Cog):
     @app_commands.command(name="list_games", description=Messages.CMD_LIST_GAMES_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def list_games(self, interaction: discord.Interaction):
+        # This command shows a list of all the games the bot is currently watching
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -56,6 +60,7 @@ class GamesCog(commands.Cog):
     @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
+        # This command creates a .txt file that shows which games are the most popular
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
@@ -84,6 +89,7 @@ class GamesCog(commands.Cog):
             file=discord.File(filename), 
             ephemeral=True
         )
+        # Delete the report file from the computer after it has been sent to Discord
         os.remove(filename)
 
 async def setup(bot):

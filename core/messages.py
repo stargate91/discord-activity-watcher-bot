@@ -1,5 +1,5 @@
 class Messages:
-    # --- Translations ---
+    # These are the lists of words for different languages (HU is Hungarian, EN is English)
     _HU = {
         "LB_TITLE_WEEKLY": "Heti Top 10",
         "LB_TITLE_MONTHLY": "Havi Top 10",
@@ -178,7 +178,7 @@ class Messages:
         "CMD_CLEAR_DONE": "✅ All registered commands (global and server) have been cleared. You can now use !sync to refresh them."
     }
 
-    # Default placeholders
+    # These are empty 'placeholders' that will be filled with the words from above
     LB_TITLE_WEEKLY = ""
     LB_TITLE_MONTHLY = ""
     LB_TITLE_ALLTIME = ""
@@ -268,12 +268,14 @@ class Messages:
 
     @classmethod
     def load_language(cls, lang_code):
+        # This part picks the right language for the bot to use (like a light switch)
         translations = cls._EN if lang_code.lower() == "en" else cls._HU
         for key, value in translations.items():
             setattr(cls, key, value)
 
     @classmethod
     def get_lb_title(cls, timeframe):
+        # A quick way to get the right title for the 'Weekly', 'Monthly' or 'All-time' leaderboard
         return {
             "weekly": cls.LB_TITLE_WEEKLY,
             "monthly": cls.LB_TITLE_MONTHLY,

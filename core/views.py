@@ -4,6 +4,7 @@ from config_loader import Config
 from core.messages import Messages
 
 class ModernLeaderboardView(discord.ui.LayoutView):
+    # This is the class that builds the list of top players (the leaderboard)
     def __init__(self, items, timeframe, guild, user_data=None, show_user=False, static=False, shared_by=None):
         super().__init__()
         self.guild = guild
@@ -15,6 +16,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.setup_layout(items)
 
     def setup_layout(self, items):
+        # This part puts together the title, the list of names with medals, and the buttons
         title_text = Messages.get_lb_title(self.timeframe)
 
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
@@ -69,6 +71,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
+    # This is the class that builds the profile card when you check someone's stats
     def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, timeframe="alltime", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
@@ -82,7 +85,7 @@ class ModernProfileView(discord.ui.LayoutView):
             container.add_item(discord.ui.TextDisplay(Messages.PROFILE_SHARED_BY.format(user=self.shared_by)))
             container.add_item(discord.ui.Separator())
 
-        # 1. Header Section
+        # 1. Header: Show the user's name, rank and their profile picture
         container.add_item(discord.ui.Section(
             f"# {user.display_name} • #{rank}. {Messages.PROFILE_RANK}\n{Messages.PROFILE_SUBTITLE}",
             accessory=discord.ui.Thumbnail(user.display_avatar.url)
@@ -90,14 +93,14 @@ class ModernProfileView(discord.ui.LayoutView):
         
         container.add_item(discord.ui.Separator())
         
-        # 2. Activity Section
+        # 2. Activity: Show points, messages, reactions and voice time
         stats_text = (
             Messages.STAT_TOTAL_SCORE.format(points=f"{points:,}") + "\n" +
             Messages.STAT_DETAILS.format(msg=data['message_count'], reac=data['reaction_count'], voice=int(voice_mins))
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
-        # 3. Stats Section
+        # 3. Timing: Show when they were last active and their daily average
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
         timing_text = (
             Messages.STAT_LAST_ACTIVE.format(time=last_active_str) + "\n" +
@@ -105,7 +108,7 @@ class ModernProfileView(discord.ui.LayoutView):
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_STATS + "\n" + timing_text))
         
-        # 4. Social Section
+        # 4. Social: Show favorite channel, emoji and best friend
         social_lines = []
         if social["top_channel"]:
             ch = user.guild.get_channel(social['top_channel'])
@@ -135,7 +138,7 @@ class ModernProfileView(discord.ui.LayoutView):
         if social_lines:
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
         
-        # 5. Games Section (Top 3 by Playtime)
+        # 5. Games: Show the top 3 games they have played the most
         if top_games:
             games_text = " — ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
@@ -146,7 +149,7 @@ class ModernProfileView(discord.ui.LayoutView):
 
         container.add_item(discord.ui.Separator())
         
-        # 6. Buttons for switching (Interactivity)
+        # 6. Buttons: Add buttons so you can switch between Weekly/Monthly stats or share the profile
         row = discord.ui.ActionRow()
         for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
             btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")

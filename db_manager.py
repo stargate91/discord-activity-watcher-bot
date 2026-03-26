@@ -3,6 +3,7 @@ import datetime
 
 class DBManager:
     def __init__(self, db_path="activity.db"):
+        # Tell the bot where the database file is and set up the tables
         self.db_path = db_path
         self._create_table()
 
@@ -10,8 +11,9 @@ class DBManager:
         return sqlite3.connect(self.db_path)
 
     def _create_table(self):
+        # This function creates the 'drawers' (tables) in our database if they don't exist yet
         with self._get_connection() as conn:
-            # Total stats (for inactivity and all-time)
+            # user_activity: Stores the overall numbers for each person (messages, voice time, etc.)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS user_activity (
                     user_id INTEGER,
@@ -24,7 +26,7 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
-            # Historical stats (for leaderboards)
+            # daily_stats: Remembers what happened each day so we can make weekly/monthly charts
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS daily_stats (
                     user_id INTEGER,
@@ -36,7 +38,7 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id, date)
                 )
             """)
-            # Role history
+            # role_history: A log of when the bot gave or took away a role from someone
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS role_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +49,7 @@ class DBManager:
                     timestamp TIMESTAMP
                 )
             """)
-            # Game activity (for auto role removal and playtime)
+            # game_activity: Keeps track of how much time people spend playing specific games
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS game_activity (
                     user_id INTEGER,
@@ -59,7 +61,7 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id, role_name)
                 )
             """)
-            # Detailed Voice Sessions (Which channel, how long)
+            # voice_sessions: Records every time someone joins and leaves a voice channel
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS voice_sessions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +73,7 @@ class DBManager:
                     duration_minutes REAL
                 )
             """)
-            # Reaction Interactions (Who to Whom)
+            # reaction_history: Remembers who gave a reaction to which message
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS reaction_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,14 +86,14 @@ class DBManager:
                     timestamp TIMESTAMP
                 )
             """)
-            # Tracked Game Franchises (substring -> role_suffix)
+            # tracked_games: A list of games the bot is currently looking for to give out roles
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS tracked_games (
                     game_substring TEXT PRIMARY KEY,
                     role_suffix TEXT
                 )
             """)
-            # Active Voice Sessions (Persistence across restarts)
+            # active_voice_sessions: Remembers who is currently in a voice channel
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_voice_sessions (
                     user_id INTEGER,
@@ -101,7 +103,7 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
-            # Active Game Sessions (Persistence across restarts)
+            # active_game_sessions: Remembers who is currently playing a game
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_game_sessions (
                     user_id INTEGER,
@@ -129,6 +131,7 @@ class DBManager:
             conn.commit()
 
     def update_activity(self, user_id, guild_id, last_active=None):
+        # Update the 'last seen' time for a user so we know they are still around
         if last_active is None:
             last_active = datetime.datetime.now(datetime.timezone.utc)
         
@@ -143,7 +146,7 @@ class DBManager:
             conn.commit()
 
     def set_returned_at(self, user_id, guild_id, timestamp=None):
-        """Sets when the user returned from inactivity."""
+        # Sets when the user came back after being away for a long time
         timestamp_str = timestamp.isoformat() if timestamp else None
         with self._get_connection() as conn:
             conn.execute("""
@@ -152,6 +155,7 @@ class DBManager:
             conn.commit()
 
     def increment_messages(self, user_id, guild_id):
+        # Add 1 to the message count for a user (both total and for today)
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
@@ -164,6 +168,7 @@ class DBManager:
             conn.commit()
 
     def increment_reactions(self, user_id, guild_id):
+        # Add 1 to the reaction count for a user (both total and for today)
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
@@ -176,6 +181,7 @@ class DBManager:
             conn.commit()
 
     def add_voice_minutes(self, user_id, guild_id, minutes):
+        # Add the minutes someone spent in voice to their stats
         today = datetime.date.today()
         # Use float (REAL in SQLite) for better precision across moves
         with self._get_connection() as conn:
@@ -189,7 +195,7 @@ class DBManager:
             conn.commit()
 
     def get_leaderboard_data(self, guild_id, days=None):
-        """Returns summed stats for the last X days, or all time if days is None."""
+        # Get the top players for the leaderboard (last X days or all-time)
         with self._get_connection() as conn:
             if days:
                 cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
@@ -245,6 +251,7 @@ class DBManager:
             return data
 
     def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
+        # Write down in the history that a role was added or removed
         if timestamp is None:
             timestamp = datetime.datetime.now(datetime.timezone.utc)
         
@@ -266,7 +273,7 @@ class DBManager:
             return cursor.fetchall()
 
     def update_game_activity(self, user_id, guild_id, game_name, bot_assigned=False):
-        """Updates or inserts a game activity record."""
+        # Record which game someone is playing and if the bot gave them a role for it
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._get_connection() as conn:
             conn.execute("""
@@ -332,8 +339,10 @@ class DBManager:
             return cursor.fetchall()
 
     # --- ADVANCED TRACKING ---
+    # These functions track extra things like who you talk to or who reacts to you
 
     def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration):
+        # Save the details of a finished voice call (start time, end time, which room)
         with self._get_connection() as conn:
             conn.execute("""
                 INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes)
@@ -342,6 +351,7 @@ class DBManager:
             conn.commit()
 
     def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
+        # Save who reacted to whose message and with what emoji
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._get_connection() as conn:
             conn.execute("""
@@ -472,6 +482,7 @@ class DBManager:
             conn.commit()
 
     def reset_database(self):
+        # DANGER: This wipes everything clean! All stats will be gone.
         tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions", "active_game_sessions"]
         with self._get_connection() as conn:
             for table in tables: conn.execute(f"DELETE FROM {table}")

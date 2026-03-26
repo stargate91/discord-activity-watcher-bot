@@ -15,6 +15,7 @@ class StatsCog(commands.Cog):
     @app_commands.command(name="top", description=Messages.CMD_TOP_DESC)
     @app_commands.describe(timeframe=Messages.CMD_TOP_TF_DESC)
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
+        # This command shows the Top 10 leaderboard (highest scores) for the server
         if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
             return
@@ -26,10 +27,11 @@ class StatsCog(commands.Cog):
     @app_commands.command(name="me", description=Messages.DESC_ME)
     @app_commands.describe(member=Messages.CMD_ME_MEMBER_DESC)
     async def me(self, interaction: discord.Interaction, member: discord.Member = None):
+        # This command shows your personal profile card with all your points
         target = member or interaction.user
         main_id = Config.get_main_id(target.id)
         
-        # Resolve target to main member if they are an alt
+        # If the user is an 'alt' account, we show the main account's stats instead
         main_member = interaction.guild.get_member(main_id) or target
         
         if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
@@ -50,10 +52,10 @@ class StatsCog(commands.Cog):
                 await interaction.followup.send(Messages.ERR_NO_DATA, ephemeral=True)
                 return
 
-            # user_full_stats: (user, db_data, points, voice_mins, rank)
+            # user_full_stats contains (user, data, points, voice_mins, rank)
             user, data, points, voice_mins, rank = user_full_stats
             
-            # Advanced calculations
+            # Calculate extra social stats (who they talk to most, favorite emoji, etc.)
             social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
             partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
             top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
@@ -70,6 +72,7 @@ class StatsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
+        # This part listens for when someone clicks a button (like 'Weekly' or 'Share')
         if interaction.type == discord.InteractionType.component:
             custom_id = interaction.data.get("custom_id", "")
             if custom_id.startswith("top:"):
