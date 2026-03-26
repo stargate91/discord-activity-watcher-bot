@@ -74,15 +74,15 @@ class Messages:
         "CMD_ADD_GAME_DESC": "Új játék hozzáadása az automata rangosztáshoz.",
         "CMD_ADD_GAME_NAME_DESC": "A játék nevének egy része (pl: Minecraft)",
         "CMD_ADD_GAME_SUFFIX_DESC": "A rang vége (példa: 'Minecraft' -> 'Player: Minecraft')",
-        "CMD_REMOVE_GAME_DESC": "[@{role_id}] Játék eltávolítása a listából.",
+        "CMD_REMOVE_GAME_DESC": "Játék eltávolítása a listából.",
         "CMD_REMOVE_GAME_NAME_DESC": "A pontos keresési kulcsszó (pl: Minecraft)",
         "CMD_LIST_GAMES_DESC": "Az összes figyelt játék listázása.",
         "CMD_GAME_REPORT_DESC": "Játék népszerűségi riport generálása .txt-ben.",
         "CMD_GAME_REPORT_TF_DESC": "Válasz: alltime (összes) vagy monthly (e havi)",
         "CMD_STATUS_REPORT_DESC": "Generál egy részletes TXT jelentést.",
         "CMD_GAME_ROLE_REPORT_DESC": "Letölti a játékos-rang kiosztások naplóját.",
-        "CMD_RESET_DB_DESC": "[@{role_id}] MINDEN aktivitási adat végleges törlése.",
-        "CMD_SYNC_DESC": "[@{role_id}] Slash parancsok manuális szinkronizálása.",
+        "CMD_RESET_DB_DESC": "MINDEN aktivitási adat végleges törlése.",
+        "CMD_SYNC_DESC": "Slash parancsok manuális szinkronizálása.",
         "CMD_SYNC_MODE_DESC": "Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)",
         "ERR_STATS_LOAD": "❌ Hiba történt a statisztikák betöltésekor: {e}",
         "ERR_OWNER_ONLY": "Csak a bot tulajdonosa használhatja ezt.",
@@ -92,11 +92,12 @@ class Messages:
         "INFO_FEATURES_TITLE": "### 🚀 Funkciók & Parancsok",
         "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld a {role} rangot!",
         "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
-        "INFO_DEV_TITLE": "Adminisztrátori Parancslista",
+        "INFO_DEV_TITLE": "{bot_name} - Adminisztrátori Parancslista",
         "INFO_DEV_PREFIX": "### Prefix parancsok (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### Slash parancsok\n",
         "CMD_INFO_DEV_DESC": "Kilistázza az összes parancsot az adminoknak.",
-        "CMD_CLEAR_HELP": "[@{role_id}] Parancsok törlése. (Globális + Szerver)",
+        "CMD_CLEAR_HELP": "Parancsok törlése. (Globális + Szerver)",
+        "INFO_DEV_FOOTER_NOTE": "Némelyik parancshoz Dev role szükséges lehet.",
         "CMD_INFO_DESC": "Általános ismertető a botról.",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
@@ -175,15 +176,15 @@ class Messages:
         "CMD_ADD_GAME_DESC": "Add a new game to automatic rank distribution.",
         "CMD_ADD_GAME_NAME_DESC": "Part of the game's name (e.g., Minecraft)",
         "CMD_ADD_GAME_SUFFIX_DESC": "End of the rank (example: 'Minecraft' -> 'Player: Minecraft')",
-        "CMD_REMOVE_GAME_DESC": "[@{role_id}] Remove a game from the list.",
+        "CMD_REMOVE_GAME_DESC": "Remove a game from the list.",
         "CMD_REMOVE_GAME_NAME_DESC": "The exact search keyword (e.g., Minecraft)",
         "CMD_LIST_GAMES_DESC": "List all watched games.",
         "CMD_GAME_REPORT_DESC": "Generate a game popularity report in .txt.",
         "CMD_GAME_REPORT_TF_DESC": "Choice: alltime (all) or monthly (this month)",
         "CMD_STATUS_REPORT_DESC": "Generate a detailed TXT report.",
         "CMD_GAME_ROLE_REPORT_DESC": "Download the player-rank assignment log.",
-        "CMD_RESET_DB_DESC": "[@{role_id}] Permanently delete ALL activity data.",
-        "CMD_SYNC_DESC": "[@{role_id}] Manually sync slash commands.",
+        "CMD_RESET_DB_DESC": "Permanently delete ALL activity data.",
+        "CMD_SYNC_DESC": "Manually sync slash commands.",
         "CMD_SYNC_MODE_DESC": "Choice: guild (to this server), global (everywhere), copy (copy global here)",
         "ERR_STATS_LOAD": "❌ Error occurred while loading stats: {e}",
         "ERR_OWNER_ONLY": "Only the bot owner can use this.",
@@ -193,11 +194,12 @@ class Messages:
         "INFO_FEATURES_TITLE": "### 🚀 Features & Commands",
         "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the {role} role!",
         "INFO_FOOTER": "Use the commands in the {channel} channel!",
-        "INFO_DEV_TITLE": "Administrative Command List",
+        "INFO_DEV_TITLE": "{bot_name} - Administrative Command List",
         "INFO_DEV_PREFIX": "### Prefix Commands (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### Slash Commands\n",
         "CMD_INFO_DEV_DESC": "Lists all commands for administrators.",
-        "CMD_CLEAR_HELP": "[@{role_id}] Commands clearing tool. (Global + Guild)",
+        "CMD_CLEAR_HELP": "Commands clearing tool. (Global + Guild)",
+        "INFO_DEV_FOOTER_NOTE": "Some commands may require a Dev role.",
         "CMD_INFO_DESC": "General introduction to the bot.",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
@@ -283,6 +285,7 @@ class Messages:
     CMD_INFO_DEV_DESC = ""
     CMD_INFO_DESC = ""
     CMD_CLEAR_HELP = ""
+    INFO_DEV_FOOTER_NOTE = ""
     INFO_DEV_TITLE = ""
     INFO_DEV_PREFIX = ""
     INFO_DEV_SLASH = ""

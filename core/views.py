@@ -213,8 +213,9 @@ class ModernDevInfoView(discord.ui.LayoutView):
         
         # 1. Header with the bot's server nickname and profile picture
         bot_member = guild.me
+        bot_name = bot_member.display_name
         container.add_item(discord.ui.Section(
-            f"# {Messages.INFO_DEV_TITLE}",
+            f"# {Messages.INFO_DEV_TITLE.format(bot_name=bot_name)}",
             accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
         ))
         
@@ -224,7 +225,7 @@ class ModernDevInfoView(discord.ui.LayoutView):
         if prefix_cmds:
             container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
             for name, help_text in prefix_cmds:
-                container.add_item(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}**\n╰ *{help_text or '---'}*"))
+                container.add_item(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*"))
             
             container.add_item(discord.ui.Separator())
 
@@ -232,13 +233,14 @@ class ModernDevInfoView(discord.ui.LayoutView):
         if slash_cmds:
             container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
             for name, desc in slash_cmds:
-                container.add_item(discord.ui.TextDisplay(f"• **/{name}**\n╰ *{desc}*"))
+                container.add_item(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*"))
             
             container.add_item(discord.ui.Separator())
 
-        # 4. Footer with admin channel mention
+        # 4. Footer with admin channel mention and role note
         admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
         channel_mention = admin_channel.mention if admin_channel else "#deleted-channel"
-        container.add_item(discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*"))
+        footer_text = f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*\n*{Messages.INFO_DEV_FOOTER_NOTE}*"
+        container.add_item(discord.ui.TextDisplay(footer_text))
         
         self.add_item(container)
