@@ -16,6 +16,10 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name="A játék nevének egy része (pl: Minecraft)", role_suffix="A rang vége (példa: 'Minecraft' -> 'Player: Minecraft')")
     @app_commands.checks.has_permissions(administrator=True)
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+            
         self.db.add_tracked_game(search_name, role_suffix)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_ADDED.format(name=search_name, suffix=role_suffix), ephemeral=True)
@@ -24,6 +28,10 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name="A pontos keresési kulcsszó (pl: Minecraft)")
     @app_commands.checks.has_permissions(administrator=True)
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+            
         self.db.remove_tracked_game(search_name)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
@@ -31,6 +39,10 @@ class GamesCog(commands.Cog):
     @app_commands.command(name="list_games", description="[Admin] Az összes figyelt játék listázása.")
     @app_commands.checks.has_permissions(administrator=True)
     async def list_games(self, interaction: discord.Interaction):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+            
         games = self.db.get_tracked_games()
         if not games:
             await interaction.response.send_message(Messages.GAME_LIST_EMPTY, ephemeral=True)

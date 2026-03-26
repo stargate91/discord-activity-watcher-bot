@@ -15,12 +15,20 @@ class StatsCog(commands.Cog):
     @app_commands.command(name="top", description="Mutatja a heti, havi vagy összesített toplistát.")
     @app_commands.describe(timeframe="Válassz időszakot (weekly, monthly, alltime)")
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
+        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
+            return
+
         top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)
         view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @app_commands.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
     async def me(self, interaction: discord.Interaction):
+        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
+            return
+            
         # Use centralized logic for points and rank
         _, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, "alltime")
         

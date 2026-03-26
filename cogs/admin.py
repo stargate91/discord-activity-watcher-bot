@@ -74,6 +74,10 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="reset_database", description="[Admin] MINDEN aktivitási adat végleges törlése.")
     @app_commands.checks.has_permissions(administrator=True)
     async def reset_database(self, interaction: discord.Interaction):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+            
         try:
             self.db.reset_database()
             await interaction.response.send_message(Messages.DB_RESET_SUCCESS, ephemeral=True)
@@ -84,13 +88,10 @@ class AdminCog(commands.Cog):
     @commands.guild_only()
     @commands.is_owner()
     async def sync(self, ctx: commands.Context, spec: str | None = None):
-        """
-        Manually sync slash commands.
-        Usage: 
-          !sync        -> Syncs to the current guild.
-          !sync copy   -> Copies global to current guild and syncs.
-          !sync global -> Syncs globally (takes ~1hr).
-        """
+        if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
+            await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
+            return
+            
         if spec == "global":
             synced = await self.bot.tree.sync()
             await ctx.send(f"Synced {len(synced)} commands globally.")
@@ -106,6 +107,10 @@ class AdminCog(commands.Cog):
     @app_commands.describe(mode="Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)")
     @app_commands.checks.has_permissions(administrator=True)
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
         if not await self.bot.is_owner(interaction.user):
             await interaction.response.send_message("Csak a bot tulajdonosa használhatja ezt.", ephemeral=True)
             return

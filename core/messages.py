@@ -40,7 +40,8 @@ class Messages:
     
     # --- Command Feedback ---
     ERR_NO_DATA = "Még nincs adatod az adatbázisban. Írj pár üzenetet előbb!"
-    ERR_NO_DATA_PERIOD = "Még nincs elég adatod ehhez az időszakhoz. Írj pár üzenetet! 🚀"
+    ERR_NO_DATA_PERIOD = "Sajnos ebben az időszakban még nincs rögzített adatod."
+    ERR_STATS_CHANNEL = "Ezt a parancsot csak a <#{id}> szobában használhatod!"
     ERR_ADMIN_ONLY = "Ez a parancs csak az admin csatornában használható: <#{id}>"
     
     SUCCESS_SHARED = "Sikeresen megosztva a csatornán! ✅"
