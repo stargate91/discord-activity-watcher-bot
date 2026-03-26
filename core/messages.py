@@ -86,7 +86,14 @@ class Messages:
         "CMD_SYNC_MODE_DESC": "Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)",
         "ERR_STATS_LOAD": "❌ Hiba történt a statisztikák betöltésekor: {e}",
         "ERR_OWNER_ONLY": "Csak a bot tulajdonosa használhatja ezt.",
-        "CMD_CLEAR_DONE": "✅ Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a !sync parancsot a frissítéshez."
+        "CMD_CLEAR_DONE": "✅ Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a !sync parancsot a frissítéshez.",
+        "INFO_TITLE": "{bot_name} - Ismertető",
+        "INFO_DESC": "Szia! Én egy aktivitásfigyelő bot vagyok. Követem a szerveren az üzeneteidet, reakcióidat és a voice csatornákban töltött idődet, amikből pontokat gyűjthetsz!",
+        "INFO_FEATURES_TITLE": "### 🚀 Funkciók & Parancsok",
+        "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld az 'Inaktív' rangot!",
+        "INFO_FOOTER": "Használd a parancsokat a statisztika szobában! Jó versengést! 🏆",
+        "INFO_POSTED": "✅ Az ismertető kártya kiküldve ide: {channel}",
+        "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
 
     _EN = {
@@ -175,7 +182,14 @@ class Messages:
         "CMD_SYNC_MODE_DESC": "Choice: guild (to this server), global (everywhere), copy (copy global here)",
         "ERR_STATS_LOAD": "❌ Error occurred while loading stats: {e}",
         "ERR_OWNER_ONLY": "Only the bot owner can use this.",
-        "CMD_CLEAR_DONE": "✅ All registered commands (global and server) have been cleared. You can now use !sync to refresh them."
+        "CMD_CLEAR_DONE": "✅ All registered commands (global and server) have been cleared. You can now use !sync to refresh them.",
+        "INFO_TITLE": "{bot_name} - Introduction",
+        "INFO_DESC": "Hi! I'm an activity tracker bot. I monitor your messages, reactions, and time spent in voice channels to help you earn points!",
+        "INFO_FEATURES_TITLE": "### 🚀 Features & Commands",
+        "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the 'Inactive' role!",
+        "INFO_FOOTER": "Use the commands in the stats channel! Happy competing! 🏆",
+        "INFO_POSTED": "✅ Info card posted to {channel}",
+        "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
 
     # These are empty 'placeholders' that will be filled with the words from above
@@ -265,6 +279,13 @@ class Messages:
     ERR_STATS_LOAD = ""
     ERR_OWNER_ONLY = ""
     CMD_CLEAR_DONE = ""
+    INFO_TITLE = ""
+    INFO_DESC = ""
+    INFO_FEATURES_TITLE = ""
+    INFO_FEATURES_DESC = ""
+    INFO_FOOTER = ""
+    INFO_POSTED = ""
+    ERR_STATS_NOT_FOUND = ""
 
     @classmethod
     def load_language(cls, lang_code):

@@ -163,3 +163,35 @@ class ModernProfileView(discord.ui.LayoutView):
 
         container.add_item(row)
         self.add_item(container)
+
+class ModernInfoView(discord.ui.LayoutView):
+    # This class builds a beautiful introduction card for the bot
+    def __init__(self, guild):
+        super().__init__()
+        bot_member = guild.me
+        bot_name = bot_member.display_name
+        
+        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
+        
+        # Header with the bot's server nickname and profile picture
+        container.add_item(discord.ui.Section(
+            f"# {Messages.INFO_TITLE.format(bot_name=bot_name)}",
+            accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
+        ))
+        
+        container.add_item(discord.ui.Separator())
+        
+        # A short description of what the bot does
+        container.add_item(discord.ui.TextDisplay(Messages.INFO_DESC))
+        
+        container.add_item(discord.ui.Separator())
+        
+        # Listing the main features and commands
+        container.add_item(discord.ui.TextDisplay(Messages.INFO_FEATURES_TITLE + "\n" + Messages.INFO_FEATURES_DESC))
+        
+        container.add_item(discord.ui.Separator())
+        
+        # A nice footer message
+        container.add_item(discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER}*"))
+        
+        self.add_item(container)

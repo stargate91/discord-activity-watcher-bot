@@ -21,6 +21,7 @@ class Config:
     _roles = _data.get("roles", {})
     STAGE_1_ROLE_ID = _roles.get("stage_1_id", 0)
     STAGE_2_ROLE_ID = _roles.get("stage_2_id", 0)
+    ADMIN_ROLE_ID = _roles.get("admin_role_id", 0)
     
     # These tell the bot where to post stats or look for admins
     _channels = _data.get("channels", {})
@@ -49,8 +50,8 @@ class Config:
     _ui = _data.get("ui", {})
     LEADERBOARD_LIMIT = _ui.get("leaderboard_limit", 10)
     REPORT_LOG_LIMIT = _ui.get("report_log_limit", 300)
-    COLOR_PRIMARY = int(_ui.get("color_primary", "0x3498db"), 16)
-    COLOR_SUCCESS = int(_ui.get("color_success", "0x2ecc71"), 16)
+    COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
+    COLOR_SUCCESS = int(str(_ui.get("color_success", "0x2ecc71")), 16)
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
     LANGUAGE = _ui.get("language", "hu")
 

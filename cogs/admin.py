@@ -5,6 +5,19 @@ import datetime
 import os
 from config_loader import Config
 from core.messages import Messages
+from core.views import ModernInfoView
+
+def is_admin():
+    # This is a custom check to see if someone can use admin prefix commands
+    async def predicate(ctx):
+        # 1. Server Administrators can always use them
+        if ctx.author.guild_permissions.administrator:
+            return True
+        # 2. People with the special Admin Role ID can also use them
+        if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(ctx.author.roles, id=Config.ADMIN_ROLE_ID):
+            return True
+        return False
+    return commands.check(predicate)
 
 class AdminCog(commands.Cog):
     def __init__(self, bot):
@@ -92,8 +105,9 @@ class AdminCog(commands.Cog):
 
     @commands.command()
     @commands.guild_only()
-    @commands.is_owner()
+    @is_admin()
     async def sync(self, ctx: commands.Context, spec: str | None = None):
+        # Only check the channel if the user has permission
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
             return
@@ -112,8 +126,9 @@ class AdminCog(commands.Cog):
 
     @commands.command(name="clear_commands")
     @commands.guild_only()
-    @commands.is_owner()
+    @is_admin()
     async def clear_commands_prefix(self, ctx: commands.Context):
+        # This part removes all the slash commands from Discord for this bot
         # This part removes all the slash commands from Discord for this bot
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
@@ -153,6 +168,19 @@ class AdminCog(commands.Cog):
         else:
             synced = await self.bot.tree.sync(guild=interaction.guild)
             await interaction.followup.send(f"Synced {len(synced)} commands to this guild.")
+
+    @commands.command(name="info")
+    @is_admin()
+    async def info_prefix(self, ctx: commands.Context):
+        # This command posts the bot's introduction card to the stats channel
+        stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
+        if not stats_channel:
+            await ctx.send(Messages.ERR_STATS_NOT_FOUND)
+            return
+            
+        view = ModernInfoView(ctx.guild)
+        await stats_channel.send(view=view)
+        await ctx.send(Messages.INFO_POSTED.format(channel=stats_channel.mention))
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
