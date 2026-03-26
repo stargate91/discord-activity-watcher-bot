@@ -91,8 +91,7 @@ class Messages:
         "INFO_DESC": "Szia! Én egy aktivitásfigyelő bot vagyok. Követem a szerveren az üzeneteidet, reakcióidat és a voice csatornákban töltött idődet, amikből pontokat gyűjthetsz!",
         "INFO_FEATURES_TITLE": "### 🚀 Funkciók & Parancsok",
         "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld az 'Inaktív' rangot!",
-        "INFO_FOOTER": "Használd a parancsokat a statisztika szobában! Jó versengést! 🏆",
-        "INFO_POSTED": "✅ Az ismertető kártya kiküldve ide: {channel}",
+        "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
 
@@ -187,8 +186,7 @@ class Messages:
         "INFO_DESC": "Hi! I'm an activity tracker bot. I monitor your messages, reactions, and time spent in voice channels to help you earn points!",
         "INFO_FEATURES_TITLE": "### 🚀 Features & Commands",
         "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the 'Inactive' role!",
-        "INFO_FOOTER": "Use the commands in the stats channel! Happy competing! 🏆",
-        "INFO_POSTED": "✅ Info card posted to {channel}",
+        "INFO_FOOTER": "Use the commands in the {channel} channel!",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
 
@@ -284,7 +282,6 @@ class Messages:
     INFO_FEATURES_TITLE = ""
     INFO_FEATURES_DESC = ""
     INFO_FOOTER = ""
-    INFO_POSTED = ""
     ERR_STATS_NOT_FOUND = ""
 
     @classmethod

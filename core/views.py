@@ -191,7 +191,9 @@ class ModernInfoView(discord.ui.LayoutView):
         
         container.add_item(discord.ui.Separator())
         
-        # A nice footer message
-        container.add_item(discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER}*"))
+        # A nice footer message with a link to the stats channel
+        stats_channel = guild.get_channel(Config.STATS_CHANNEL_ID)
+        channel_mention = stats_channel.mention if stats_channel else "#deleted-channel"
+        container.add_item(discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*"))
         
         self.add_item(container)

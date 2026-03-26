@@ -180,7 +180,6 @@ class AdminCog(commands.Cog):
             
         view = ModernInfoView(ctx.guild)
         await stats_channel.send(view=view)
-        await ctx.send(Messages.INFO_POSTED.format(channel=stats_channel.mention))
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
