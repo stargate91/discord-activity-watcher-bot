@@ -22,7 +22,7 @@ class CheekyBot(commands.Bot):
         intents.message_content = True
         intents.presences = True
         
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix=Config.PREFIX, intents=intents)
         
         # Set up the database and the special tools for tracking games and stats
         self.db = DBManager()
@@ -46,7 +46,7 @@ class CheekyBot(commands.Bot):
                     log.error(f"Failed to load extension {filename}: {e}")
 
         # Remind the admin to sync the commands so they actually show up in Discord
-        log.info("Extensions loaded. Use !sync to propagate slash commands.")
+        log.info(f"Extensions loaded. Use {Config.PREFIX}sync{Config.SUFFIX} to propagate slash commands.")
 
     # These are shortcut functions that other parts of the bot can use easily
     def get_top_data(self, guild, user=None, timeframe="alltime"):

@@ -11,6 +11,10 @@ class StatsCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
         self.engine = bot.engine
+        
+        # Dynamically fill placeholders in slash command descriptions
+        for cmd in self.get_app_commands():
+            cmd.description = Config.format_desc(cmd.description)
 
     @app_commands.command(name="top", description=Messages.CMD_TOP_DESC)
     @app_commands.describe(timeframe=Messages.CMD_TOP_TF_DESC)
@@ -24,7 +28,7 @@ class StatsCog(commands.Cog):
         view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
         await interaction.response.send_message(view=view, ephemeral=True)
 
-    @app_commands.command(name="me", description=Messages.DESC_ME)
+    @app_commands.command(name="me", description=Messages.CMD_ME_MEMBER_DESC)
     async def me(self, interaction: discord.Interaction):
         # This command shows your personal profile card with all your points
         target = interaction.user

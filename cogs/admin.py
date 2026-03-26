@@ -5,24 +5,34 @@ import datetime
 import os
 from config_loader import Config
 from core.messages import Messages
-from core.views import ModernInfoView
+from core.views import ModernInfoView, ModernDevInfoView
 
 def is_admin():
-    # This is a custom check to see if someone can use admin prefix commands
     async def predicate(ctx):
-        # 1. Server Administrators can always use them
         if ctx.author.guild_permissions.administrator:
             return True
-        # 2. People with the special Admin Role ID can also use them
         if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(ctx.author.roles, id=Config.ADMIN_ROLE_ID):
             return True
         return False
     return commands.check(predicate)
 
+def is_admin_interaction():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if interaction.user.guild_permissions.administrator:
+            return True
+        if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID):
+            return True
+        return False
+    return app_commands.check(predicate)
+
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
+        
+        # Dynamically fill placeholders in slash command descriptions
+        for cmd in self.get_app_commands():
+            cmd.description = Config.format_desc(cmd.description)
 
     @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
     async def status_report(self, interaction: discord.Interaction):
@@ -90,7 +100,7 @@ class AdminCog(commands.Cog):
         os.remove(filename)
 
     @app_commands.command(name="reset_database", description=Messages.CMD_RESET_DB_DESC)
-    @app_commands.checks.has_permissions(administrator=True)
+    @is_admin_interaction()
     async def reset_database(self, interaction: discord.Interaction):
         # DANGER: This command deletes ALL stats from the database!
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -103,10 +113,10 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
-    @commands.command()
+    @commands.command(name=f"sync{Config.SUFFIX}")
     @commands.guild_only()
     @is_admin()
-    async def sync(self, ctx: commands.Context, spec: str | None = None):
+    async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         # Only check the channel if the user has permission
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
@@ -124,11 +134,10 @@ class AdminCog(commands.Cog):
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await ctx.send(f"Synced {len(synced)} commands to this guild.")
 
-    @commands.command(name="clear_commands")
+    @commands.command(name=f"clear_commands{Config.SUFFIX}")
     @commands.guild_only()
     @is_admin()
     async def clear_commands_prefix(self, ctx: commands.Context):
-        # This part removes all the slash commands from Discord for this bot
         # This part removes all the slash commands from Discord for this bot
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
@@ -142,18 +151,14 @@ class AdminCog(commands.Cog):
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
         
-        await ctx.send(Messages.CMD_CLEAR_DONE)
+        await ctx.send(Messages.CMD_CLEAR_DONE.format(cmd=f"{Config.PREFIX}sync{Config.SUFFIX}"))
 
     @app_commands.command(name="sync", description=Messages.CMD_SYNC_DESC)
     @app_commands.describe(mode=Messages.CMD_SYNC_MODE_DESC)
-    @app_commands.checks.has_permissions(administrator=True)
+    @is_admin_interaction()
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-
-        if not await self.bot.is_owner(interaction.user):
-            await interaction.response.send_message(Messages.ERR_OWNER_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -169,9 +174,14 @@ class AdminCog(commands.Cog):
             synced = await self.bot.tree.sync(guild=interaction.guild)
             await interaction.followup.send(f"Synced {len(synced)} commands to this guild.")
 
-    @commands.command(name="info")
+    @commands.command(name=f"info{Config.SUFFIX}")
     @is_admin()
     async def info_prefix(self, ctx: commands.Context):
+        # This command must only be used in the stats channel
+        if Config.STATS_CHANNEL_ID != 0 and ctx.channel.id != Config.STATS_CHANNEL_ID:
+            await ctx.send(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID))
+            return
+
         # This command posts the bot's introduction card to the stats channel
         stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
         if not stats_channel:
@@ -180,6 +190,78 @@ class AdminCog(commands.Cog):
             
         view = ModernInfoView(ctx.guild)
         await stats_channel.send(view=view)
+
+    @app_commands.command(name="info", description=Messages.CMD_INFO_DESC)
+    @is_admin_interaction()
+    async def info_slash(self, interaction: discord.Interaction):
+        # Matches !info specifications
+        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
+            return
+
+        view = ModernInfoView(interaction.guild)
+        await interaction.response.send_message(view=view)
+
+    @commands.command(name=f"info_dev{Config.SUFFIX}")
+    async def info_dev_prefix(self, ctx: commands.Context):
+        # Restricted to Admin Channel but no role requirement
+        if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
+            await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
+            return
+        
+        await self._send_dev_help(ctx)
+
+    @app_commands.command(name="info_dev", description=Messages.CMD_INFO_DEV_DESC)
+    async def info_dev_slash(self, interaction: discord.Interaction):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
+        await self._send_dev_help(interaction)
+
+    async def _send_dev_help(self, target):
+        prefix_cmds = []
+        # Localized technical descriptions for prefix commands
+        # We manually map them because these are prefix names which can vary with suffix
+        prefix_map = {
+            f"sync{Config.SUFFIX}": Messages.TECH_SYNC,
+            f"clear_commands{Config.SUFFIX}": "Commands clearing tool. (Global + Guild)",
+            f"info{Config.SUFFIX}": Messages.CMD_INFO_DESC,
+            f"info_dev{Config.SUFFIX}": Messages.CMD_INFO_DEV_DESC
+        }
+        
+        for cmd in self.bot.commands:
+            help_text = prefix_map.get(cmd.name, cmd.help)
+            prefix_cmds.append((cmd.name, help_text))
+            
+        slash_cmds = []
+        # Technical details for slash commands
+        tech_map = {
+            "reset_database": Messages.TECH_RESET,
+            "sync": Messages.TECH_SYNC,
+            "add_game": Messages.TECH_ADD_GAME,
+            "status_report": Messages.TECH_STATUS,
+            "game_stats_report": Messages.TECH_GAME_REPORT
+        }
+
+        for cmd in self.bot.tree.get_commands():
+            if isinstance(cmd, app_commands.Group):
+                for sub in cmd.commands:
+                    slash_cmds.append((f"{cmd.name} {sub.name}", sub.description))
+            else:
+                desc = cmd.description
+                tech_detail = tech_map.get(cmd.name)
+                if tech_detail:
+                    desc += f"\n   - **Tech:** {tech_detail}"
+                
+                slash_cmds.append((cmd.name, desc))
+
+        view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
+        
+        if isinstance(target, commands.Context):
+            await target.send(view=view)
+        else:
+            await target.response.send_message(view=view)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))

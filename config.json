@@ -1,7 +1,8 @@
 {
     "roles": {
         "stage_1_id": 1485292108410781768,
-        "stage_2_id": 1485292507477836000
+        "stage_2_id": 1485292507477836000,
+        "admin_role_id": 1486685311919460402
     },
     "channels": {
         "guild_id": 1083433370815582240,
@@ -28,6 +29,8 @@
         "points_voice_per_min": 2
     },
     "ui": {
+        "prefix": "!",
+        "suffix": "_a",
         "leaderboard_limit": 10,
         "report_log_limit": 300,
         "color_primary": "0x3498db",

@@ -10,7 +10,7 @@ class Config:
     TOKEN = os.getenv("DISCORD_TOKEN")
     
     # Read all the other settings from the config.json file
-    _data = {}
+    _data: dict = {}
     try:
         with open("config.json", "r", encoding="utf-8") as f:
             _data = json.load(f)
@@ -18,13 +18,13 @@ class Config:
         print(f"Error loading config.json: {e}")
 
     # These are the IDs for the special roles the bot gives out
-    _roles = _data.get("roles", {})
+    _roles: dict = _data.get("roles", {})
     STAGE_1_ROLE_ID = _roles.get("stage_1_id", 0)
     STAGE_2_ROLE_ID = _roles.get("stage_2_id", 0)
     ADMIN_ROLE_ID = _roles.get("admin_role_id", 0)
     
     # These tell the bot where to post stats or look for admins
-    _channels = _data.get("channels", {})
+    _channels: dict = _data.get("channels", {})
     GUILD_ID = _channels.get("guild_id", 0)
     ADMIN_CHANNEL_ID = _channels.get("admin_id", 0)
     STATS_CHANNEL_ID = _channels.get("stats_id", 0)
@@ -48,6 +48,8 @@ class Config:
 
     # Settings for how the bot looks and how much data it shows
     _ui = _data.get("ui", {})
+    PREFIX = _ui.get("prefix", "!")
+    SUFFIX = _ui.get("suffix", "")
     LEADERBOARD_LIMIT = _ui.get("leaderboard_limit", 10)
     REPORT_LOG_LIMIT = _ui.get("report_log_limit", 300)
     COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
@@ -72,3 +74,14 @@ class Config:
         if cls.STAGE_1_ROLE_ID == 0 or cls.STAGE_2_ROLE_ID == 0:
             return "Role IDs are not set in config.json"
         return None
+
+    @classmethod
+    def format_desc(cls, text: str) -> str:
+        """Fills placeholders in command descriptions with current config values."""
+        if not text: return text
+        return text.format(
+            admin_id=cls.ADMIN_CHANNEL_ID,
+            stats_id=cls.STATS_CHANNEL_ID,
+            role_id=cls.ADMIN_ROLE_ID,
+            bot_name="Activity Watcher" # Optional, could get from guild.me
+        )

@@ -68,30 +68,40 @@ class Messages:
         "GAME_POP_HEADER": "Játék neve                          | Jótekosok | Össz. perc",
         "PRESENCE_WATCHING": "Figyelem a lazsálókat... 🤫",
         
-        "CMD_TOP_DESC": "Mutatja a heti, havi vagy összesített toplistát.",
+        "CMD_TOP_DESC": "[#{stats_id}] Mutatja a heti, havi vagy összesített toplistát.",
         "CMD_TOP_TF_DESC": "Válassz időszakot (weekly, monthly, alltime)",
-        "CMD_ME_MEMBER_DESC": "Nézze meg a saját statisztikáit.",
-        "CMD_ADD_GAME_DESC": "[Admin] Új játék hozzáadása az automata rangosztáshoz.",
+        "CMD_ME_MEMBER_DESC": "[#{stats_id}] Saját statisztikáid megtekintése.",
+        "CMD_ADD_GAME_DESC": "[#{admin_id}] Új játék hozzáadása az automata rangosztáshoz.",
         "CMD_ADD_GAME_NAME_DESC": "A játék nevének egy része (pl: Minecraft)",
         "CMD_ADD_GAME_SUFFIX_DESC": "A rang vége (példa: 'Minecraft' -> 'Player: Minecraft')",
-        "CMD_REMOVE_GAME_DESC": "[Admin] Játék eltávolítása a listából.",
+        "CMD_REMOVE_GAME_DESC": "[#{admin_id} + @&{role_id}] Játék eltávolítása a listából.",
         "CMD_REMOVE_GAME_NAME_DESC": "A pontos keresési kulcsszó (pl: Minecraft)",
-        "CMD_LIST_GAMES_DESC": "[Admin] Az összes figyelt játék listázása.",
-        "CMD_GAME_REPORT_DESC": "[Admin] Játék népszerűségi riport generálása .txt-ben.",
+        "CMD_LIST_GAMES_DESC": "[#{admin_id}] Az összes figyelt játék listázása.",
+        "CMD_GAME_REPORT_DESC": "[#{admin_id}] Játék népszerűségi riport generálása .txt-ben.",
         "CMD_GAME_REPORT_TF_DESC": "Válasz: alltime (összes) vagy monthly (e havi)",
-        "CMD_STATUS_REPORT_DESC": "[Admin Channel] Generál egy részletes TXT jelentést.",
-        "CMD_GAME_ROLE_REPORT_DESC": "[Admin Channel] Letölti a játékos-rang kiosztások naplóját.",
-        "CMD_RESET_DB_DESC": "[Admin] MINDEN aktivitási adat végleges törlése.",
-        "CMD_SYNC_DESC": "[Owner] Slash parancsok manuális szinkronizálása.",
+        "CMD_STATUS_REPORT_DESC": "[#{admin_id}] Generál egy részletes TXT jelentést.",
+        "CMD_GAME_ROLE_REPORT_DESC": "[#{admin_id}] Letölti a játékos-rang kiosztások naplóját.",
+        "CMD_RESET_DB_DESC": "[#{admin_id} + @&{role_id}] MINDEN aktivitási adat végleges törlése.",
+        "CMD_SYNC_DESC": "[#{admin_id} + @&{role_id}] Slash parancsok manuális szinkronizálása.",
         "CMD_SYNC_MODE_DESC": "Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)",
         "ERR_STATS_LOAD": "❌ Hiba történt a statisztikák betöltésekor: {e}",
         "ERR_OWNER_ONLY": "Csak a bot tulajdonosa használhatja ezt.",
-        "CMD_CLEAR_DONE": "✅ Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a !sync parancsot a frissítéshez.",
+        "CMD_CLEAR_DONE": "✅ Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a {cmd} parancsot a frissítéshez.",
         "INFO_TITLE": "{bot_name} - Ismertető",
         "INFO_DESC": "Szia! Én egy aktivitásfigyelő bot vagyok. Követem a szerveren az üzeneteidet, reakcióidat és a voice csatornákban töltött idődet, amikből pontokat gyűjthetsz!",
         "INFO_FEATURES_TITLE": "### 🚀 Funkciók & Parancsok",
-        "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld az 'Inaktív' rangot!",
+        "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld a {role} rangot!",
         "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
+        "INFO_DEV_TITLE": "🛠️ Adminisztrátori Parancslista",
+        "INFO_DEV_PREFIX": "### ⌨️ Prefix parancsok (Suffix: `{suffix}`)\n",
+        "INFO_DEV_SLASH": "\n### ⚡ Slash parancsok\n",
+        "CMD_INFO_DEV_DESC": "[#{admin_id}] Kilistázza az összes parancsot az adminoknak.",
+        "CMD_INFO_DESC": "[#{stats_id}] Általános ismertető a botról.",
+        "TECH_SYNC": "A `bot.tree.sync()` hívását végzi. Frissíti a / parancsok metaadatait a Discord szerverein.",
+        "TECH_RESET": "Véglegesen törli a `stats`, `role_history` és `game_stats` táblákat. Nem visszavonható.",
+        "TECH_ADD_GAME": "Új regex mintát ment a `tracked_games` táblába, majd frissíti a tracker gyorsítótárát.",
+        "TECH_STATUS": "Lekéri az összesített adatokat a DB-ből, Voice-offsetet számol, és .txt fájlt generál.",
+        "TECH_GAME_REPORT": "Összegzi a `game_stats` és `tracked_games` táblákat a megadott időszakra.",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
 
@@ -163,30 +173,40 @@ class Messages:
         "GAME_POP_HEADER": "Game name                           | Players   | Total min",
         "PRESENCE_WATCHING": "Watching the slackers... 🤫",
         
-        "CMD_TOP_DESC": "Shows the weekly, monthly or all-time leaderboard.",
+        "CMD_TOP_DESC": "[#{stats_id}] Shows the weekly, monthly or all-time leaderboard.",
         "CMD_TOP_TF_DESC": "Choose a timeframe (weekly, monthly, alltime)",
-        "CMD_ME_MEMBER_DESC": "View your own statistics.",
-        "CMD_ADD_GAME_DESC": "[Admin] Add a new game to automatic rank distribution.",
+        "CMD_ME_MEMBER_DESC": "[#{stats_id}] View your own statistics.",
+        "CMD_ADD_GAME_DESC": "[#{admin_id}] Add a new game to automatic rank distribution.",
         "CMD_ADD_GAME_NAME_DESC": "Part of the game's name (e.g., Minecraft)",
         "CMD_ADD_GAME_SUFFIX_DESC": "End of the rank (example: 'Minecraft' -> 'Player: Minecraft')",
-        "CMD_REMOVE_GAME_DESC": "[Admin] Remove a game from the list.",
+        "CMD_REMOVE_GAME_DESC": "[#{admin_id} + @&{role_id}] Remove a game from the list.",
         "CMD_REMOVE_GAME_NAME_DESC": "The exact search keyword (e.g., Minecraft)",
-        "CMD_LIST_GAMES_DESC": "[Admin] List all watched games.",
-        "CMD_GAME_REPORT_DESC": "[Admin] Generate a game popularity report in .txt.",
+        "CMD_LIST_GAMES_DESC": "[#{admin_id}] List all watched games.",
+        "CMD_GAME_REPORT_DESC": "[#{admin_id}] Generate a game popularity report in .txt.",
         "CMD_GAME_REPORT_TF_DESC": "Choice: alltime (all) or monthly (this month)",
-        "CMD_STATUS_REPORT_DESC": "[Admin Channel] Generate a detailed TXT report.",
-        "CMD_GAME_ROLE_REPORT_DESC": "[Admin Channel] Download the player-rank assignment log.",
-        "CMD_RESET_DB_DESC": "[Admin] Permanently delete ALL activity data.",
-        "CMD_SYNC_DESC": "[Owner] Manually sync slash commands.",
+        "CMD_STATUS_REPORT_DESC": "[#{admin_id}] Generate a detailed TXT report.",
+        "CMD_GAME_ROLE_REPORT_DESC": "[#{admin_id}] Download the player-rank assignment log.",
+        "CMD_RESET_DB_DESC": "[#{admin_id} + @&{role_id}] Permanently delete ALL activity data.",
+        "CMD_SYNC_DESC": "[#{admin_id} + @&{role_id}] Manually sync slash commands.",
         "CMD_SYNC_MODE_DESC": "Choice: guild (to this server), global (everywhere), copy (copy global here)",
         "ERR_STATS_LOAD": "❌ Error occurred while loading stats: {e}",
         "ERR_OWNER_ONLY": "Only the bot owner can use this.",
-        "CMD_CLEAR_DONE": "✅ All registered commands (global and server) have been cleared. You can now use !sync to refresh them.",
+        "CMD_CLEAR_DONE": "✅ All registered commands (global and server) have been cleared. You can now use {cmd} to refresh them.",
         "INFO_TITLE": "{bot_name} - Introduction",
         "INFO_DESC": "Hi! I'm an activity tracker bot. I monitor your messages, reactions, and time spent in voice channels to help you earn points!",
         "INFO_FEATURES_TITLE": "### 🚀 Features & Commands",
-        "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the 'Inactive' role!",
+        "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the {role} role!",
         "INFO_FOOTER": "Use the commands in the {channel} channel!",
+        "INFO_DEV_TITLE": "🛠️ Administrative Command List",
+        "INFO_DEV_PREFIX": "### ⌨️ Prefix Commands (Suffix: `{suffix}`)\n",
+        "INFO_DEV_SLASH": "\n### ⚡ Slash Commands\n",
+        "CMD_INFO_DEV_DESC": "[#{admin_id}] Lists all commands for administrators.",
+        "CMD_INFO_DESC": "[#{stats_id}] General introduction to the bot.",
+        "TECH_SYNC": "Calls `bot.tree.sync()`. Updates / command metadata on Discord's servers.",
+        "TECH_RESET": "Permanently clears `stats`, `role_history`, and `game_stats` tables. Irreversible.",
+        "TECH_ADD_GAME": "Saves a new regex pattern to `tracked_games` and refreshes the tracker cache.",
+        "TECH_STATUS": "Fetches aggregated data from DB, calculates Voice offsets, and generates a .txt file.",
+        "TECH_GAME_REPORT": "Summarizes `game_stats` and `tracked_games` tables for the selected period.",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
 
@@ -268,6 +288,16 @@ class Messages:
     CMD_REMOVE_GAME_NAME_DESC = ""
     CMD_LIST_GAMES_DESC = ""
     CMD_GAME_REPORT_DESC = ""
+    CMD_INFO_DEV_DESC = ""
+    CMD_INFO_DESC = ""
+    TECH_SYNC = ""
+    TECH_RESET = ""
+    TECH_ADD_GAME = ""
+    TECH_STATUS = ""
+    TECH_GAME_REPORT = ""
+    INFO_DEV_TITLE = ""
+    INFO_DEV_PREFIX = ""
+    INFO_DEV_SLASH = ""
     CMD_GAME_REPORT_TF_DESC = ""
     CMD_STATUS_REPORT_DESC = ""
     CMD_GAME_ROLE_REPORT_DESC = ""
