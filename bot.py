@@ -22,7 +22,7 @@ class CheekyBot(commands.Bot):
         intents.message_content = True
         intents.presences = True
         
-        super().__init__(command_prefix=Config.PREFIX, intents=intents)
+        super().__init__(command_prefix=Config.PREFIX, intents=intents, help_command=None)
         
         # Set up the database and the special tools for tracking games and stats
         self.db = DBManager()
