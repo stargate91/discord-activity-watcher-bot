@@ -52,6 +52,7 @@ class Config:
     COLOR_PRIMARY = int(_ui.get("color_primary", "0x3498db"), 16)
     COLOR_SUCCESS = int(_ui.get("color_success", "0x2ecc71"), 16)
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
+    LANGUAGE = _ui.get("language", "hu")
 
     # User Mapping (Alts -> Main)
     _user_mapping = _data.get("user_mapping", {})

@@ -111,7 +111,7 @@ class ModernProfileView(discord.ui.LayoutView):
             ch = user.guild.get_channel(social['top_channel'])
             name = f"#{ch.name}" if ch else f"#{social['top_channel']}"
             if self.static:
-                social_lines.append(f"**Kedvenc szoba:** {name}")
+                social_lines.append(Messages.SOCIAL_FAV_ROOM_STATIC.format(name=name))
             else:
                 social_lines.append(Messages.SOCIAL_FAV_ROOM.format(id=social['top_channel']))
         if social["top_emoji"]:
@@ -120,7 +120,7 @@ class ModernProfileView(discord.ui.LayoutView):
             target = user.guild.get_member(social['top_target'])
             name = f"**{target.display_name}**" if target else f"**{social['top_target']}**"
             if self.static:
-                social_lines.append(f"**Fő célpont:** {name}")
+                social_lines.append(Messages.SOCIAL_MAIN_TARGET_STATIC.format(name=name))
             else:
                 social_lines.append(Messages.SOCIAL_MAIN_TARGET.format(id=social['top_target']))
         if partners:
@@ -128,7 +128,7 @@ class ModernProfileView(discord.ui.LayoutView):
                 p = user.guild.get_member(pid)
                 name = f"**{p.display_name}**" if p else f"**{pid}**"
                 if self.static:
-                    social_lines.append(f"**Best Friend (Voice):** {name}")
+                    social_lines.append(Messages.SOCIAL_BEST_FRIEND_STATIC.format(name=name))
                 else:
                     social_lines.append(Messages.SOCIAL_BEST_FRIEND.format(id=pid))
         

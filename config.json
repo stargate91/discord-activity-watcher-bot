@@ -31,7 +31,8 @@
         "report_log_limit": 300,
         "color_primary": "0x3498db",
         "color_success": "0x2ecc71",
-        "recent_games_limit": 3
+        "recent_games_limit": 3,
+        "language": "hu"
     },
     "user_mapping": {
         "1395731197056913488": 495596107473223700,

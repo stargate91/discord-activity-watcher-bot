@@ -6,6 +6,10 @@ from db_manager import DBManager
 from config_loader import Config
 from core.game_tracker import GameTracker
 from core.stats_engine import StatsEngine
+from core.messages import Messages
+
+# Set language
+Messages.load_language(Config.LANGUAGE)
 
 class CheekyBot(commands.Bot):
     def __init__(self):

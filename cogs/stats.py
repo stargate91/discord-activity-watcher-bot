@@ -12,8 +12,8 @@ class StatsCog(commands.Cog):
         self.db = bot.db
         self.engine = bot.engine
 
-    @app_commands.command(name="top", description="Mutatja a heti, havi vagy összesített toplistát.")
-    @app_commands.describe(timeframe="Válassz időszakot (weekly, monthly, alltime)")
+    @app_commands.command(name="top", description=Messages.CMD_TOP_DESC)
+    @app_commands.describe(timeframe=Messages.CMD_TOP_TF_DESC)
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
@@ -24,6 +24,7 @@ class StatsCog(commands.Cog):
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @app_commands.command(name="me", description=Messages.DESC_ME)
+    @app_commands.describe(member=Messages.CMD_ME_MEMBER_DESC)
     async def me(self, interaction: discord.Interaction, member: discord.Member = None):
         target = member or interaction.user
         main_id = Config.get_main_id(target.id)
@@ -65,7 +66,7 @@ class StatsCog(commands.Cog):
             view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
             await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f"❌ Hiba történt a statisztikák betöltésekor: {e}", ephemeral=True)
+            await interaction.followup.send(Messages.ERR_STATS_LOAD.format(e=e), ephemeral=True)
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):

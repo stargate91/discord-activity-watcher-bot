@@ -12,8 +12,8 @@ class GamesCog(commands.Cog):
         self.db = bot.db
         self.tracker = bot.tracker
 
-    @app_commands.command(name="add_game", description="[Admin] Új játék hozzáadása az automata rangosztáshoz.")
-    @app_commands.describe(search_name="A játék nevének egy része (pl: Minecraft)", role_suffix="A rang vége (példa: 'Minecraft' -> 'Player: Minecraft')")
+    @app_commands.command(name="add_game", description=Messages.CMD_ADD_GAME_DESC)
+    @app_commands.describe(search_name=Messages.CMD_ADD_GAME_NAME_DESC, role_suffix=Messages.CMD_ADD_GAME_SUFFIX_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -24,8 +24,8 @@ class GamesCog(commands.Cog):
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_ADDED.format(name=search_name, suffix=role_suffix), ephemeral=True)
 
-    @app_commands.command(name="remove_game", description="[Admin] Játék eltávolítása a listából.")
-    @app_commands.describe(search_name="A pontos keresési kulcsszó (pl: Minecraft)")
+    @app_commands.command(name="remove_game", description=Messages.CMD_REMOVE_GAME_DESC)
+    @app_commands.describe(search_name=Messages.CMD_REMOVE_GAME_NAME_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -36,7 +36,7 @@ class GamesCog(commands.Cog):
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
 
-    @app_commands.command(name="list_games", description="[Admin] Az összes figyelt játék listázása.")
+    @app_commands.command(name="list_games", description=Messages.CMD_LIST_GAMES_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def list_games(self, interaction: discord.Interaction):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -52,8 +52,8 @@ class GamesCog(commands.Cog):
         embed = discord.Embed(title=Messages.GAME_LIST_TITLE, description=desc, color=Config.COLOR_SUCCESS)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="game_stats_report", description="[Admin] Játék népszerűségi riport generálása .txt-ben.")
-    @app_commands.describe(timeframe="Válasz: alltime (összes) vagy monthly (e havi)")
+    @app_commands.command(name="game_stats_report", description=Messages.CMD_GAME_REPORT_DESC)
+    @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:

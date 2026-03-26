@@ -11,7 +11,7 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
 
-    @app_commands.command(name="status_report", description="[Admin Channel] Generál egy részletes TXT jelentést.")
+    @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
     async def status_report(self, interaction: discord.Interaction):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
@@ -44,7 +44,7 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
         os.remove(filename)
 
-    @app_commands.command(name="game_role_report", description="[Admin Channel] Letölti a játékos-rang kiosztások naplóját.")
+    @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     async def game_role_report(self, interaction: discord.Interaction):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
@@ -71,7 +71,7 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
         os.remove(filename)
 
-    @app_commands.command(name="reset_database", description="[Admin] MINDEN aktivitási adat végleges törlése.")
+    @app_commands.command(name="reset_database", description=Messages.CMD_RESET_DB_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def reset_database(self, interaction: discord.Interaction):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -103,8 +103,26 @@ class AdminCog(commands.Cog):
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await ctx.send(f"Synced {len(synced)} commands to this guild.")
 
-    @app_commands.command(name="sync", description="[Owner] Slash parancsok manuális szinkronizálása.")
-    @app_commands.describe(mode="Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)")
+    @commands.command(name="clear_commands")
+    @commands.guild_only()
+    @commands.is_owner()
+    async def clear_commands_prefix(self, ctx: commands.Context):
+        if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
+            await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
+            return
+            
+        # Global clear
+        self.bot.tree.clear_commands(guild=None)
+        await self.bot.tree.sync(guild=None)
+        
+        # Guild clear
+        self.bot.tree.clear_commands(guild=ctx.guild)
+        await self.bot.tree.sync(guild=ctx.guild)
+        
+        await ctx.send(Messages.CMD_CLEAR_DONE)
+
+    @app_commands.command(name="sync", description=Messages.CMD_SYNC_DESC)
+    @app_commands.describe(mode=Messages.CMD_SYNC_MODE_DESC)
     @app_commands.checks.has_permissions(administrator=True)
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
         if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
@@ -112,7 +130,7 @@ class AdminCog(commands.Cog):
             return
 
         if not await self.bot.is_owner(interaction.user):
-            await interaction.response.send_message("Csak a bot tulajdonosa használhatja ezt.", ephemeral=True)
+            await interaction.response.send_message(Messages.ERR_OWNER_ONLY, ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
