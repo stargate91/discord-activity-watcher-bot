@@ -53,6 +53,16 @@ class Config:
     COLOR_SUCCESS = int(_ui.get("color_success", "0x2ecc71"), 16)
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
 
+    # User Mapping (Alts -> Main)
+    _user_mapping = _data.get("user_mapping", {})
+    # Ensure keys are ints for easier matching later
+    USER_MAPPING = {int(k): int(v) for k, v in _user_mapping.items()}
+
+    @classmethod
+    def get_main_id(cls, user_id):
+        """Returns the main account ID if the user is an alt, otherwise returns the user_id itself."""
+        return cls.USER_MAPPING.get(user_id, user_id)
+
     @classmethod
     def validate(cls):
         if not cls.TOKEN:

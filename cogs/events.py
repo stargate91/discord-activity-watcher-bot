@@ -25,31 +25,38 @@ class EventsCog(commands.Cog):
         if member.bot: return
         if channel_id and channel_id in Config.EXCLUDED_CHANNELS: return
             
-        self.db.update_activity(member.id, member.guild.id)
+        main_id = Config.get_main_id(member.id)
+        self.db.update_activity(main_id, member.guild.id)
         if event_type == "message":
-            self.db.increment_messages(member.id, member.guild.id)
+            self.db.increment_messages(main_id, member.guild.id)
         elif event_type == "reaction":
-            self.db.increment_reactions(member.id, member.guild.id)
+            self.db.increment_reactions(main_id, member.guild.id)
+        
+        # Find all linked accounts in this guild to sync roles
+        all_linked = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
         
         stage1_role = member.guild.get_role(Config.STAGE_1_ROLE_ID)
         stage2_role = member.guild.get_role(Config.STAGE_2_ROLE_ID)
         
-        if stage1_role and stage1_role in member.roles:
-            try:
-                if stage2_role and stage2_role not in member.roles:
-                    await member.add_roles(stage2_role)
-                await member.remove_roles(stage1_role)
-                self.db.set_returned_at(member.id, member.guild.id, datetime.datetime.now(datetime.timezone.utc))
-            except discord.Forbidden: pass
-        elif stage2_role and stage2_role in member.roles:
-            data = self.db.get_user_data(member.id, member.guild.id)
-            if data and data["returned_at"]:
-                delta = datetime.datetime.now(datetime.timezone.utc) - data["returned_at"].astimezone(datetime.timezone.utc)
-                if 60 <= delta.total_seconds() <= (Config.STAGE_2_GRACE_DAYS * 24 * 3600):
-                    try: 
-                        await member.remove_roles(stage2_role)
-                        self.db.set_returned_at(member.id, member.guild.id, None)
-                    except discord.Forbidden: pass
+        # Determine current stats from DB
+        data = self.db.get_user_data(main_id, member.guild.id)
+        
+        for m in all_linked:
+            if stage1_role and stage1_role in m.roles:
+                try:
+                    if stage2_role and stage2_role not in m.roles:
+                        await m.add_roles(stage2_role)
+                    await m.remove_roles(stage1_role)
+                    self.db.set_returned_at(main_id, member.guild.id, datetime.datetime.now(datetime.timezone.utc))
+                except discord.Forbidden: pass
+            elif stage2_role and stage2_role in m.roles:
+                if data and data["returned_at"]:
+                    delta = datetime.datetime.now(datetime.timezone.utc) - data["returned_at"].astimezone(datetime.timezone.utc)
+                    if 60 <= delta.total_seconds() <= (Config.STAGE_2_GRACE_DAYS * 24 * 3600):
+                        try: 
+                            await m.remove_roles(stage2_role)
+                            self.db.set_returned_at(main_id, member.guild.id, None)
+                        except discord.Forbidden: pass
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -67,35 +74,49 @@ class EventsCog(commands.Cog):
             # Sync user data existence
             for m in guild.members:
                 if m.bot: continue
-                if not self.db.get_user_data(m.id, guild.id):
-                    self.db.update_activity(m.id, guild.id)
+                if not self.db.get_user_data(Config.get_main_id(m.id), guild.id):
+                    self.db.update_activity(Config.get_main_id(m.id), guild.id)
             
             # Sync voice sessions
             for m in guild.members:
                 if m.bot: continue
                 is_in_voice = m.voice and m.voice.channel and m.voice.channel.id != Config.AFK_CHANNEL_ID and m.voice.channel != guild.afk_channel
+                main_id = Config.get_main_id(m.id)
                 
                 # Case A: In voice now
                 if is_in_voice:
-                    if m.id in db_sessions:
-                        # Continue existing session
-                        self.bot.voice_start_times[m.id] = db_sessions[m.id]
+                    if main_id in self.bot.voice_start_times:
+                        # Already tracking this user (or another linked account)
+                        continue
+                        
+                    if main_id in db_sessions:
+                        # Continue existing session from DB
+                        self.bot.voice_start_times[main_id] = db_sessions[main_id]
                     else:
-                        # New session (bot missed the join event)
+                        # New session
                         now = datetime.datetime.now(datetime.timezone.utc)
-                        self.bot.voice_start_times[m.id] = now
-                        self.db.start_voice_session(m.id, guild.id, m.voice.channel.id, now)
+                        self.bot.voice_start_times[main_id] = now
+                        self.db.start_voice_session(main_id, guild.id, m.voice.channel.id, now)
                 
-                # Case B: In DB session but NOT in voice now (bot missed the leave event)
-                elif m.id in db_sessions:
-                    # Close the stale session
-                    start = self.db.end_voice_session(m.id, guild.id)
-                    if start:
-                        now = datetime.datetime.now(datetime.timezone.utc)
-                        mins = (now - start).total_seconds() / 60
-                        if mins > 0:
-                            self.db.add_voice_minutes(m.id, guild.id, mins)
-                            log.info(f"Closed stale voice session for {m} ({int(mins)} mins credited)")
+                # Case B: In DB session but NOT in voice now
+                elif main_id in db_sessions:
+                    # Only close if NO linked accounts are in voice anywhere in this guild
+                    is_someone_still_in = any(
+                        Config.get_main_id(other.id) == main_id and 
+                        other.voice and other.voice.channel and 
+                        other.voice.channel.id != Config.AFK_CHANNEL_ID
+                        for other in guild.members if not other.bot
+                    )
+                    
+                    if not is_someone_still_in:
+                        start = self.db.end_voice_session(main_id, guild.id)
+                        self.bot.voice_start_times.pop(main_id, None)
+                        if start:
+                            now = datetime.datetime.now(datetime.timezone.utc)
+                            mins = (now - start).total_seconds() / 60
+                            if mins > 0:
+                                self.db.add_voice_minutes(main_id, guild.id, mins)
+                                log.info(f"Closed stale voice session for main user {main_id} ({int(mins)} mins credited)")
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -110,6 +131,8 @@ class EventsCog(commands.Cog):
     async def on_voice_state_update(self, member, before, after):
         if member.bot: return
         
+        main_id = Config.get_main_id(member.id)
+        
         # Detect Channel Change (Join, Leave, Move)
         if before.channel != after.channel:
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -117,22 +140,32 @@ class EventsCog(commands.Cog):
             # Step 1: Handle LEAVE or MOVE AWAY from a valid channel
             is_leaving_valid = before.channel is not None and before.channel.id != Config.AFK_CHANNEL_ID and before.channel != member.guild.afk_channel
             if is_leaving_valid:
-                # End session in DB and remove from memory cache
-                start = self.db.end_voice_session(member.id, member.guild.id)
-                self.bot.voice_start_times.pop(member.id, None)
+                # Check if ANY linked accounts are still in voice
+                is_someone_left = any(
+                    Config.get_main_id(m.id) == main_id and 
+                    m.voice and m.voice.channel and 
+                    m.voice.channel.id != Config.AFK_CHANNEL_ID
+                    for m in member.guild.members if not m.bot
+                )
                 
-                if start:
-                    mins = (now - start).total_seconds() / 60
-                    if mins > 0: 
-                        self.db.add_voice_minutes(member.id, member.guild.id, mins)
-                        self.db.log_voice_session(member.id, member.guild.id, before.channel.id, start, now, mins)
+                if not is_someone_left:
+                    # Last account left, close session
+                    start = self.db.end_voice_session(main_id, member.guild.id)
+                    self.bot.voice_start_times.pop(main_id, None)
+                    
+                    if start:
+                        mins = (now - start).total_seconds() / 60
+                        if mins > 0: 
+                            self.db.add_voice_minutes(main_id, member.guild.id, mins)
+                            self.db.log_voice_session(main_id, member.guild.id, before.channel.id, start, now, mins)
             
             # Step 2: Handle JOIN or MOVE TO a valid channel
             is_joining_valid = after.channel is not None and after.channel.id != Config.AFK_CHANNEL_ID and after.channel != member.guild.afk_channel
             if is_joining_valid:
-                # Start session in DB and update memory cache
-                self.db.start_voice_session(member.id, member.guild.id, after.channel.id, now)
-                self.bot.voice_start_times[member.id] = now
+                # Start only if not already tracking this main user
+                if main_id not in self.bot.voice_start_times:
+                    self.db.start_voice_session(main_id, member.guild.id, after.channel.id, now)
+                    self.bot.voice_start_times[main_id] = now
                 await self.handle_member_activity(member)
 
     @commands.Cog.listener()
@@ -142,6 +175,7 @@ class EventsCog(commands.Cog):
             if not guild: return
             member = payload.member or await guild.fetch_member(payload.user_id)
             if member: 
+                main_id = Config.get_main_id(member.id)
                 await self.handle_member_activity(member, event_type="reaction", channel_id=payload.channel_id)
                 try:
                     channel = self.bot.get_channel(payload.channel_id)
@@ -151,10 +185,11 @@ class EventsCog(commands.Cog):
                             message = await channel.fetch_message(payload.message_id)
                         
                         if message and message.author and not message.author.bot:
-                            if message.author.id != member.id:
+                            target_main_id = Config.get_main_id(message.author.id)
+                            if target_main_id != main_id:
                                 self.db.log_reaction_interaction(
-                                    user_id=member.id,
-                                    target_user_id=message.author.id,
+                                    user_id=main_id,
+                                    target_user_id=target_main_id,
                                     guild_id=guild.id,
                                     channel_id=channel.id,
                                     message_id=payload.message_id,
@@ -170,22 +205,25 @@ class EventsCog(commands.Cog):
             if not r1: continue
             data = self.db.get_all_guild_data(guild.id)
             for uid, d in data.items():
-                m = guild.get_member(uid)
-                if not m: continue
+                # Find all entities for this "person" in the guild
+                members = [m for m in guild.members if Config.get_main_id(m.id) == uid and not m.bot]
+                if not members: continue
+                
                 inactive_days = (now - d["last_active"].astimezone(datetime.timezone.utc)).days
-                if inactive_days >= Config.STAGE_1_DAYS:
-                    if r1 not in m.roles:
-                        try:
-                            await m.add_roles(r1)
-                            if r2 and r2 in m.roles: await m.remove_roles(r2)
-                            self.db.set_returned_at(uid, guild.id, None)
-                        except discord.Forbidden: pass
-                elif d["returned_at"]:
-                    if (now - d["returned_at"].astimezone(datetime.timezone.utc)).days >= Config.STAGE_2_GRACE_DAYS:
-                        if r2 and r2 in m.roles:
-                            try: await m.remove_roles(r2)
+                for m in members:
+                    if inactive_days >= Config.STAGE_1_DAYS:
+                        if r1 not in m.roles:
+                            try:
+                                await m.add_roles(r1)
+                                if r2 and r2 in m.roles: await m.remove_roles(r2)
+                                self.db.set_returned_at(uid, guild.id, None)
                             except discord.Forbidden: pass
-                        self.db.set_returned_at(uid, guild.id, None)
+                    elif d["returned_at"]:
+                        if (now - d["returned_at"].astimezone(datetime.timezone.utc)).days >= Config.STAGE_2_GRACE_DAYS:
+                            if r2 and r2 in m.roles:
+                                try: await m.remove_roles(r2)
+                                except discord.Forbidden: pass
+                            self.db.set_returned_at(uid, guild.id, None)
 
     @tasks.loop(hours=24)
     async def cleanup_inactive_roles_task(self):

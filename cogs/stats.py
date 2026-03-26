@@ -23,33 +23,45 @@ class StatsCog(commands.Cog):
         view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
         await interaction.response.send_message(view=view, ephemeral=True)
 
-    @app_commands.command(name="me", description="Megmutatja a saját aktivitási statisztikáidat.")
-    async def me(self, interaction: discord.Interaction):
+    @app_commands.command(name="me", description=Messages.DESC_ME)
+    async def me(self, interaction: discord.Interaction, member: discord.Member = None):
+        target = member or interaction.user
+        main_id = Config.get_main_id(target.id)
+        
+        # Resolve target to main member if they are an alt
+        main_member = interaction.guild.get_member(main_id) or target
+        
         if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
             return
-            
-        # Use centralized logic for points and rank
-        _, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, "alltime")
+
+        await interaction.response.defer()
         
-        if not u_stats:
-            await interaction.response.send_message(Messages.ERR_NO_DATA, ephemeral=True)
+        # Use the main_id for stat retrieval
+        _, user_full_stats = self.bot.engine.get_leaderboard(
+            interaction.guild, 
+            user=main_member, 
+            live_voice_times=self.bot.voice_start_times
+        )
+        
+        if not user_full_stats:
+            await interaction.followup.send(Messages.ERR_NO_DATA, ephemeral=True)
             return
 
-        # u_stats: (user, db_data, points, voice_mins, rank)
-        user, data, points, voice_mins, rank = u_stats
+        # user_full_stats: (user, db_data, points, voice_mins, rank)
+        user, data, points, voice_mins, rank = user_full_stats
         
         # Advanced calculations
         social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
         partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-        recent_games = self.db.get_user_recent_games(user.id, interaction.guild_id, limit=Config.RECENT_GAMES_LIMIT)
+        top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
         
         # Calculate Daily Average (30 days)
         monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
         user_monthly = monthly_data.get(user.id, {"messages":0})
         avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
         
-        view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
+        view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
         await interaction.response.send_message(view=view, ephemeral=True)
 
     @commands.Cog.listener()
@@ -70,21 +82,24 @@ class StatsCog(commands.Cog):
                     top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)
                     view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
                 elif action == "show_me":
-                    top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)
+                    main_id = Config.get_main_id(interaction.user.id)
+                    main_member = interaction.guild.get_member(main_id) or interaction.user
+                    
+                    top_10, u_stats = self.bot.get_top_data(interaction.guild, main_member, timeframe)
                     if not u_stats:
                         await interaction.response.send_message(Messages.ERR_NO_DATA_PERIOD, ephemeral=True)
                         return
                     
                     user, data, points, voice_mins, rank = u_stats
-                    social = self.db.get_user_social_stats(interaction.user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                    partners = self.db.get_top_voice_partners(interaction.user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                    recent_games = self.db.get_user_recent_games(interaction.user.id, interaction.guild_id, limit=Config.RECENT_GAMES_LIMIT)
+                    social = self.db.get_user_social_stats(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+                    partners = self.db.get_top_voice_partners(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+                    top_games = self.db.get_user_top_games(main_id, interaction.guild_id, limit=3)
                     
                     monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                    user_monthly = monthly_data.get(interaction.user.id, {"messages":0})
+                    user_monthly = monthly_data.get(main_id, {"messages":0})
                     avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
                     
-                    view = ModernProfileView(interaction.user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="me")
+                    view = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, timeframe="me")
                 elif action == "share":
                     # Determine what to share
                     if current_tf == "me":
@@ -94,13 +109,13 @@ class StatsCog(commands.Cog):
                         
                         social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
                         partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                        recent_games = self.db.get_user_recent_games(user.id, interaction.guild_id, limit=Config.RECENT_GAMES_LIMIT)
+                        top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
                         
                         monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
                         user_monthly = monthly_data.get(user.id, {"messages":0})
                         avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
                         
-                        view_shared = ModernProfileView(user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, static=True, shared_by=interaction.user.display_name)
+                        view_shared = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, static=True, shared_by=interaction.user.display_name)
                     else:
                         top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, current_tf)
                         view_shared = ModernLeaderboardView(top_10, current_tf, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)

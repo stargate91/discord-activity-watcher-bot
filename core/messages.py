@@ -79,7 +79,7 @@ class Messages:
     GAME_POP_MONTHLY = "HAVI"
     GAME_POP_ALLTIME = "ÖSSZESÍTETT"
     GAME_POP_GEN = "Generálva: {now}"
-    GAME_POP_HEADER = "Játék neve                               | Egyedi játékosok"
+    GAME_POP_HEADER = "Játék neve                          | Jótekosok | Össz. perc"
     
     # Presence
     PRESENCE_WATCHING = "Figyelem a lazsálókat... 🤫"

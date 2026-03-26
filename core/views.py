@@ -65,13 +65,13 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily, timeframe="alltime", static=False, shared_by=None):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, timeframe="alltime", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
         self.shared_by = shared_by
         # Store for sharing
-        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, recent_games, avg_daily)
+        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
         
         if self.shared_by:
@@ -116,9 +116,9 @@ class ModernProfileView(discord.ui.LayoutView):
         if social_lines:
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
         
-        # 5. Games Section
-        if recent_games:
-            games_text = " — ".join([f"`{g}`" for g in recent_games])
+        # 5. Games Section (Top 3 by Playtime)
+        if top_games:
+            games_text = " — ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1])}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
         if self.static:

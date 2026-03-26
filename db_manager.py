@@ -43,16 +43,18 @@ class DBManager:
                     user_id INTEGER,
                     guild_id INTEGER,
                     role_name TEXT,
+                    action TEXT DEFAULT 'ADDED',
                     timestamp TIMESTAMP
                 )
             """)
-            # Game activity (for auto role removal)
+            # Game activity (for auto role removal and playtime)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS game_activity (
                     user_id INTEGER,
                     guild_id INTEGER,
                     role_name TEXT,
                     last_played TIMESTAMP,
+                    total_minutes REAL DEFAULT 0,
                     bot_assigned INTEGER DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id, role_name)
                 )
@@ -99,6 +101,16 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
+            # Active Game Sessions (Persistence across restarts)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS active_game_sessions (
+                    user_id INTEGER,
+                    guild_id INTEGER,
+                    game_name TEXT,
+                    started_at TIMESTAMP,
+                    PRIMARY KEY (user_id, guild_id, game_name)
+                )
+            """)
             
             # Migrations for user_activity
             for col, ctype in [("returned_at", "TIMESTAMP DEFAULT NULL"), ("message_count", "INTEGER DEFAULT 0"), 
@@ -109,12 +121,12 @@ class DBManager:
             # Migrations for role_history
             try: conn.execute("ALTER TABLE role_history ADD COLUMN action TEXT DEFAULT 'ADDED'")
             except sqlite3.OperationalError: pass
+
+            # Migrations for game_activity
+            try: conn.execute("ALTER TABLE game_activity ADD COLUMN total_minutes REAL DEFAULT 0")
+            except sqlite3.OperationalError: pass
             
             conn.commit()
-            conn.commit()
-
-
-
 
     def update_activity(self, user_id, guild_id, last_active=None):
         if last_active is None:
@@ -195,7 +207,6 @@ class DBManager:
             rows = cursor.fetchall()
             return {row[0]: {"messages": row[1] or 0, "reactions": row[2] or 0, "voice": row[3] or 0} for row in rows}
 
-
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:
             cursor = conn.execute("""
@@ -255,7 +266,7 @@ class DBManager:
             return cursor.fetchall()
 
     def update_game_activity(self, user_id, guild_id, game_name, bot_assigned=False):
-        """Updates or inserts a game activity record. bot_assigned is True if the bot gave a role for it."""
+        """Updates or inserts a game activity record."""
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._get_connection() as conn:
             conn.execute("""
@@ -268,23 +279,20 @@ class DBManager:
             conn.commit()
 
     def get_game_stats_report(self, guild_id, timeframe="alltime"):
-        """Returns the number of unique players per game, merging role-based and raw activity."""
         with self._get_connection() as conn:
-            # We use a CASE to strip 'Player: ' in the grouping, so 'Dota 2' and 'Player: Dota 2' merge.
-            # We count DISTINCT user_id across the merged groups.
             query = """
                 SELECT 
                     CASE WHEN role_name LIKE 'Player: %' THEN SUBSTR(role_name, 9) ELSE role_name END as clean_name,
-                    COUNT(DISTINCT user_id) as user_count 
+                    COUNT(DISTINCT user_id) as user_count,
+                    SUM(total_minutes) as total_mins
                 FROM game_activity 
                 WHERE guild_id = ? {time_filter}
                 GROUP BY clean_name 
-                ORDER BY user_count DESC
+                ORDER BY total_mins DESC
             """
             
             if timeframe == "monthly":
-                # Start of current month
-                cutoff = datetime.datetime.now(datetime.timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+                cutoff = (datetime.datetime.now(datetime.timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)).isoformat()
                 cursor = conn.execute(query.format(time_filter="AND last_played >= ?"), (guild_id, cutoff))
             else:
                 cursor = conn.execute(query.format(time_filter=""), (guild_id,))
@@ -305,104 +313,6 @@ class DBManager:
             conn.execute("DELETE FROM game_activity WHERE user_id = ? AND guild_id = ? AND role_name = ?", (user_id, guild_id, role_name))
             conn.commit()
 
-    # --- ADVANCED TRACKING ---
-
-    def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration):
-        """Logs a specific voice session for detailed analytics."""
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration))
-            conn.commit()
-
-    def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
-        """Logs who reacted to whose post for 'social connection' stats."""
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO reaction_history (user_id, target_user_id, guild_id, channel_id, message_id, emoji, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, target_user_id, guild_id, channel_id, message_id, emoji, now))
-            conn.commit()
-
-    def get_top_voice_partners(self, user_id, guild_id, days=7):
-        """Finds who the user spent the most time with in voice (Experimental)."""
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        with self._get_connection() as conn:
-            # This is a complex query: find other sessions that overlap in the same channel
-            cursor = conn.execute("""
-                SELECT v2.user_id, SUM(
-                    (MIN(julianday(v1.end_time), julianday(v2.end_time)) - 
-                     MAX(julianday(v1.start_time), julianday(v2.start_time))) * 1440
-                ) as overlap_mins
-                FROM voice_sessions v1
-                JOIN voice_sessions v2 ON v1.channel_id = v2.channel_id 
-                    AND v1.user_id != v2.user_id
-                    AND v1.guild_id = v2.guild_id
-                WHERE v1.user_id = ? AND v1.guild_id = ? AND v1.start_time >= ?
-                    AND v2.start_time < v1.end_time AND v2.end_time > v1.start_time
-                GROUP BY v2.user_id
-                ORDER BY overlap_mins DESC
-                LIMIT 5
-            """, (user_id, guild_id, cutoff))
-            return cursor.fetchall()
-
-    def get_user_social_stats(self, user_id, guild_id, days=30):
-        """Fetches advanced social stats for a user (Top Channel, Top Emoji, Top Target)."""
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        stats = {"top_channel": None, "top_emoji": None, "top_target": None}
-        
-        with self._get_connection() as conn:
-            # Top Channel
-            cursor = conn.execute("""
-                SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions
-                WHERE user_id = ? AND guild_id = ? AND start_time >= ?
-                GROUP BY channel_id ORDER BY total DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
-            row = cursor.fetchone()
-            if row: stats["top_channel"] = row[0]
-            
-            # Top Emoji used by user
-            cursor = conn.execute("""
-                SELECT emoji, COUNT(*) as count FROM reaction_history
-                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
-                GROUP BY emoji ORDER BY count DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
-            row = cursor.fetchone()
-            if row: stats["top_emoji"] = row[0]
-            
-            # Top person the user reacts to
-            cursor = conn.execute("""
-                SELECT target_user_id, COUNT(*) as count FROM reaction_history
-                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
-                GROUP BY target_user_id ORDER BY count DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
-            row = cursor.fetchone()
-            if row: stats["top_target"] = row[0]
-            
-        return stats
-
-    # --- DYNAMIC GAME TRACKING ---
-
-    def add_tracked_game(self, substring, role_suffix):
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO tracked_games (game_substring, role_suffix)
-                VALUES (?, ?)
-                ON CONFLICT(game_substring) DO UPDATE SET role_suffix = excluded.role_suffix
-            """, (substring, role_suffix))
-            conn.commit()
-
-    def get_tracked_games(self):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT game_substring, role_suffix FROM tracked_games")
-            return dict(cursor.fetchall())
-    
-    def remove_tracked_game(self, substring):
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM tracked_games WHERE game_substring = ?", (substring,))
-            conn.commit()
     def get_user_recent_games(self, user_id, guild_id, limit=3):
         with self._get_connection() as conn:
             cursor = conn.execute("""
@@ -411,50 +321,158 @@ class DBManager:
                 ORDER BY last_played DESC LIMIT ?
             """, (user_id, guild_id, limit))
             return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
-    def reset_database(self):
-        """Clears all activity data while keeping configuration (tracked games)."""
-        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions"]
+
+    def get_user_top_games(self, user_id, guild_id, limit=3):
         with self._get_connection() as conn:
-            for table in tables:
-                conn.execute(f"DELETE FROM {table}")
+            cursor = conn.execute("""
+                SELECT role_name, total_minutes FROM game_activity 
+                WHERE user_id = ? AND guild_id = ? 
+                ORDER BY total_minutes DESC LIMIT ?
+            """, (user_id, guild_id, limit))
+            return cursor.fetchall()
+
+    # --- ADVANCED TRACKING ---
+
+    def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration):
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration))
+            conn.commit()
+
+    def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO reaction_history (user_id, target_user_id, guild_id, channel_id, message_id, emoji, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, target_user_id, guild_id, channel_id, message_id, emoji, now))
+            conn.commit()
+
+    def get_top_voice_partners(self, user_id, guild_id, days=30):
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT s2.user_id, SUM(
+                    (MIN(strftime('%s', s1.end_time), strftime('%s', s2.end_time)) - 
+                     MAX(strftime('%s', s1.start_time), strftime('%s', s2.start_time))) / 60.0
+                ) as overlap_mins
+                FROM voice_sessions s1
+                JOIN voice_sessions s2 ON s1.guild_id = s2.guild_id 
+                    AND s1.channel_id = s2.channel_id
+                    AND s1.user_id != s2.user_id
+                WHERE s1.user_id = ? 
+                    AND s1.start_time >= ?
+                    AND s2.start_time < s1.end_time 
+                    AND s2.end_time > s1.start_time
+                GROUP BY s2.user_id
+                ORDER BY overlap_mins DESC
+                LIMIT 5
+            """, (user_id, cutoff))
+            return cursor.fetchall()
+
+    def get_user_social_stats(self, user_id, guild_id, days=30):
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+        stats = {"top_channel": None, "top_emoji": None, "top_target": None}
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions
+                WHERE user_id = ? AND guild_id = ? AND start_time >= ?
+                GROUP BY channel_id ORDER BY total DESC LIMIT 1
+            """, (user_id, guild_id, cutoff))
+            row = cursor.fetchone(); stats["top_channel"] = row[0] if row else None
+            
+            cursor = conn.execute("""
+                SELECT emoji, COUNT(*) as count FROM reaction_history
+                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
+                GROUP BY emoji ORDER BY count DESC LIMIT 1
+            """, (user_id, guild_id, cutoff))
+            row = cursor.fetchone(); stats["top_emoji"] = row[0] if row else None
+            
+            cursor = conn.execute("""
+                SELECT target_user_id, COUNT(*) as count FROM reaction_history
+                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
+                GROUP BY target_user_id ORDER BY count DESC LIMIT 1
+            """, (user_id, guild_id, cutoff))
+            row = cursor.fetchone(); stats["top_target"] = row[0] if row else None
+        return stats
+
+    # --- TRACKED GAMES MGMT ---
+
+    def get_tracked_games(self):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT game_substring, role_suffix FROM tracked_games")
+            return {row[0]: row[1] for row in cursor.fetchall()}
+
+    def add_tracked_game(self, substring, suffix):
+        with self._get_connection() as conn:
+            conn.execute("INSERT OR REPLACE INTO tracked_games (game_substring, role_suffix) VALUES (?, ?)", (substring, suffix))
             conn.commit()
 
     # --- VOICE PERSISTENCE ---
 
     def start_voice_session(self, user_id, guild_id, channel_id, joined_at):
-        """Records the start of a voice session in the database."""
         joined_at_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
         with self._get_connection() as conn:
             conn.execute("""
                 INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at)
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT(user_id, guild_id) DO UPDATE SET 
-                    channel_id = excluded.channel_id,
-                    joined_at = excluded.joined_at
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET joined_at = excluded.joined_at, channel_id = excluded.channel_id
             """, (user_id, guild_id, channel_id, joined_at_str))
             conn.commit()
 
     def end_voice_session(self, user_id, guild_id):
-        """Removes an active voice session and returns the joined_at time."""
         with self._get_connection() as conn:
             cursor = conn.execute("SELECT joined_at FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
             row = cursor.fetchone()
             if row:
                 conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
                 conn.commit()
-                return datetime.datetime.fromisoformat(row[0])
+                return datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
             return None
 
-    def get_active_voice_sessions(self, guild_id=None):
-        """Returns all currently active voice sessions."""
+    def get_active_voice_sessions(self):
         with self._get_connection() as conn:
-            if guild_id:
-                cursor = conn.execute("SELECT user_id, channel_id, joined_at FROM active_voice_sessions WHERE guild_id = ?", (guild_id,))
-            else:
-                cursor = conn.execute("SELECT user_id, channel_id, joined_at FROM active_voice_sessions")
-            
-            rows = cursor.fetchall()
-            # Returns {user_id: joined_at_datetime}
-            return {row[0]: datetime.datetime.fromisoformat(row[2]) for row in rows}
+            cursor = conn.execute("SELECT user_id, joined_at FROM active_voice_sessions")
+            return {row[0]: (datetime.datetime.fromisoformat(row[1]) if isinstance(row[1], str) else row[1]) for row in cursor.fetchall()}
 
+    # --- GAME PERSISTENCE ---
 
+    def start_game_session(self, user_id, guild_id, game_name, started_at):
+        ts = started_at.isoformat() if isinstance(started_at, datetime.datetime) else started_at
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO active_game_sessions (user_id, guild_id, game_name, started_at)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, guild_id, game_name, ts))
+            conn.commit()
+
+    def end_game_session(self, user_id, guild_id, game_name):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT started_at FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (user_id, guild_id, game_name))
+            row = cursor.fetchone()
+            if row:
+                conn.execute("DELETE FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (user_id, guild_id, game_name))
+                conn.commit()
+                return datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
+            return None
+
+    def get_active_game_sessions(self):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT user_id, guild_id, game_name, started_at FROM active_game_sessions")
+            return {(row[0], row[1], row[2]): (datetime.datetime.fromisoformat(row[3]) if isinstance(row[3], str) else row[3]) for row in cursor.fetchall()}
+
+    def add_game_minutes(self, user_id, guild_id, game_name, minutes):
+        with self._get_connection() as conn:
+            conn.execute("""
+                UPDATE game_activity SET total_minutes = total_minutes + ? 
+                WHERE user_id = ? AND guild_id = ? AND role_name = ?
+            """, (minutes, user_id, guild_id, game_name))
+            conn.commit()
+
+    def reset_database(self):
+        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions", "active_game_sessions"]
+        with self._get_connection() as conn:
+            for table in tables: conn.execute(f"DELETE FROM {table}")
+            conn.commit()

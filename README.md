@@ -4,12 +4,16 @@ A professional Discord bot designed for high-precision activity monitoring, auto
 
 ## ✨ Features
 
--   **Modular Architecture**: Built with `discord.py` Cogs for easy scaling and maintenance.
--   **Bulletproof Voice Tracking**: Real-time minute tracking that persists across channel moves and bot restarts via an SQLite backend.
--   **Smart Role Management**:
-    -   **Stage 1 (Inactive)**: Automatic assignment for users inactive for X days.
-    -   **Stage 2 (Returning)**: Grace period for returning users after inactivity.
-    -   **Auto Game Roles**: Dynamic role assignment based on the user's current game (e.g., *Player: Minecraft*).
+-   **Unified Identity Tracking (Alt Linking)**:
+    -   Link multiple Discord accounts (alts) to a single primary identity via `config.json`.
+    -   Messages, reactions, voice time, and game playtime are automatically aggregated to the main account.
+    -   Alts are hidden from top lists; `/me` on any linked account shows the unified primary stats.
+-   **Atomic Role Synchronization**:
+    -   **Inactivity Roles**: "Inactive" and "Returning" roles are automatically synced across all linked accounts of a user.
+    -   **Game Roles**: When a user starts a game (e.g., *Player: Minecraft*), the role is assigned to ALL their linked accounts simultaneously.
+-   **Persistent Voice & Game Tracking**:
+    -   Real-time session tracking that persists across channel moves, game restarts, and bot reboots via SQLite.
+    -   Smart voice logic: If multiple linked accounts are in voice, time is only counted once. Continuous tracking if a user switches between accounts.
 -   **Configurable Restrictions**:
     -   Dedicated **Stats Channel** for public commands (`/top`, `/me`).
     -   Dedicated **Admin Channel** for reports and system management.
@@ -30,6 +34,7 @@ The bot uses a hybrid approach to separate secrets from settings:
     DISCORD_TOKEN=your_token_here
     ```
 2.  **[config.json](file:///config.json)**: Edit this file to manage all your Role IDs, Channel IDs, point values, and inactivity thresholds.
+    -   **`primary_accounts`**: Map alt IDs to primary IDs here for unified tracking.
 
 ### 3. Running the Bot
 ```bash
@@ -41,7 +46,7 @@ python bot.py
 
 ### 📊 Stats Commands (Stats Channel only)
 -   `/top [timeframe]` - Display the top 10 most active members (Weekly, Monthly, All-time).
--   `/me` - Display your personal activity profile, ranking, and top games.
+-   `/me` - Display your personal activity profile, ranking, and **Top 3 Games by Playtime**.
 
 ### 🛡️ Admin Commands (Admin Channel only)
 -   `/status_report` - Generates a detailed TXT report of all members' activity.

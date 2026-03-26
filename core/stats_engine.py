@@ -15,16 +15,21 @@ class StatsEngine:
         data = self.db.get_leaderboard_data(guild.id, days)
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         
-        # Add live voice session time for everyone in the guild
+        # Filter out alts from the DB data (if any old ones exist)
+        data = {uid: stats for uid, stats in data.items() if uid not in Config.USER_MAPPING}
+
+        # Add live voice session time (now keyed by main_id in bot.voice_start_times)
         if live_voice_times:
-            for uid, start in live_voice_times.items():
-                m = guild.get_member(uid)
-                if m and m.guild.id == guild.id:
+            for main_id, start in live_voice_times.items():
+                if main_id in data:
                     curr_mins = (now_utc - start).total_seconds() / 60
-                    if uid in data:
-                        data[uid]["voice"] += curr_mins
-                    else:
-                        data[uid] = {"messages": 0, "reactions": 0, "voice": curr_mins}
+                    data[main_id]["voice"] += curr_mins
+                else:
+                    # We only add if they are in this guild
+                    m = guild.get_member(main_id)
+                    if m:
+                        curr_mins = (now_utc - start).total_seconds() / 60
+                        data[main_id] = {"messages": 0, "reactions": 0, "voice": curr_mins}
 
         scores = []
         user_full_stats = None # Will store (user, db_data_row, total_pts, total_voice_mins, rank)
@@ -40,7 +45,8 @@ class StatsEngine:
         top_10 = scores[:Config.LEADERBOARD_LIMIT]
         
         if user:
-            rank = next((i for i, (uid, _, _) in enumerate(scores, 1) if uid == user.id), "N/A")
+            user_id = Config.get_main_id(user.id)
+            rank = next((i for i, (uid, _, _) in enumerate(scores, 1) if uid == user_id), "N/A")
             if rank != "N/A":
                 u_entry = next(x for x in scores if x[0] == user.id)
                 # Reconstruct DB-style data dict for the profile view

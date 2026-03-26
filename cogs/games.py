@@ -72,8 +72,8 @@ class GamesCog(commands.Cog):
         lines.append(Messages.GAME_POP_HEADER)
         lines.append("-" * 60)
 
-        for display_name, count in stats:
-            lines.append(f"{display_name[:40]:<40} | {count:<5}")
+        for display_name, user_count, total_mins in stats:
+            lines.append(f"{display_name[:35]:<35} | {user_count:<5} | {int(total_mins or 0):<10}")
         
         filename = f"game_stats_{timeframe}_{interaction.guild_id}.txt"
         with open(filename, "w", encoding="utf-8") as f:

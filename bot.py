@@ -22,7 +22,7 @@ class CheekyBot(commands.Bot):
         
         # Initialize Core Modules
         self.db = DBManager()
-        self.tracker = GameTracker(self.db)
+        self.tracker = GameTracker(self.db, self)
         self.engine = StatsEngine(self.db)
         
         # Track voice session start times: {user_id: join_timestamp}
@@ -57,7 +57,7 @@ class CheekyBot(commands.Bot):
 bot = CheekyBot()
 
 if __name__ == "__main__":
-    if not Config.validate(): 
+    if Config.validate() is None: 
         bot.run(Config.TOKEN)
     else: 
-        log.error("Config Error: Tokens or Guild IDs are missing in .env")
+        log.error(f"Config Error: {Config.validate()}")
