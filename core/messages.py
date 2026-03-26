@@ -93,8 +93,8 @@ class Messages:
         "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld a {role} rangot!",
         "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
         "INFO_DEV_TITLE": "Adminisztrátori Parancslista",
-        "INFO_DEV_PREFIX": "### ⌨️ Prefix parancsok (Suffix: `{suffix}`)\n",
-        "INFO_DEV_SLASH": "\n### ⚡ Slash parancsok\n",
+        "INFO_DEV_PREFIX": "### Prefix parancsok (Suffix: `{suffix}`)\n",
+        "INFO_DEV_SLASH": "\n### Slash parancsok\n",
         "CMD_INFO_DEV_DESC": "Kilistázza az összes parancsot az adminoknak.",
         "CMD_INFO_DESC": "Általános ismertető a botról.",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
@@ -193,8 +193,8 @@ class Messages:
         "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the {role} role!",
         "INFO_FOOTER": "Use the commands in the {channel} channel!",
         "INFO_DEV_TITLE": "Administrative Command List",
-        "INFO_DEV_PREFIX": "### ⌨️ Prefix Commands (Suffix: `{suffix}`)\n",
-        "INFO_DEV_SLASH": "\n### ⚡ Slash Commands\n",
+        "INFO_DEV_PREFIX": "### Prefix Commands (Suffix: `{suffix}`)\n",
+        "INFO_DEV_SLASH": "\n### Slash Commands\n",
         "CMD_INFO_DEV_DESC": "Lists all commands for administrators.",
         "CMD_INFO_DESC": "General introduction to the bot.",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
