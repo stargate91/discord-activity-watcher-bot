@@ -92,16 +92,11 @@ class Messages:
         "INFO_FEATURES_TITLE": "### 🚀 Funkciók & Parancsok",
         "INFO_FEATURES_DESC": "• `/top` - Nézd meg a szerver legaktívabb tagjait.\n• `/me` - Nézd meg a saját részletes statisztikáidat.\n• **Automata rangok** - Egyedi rangok a kedvenc játékaidhoz!\n• **Inaktivitás** - Maradj aktív, hogy elkerüld a {role} rangot!",
         "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
-        "INFO_DEV_TITLE": "🛠️ Adminisztrátori Parancslista",
+        "INFO_DEV_TITLE": "Adminisztrátori Parancslista",
         "INFO_DEV_PREFIX": "### ⌨️ Prefix parancsok (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### ⚡ Slash parancsok\n",
         "CMD_INFO_DEV_DESC": "[#{admin_id}] Kilistázza az összes parancsot az adminoknak.",
         "CMD_INFO_DESC": "[#{stats_id}] Általános ismertető a botról.",
-        "TECH_SYNC": "A `bot.tree.sync()` hívását végzi. Frissíti a / parancsok metaadatait a Discord szerverein.",
-        "TECH_RESET": "Véglegesen törli a `stats`, `role_history` és `game_stats` táblákat. Nem visszavonható.",
-        "TECH_ADD_GAME": "Új regex mintát ment a `tracked_games` táblába, majd frissíti a tracker gyorsítótárát.",
-        "TECH_STATUS": "Lekéri az összesített adatokat a DB-ből, Voice-offsetet számol, és .txt fájlt generál.",
-        "TECH_GAME_REPORT": "Összegzi a `game_stats` és `tracked_games` táblákat a megadott időszakra.",
         "ERR_STATS_NOT_FOUND": "❌ A statisztika csatorna nem található a konfigurációban! (stats_id)"
     }
 
@@ -197,16 +192,11 @@ class Messages:
         "INFO_FEATURES_TITLE": "### 🚀 Features & Commands",
         "INFO_FEATURES_DESC": "• `/top` - View the server's most active members.\n• `/me` - View your own detailed stats.\n• **Auto Roles** - Get unique roles for the games you play most!\n• **Inactivity** - Stay active to avoid the {role} role!",
         "INFO_FOOTER": "Use the commands in the {channel} channel!",
-        "INFO_DEV_TITLE": "🛠️ Administrative Command List",
+        "INFO_DEV_TITLE": "Administrative Command List",
         "INFO_DEV_PREFIX": "### ⌨️ Prefix Commands (Suffix: `{suffix}`)\n",
         "INFO_DEV_SLASH": "\n### ⚡ Slash Commands\n",
         "CMD_INFO_DEV_DESC": "[#{admin_id}] Lists all commands for administrators.",
         "CMD_INFO_DESC": "[#{stats_id}] General introduction to the bot.",
-        "TECH_SYNC": "Calls `bot.tree.sync()`. Updates / command metadata on Discord's servers.",
-        "TECH_RESET": "Permanently clears `stats`, `role_history`, and `game_stats` tables. Irreversible.",
-        "TECH_ADD_GAME": "Saves a new regex pattern to `tracked_games` and refreshes the tracker cache.",
-        "TECH_STATUS": "Fetches aggregated data from DB, calculates Voice offsets, and generates a .txt file.",
-        "TECH_GAME_REPORT": "Summarizes `game_stats` and `tracked_games` tables for the selected period.",
         "ERR_STATS_NOT_FOUND": "❌ Stats channel not found in config! (stats_id)"
     }
 
@@ -290,11 +280,6 @@ class Messages:
     CMD_GAME_REPORT_DESC = ""
     CMD_INFO_DEV_DESC = ""
     CMD_INFO_DESC = ""
-    TECH_SYNC = ""
-    TECH_RESET = ""
-    TECH_ADD_GAME = ""
-    TECH_STATUS = ""
-    TECH_GAME_REPORT = ""
     INFO_DEV_TITLE = ""
     INFO_DEV_PREFIX = ""
     INFO_DEV_SLASH = ""

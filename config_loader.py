@@ -87,14 +87,14 @@ class Config:
         if guild:
             # Resolve channel names
             admin_ch = guild.get_channel(cls.ADMIN_CHANNEL_ID)
-            if admin_ch: admin_val = f"#{admin_ch.name}"
+            if admin_ch: admin_val = admin_ch.name
             
             stats_ch = guild.get_channel(cls.STATS_CHANNEL_ID)
-            if stats_ch: stats_val = f"#{stats_ch.name}"
+            if stats_ch: stats_val = stats_ch.name
 
             # Resolve role name
             role_obj = guild.get_role(cls.ADMIN_ROLE_ID)
-            if role_obj: role_val = f"@{role_obj.name}"
+            if role_obj: role_val = role_obj.name
 
         return text.format(
             admin_id=admin_val,

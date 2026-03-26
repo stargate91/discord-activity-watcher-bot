@@ -233,10 +233,8 @@ class AdminCog(commands.Cog):
 
     async def _send_dev_help(self, target):
         prefix_cmds = []
-        # Localized technical descriptions for prefix commands
-        # We manually map them because these are prefix names which can vary with suffix
         prefix_map = {
-            f"sync{Config.SUFFIX}": Messages.TECH_SYNC,
+            f"sync{Config.SUFFIX}": Messages.CMD_SYNC_DESC,
             f"clear_commands{Config.SUFFIX}": "Commands clearing tool. (Global + Guild)",
             f"info{Config.SUFFIX}": Messages.CMD_INFO_DESC,
             f"info_dev{Config.SUFFIX}": Messages.CMD_INFO_DEV_DESC
@@ -244,29 +242,15 @@ class AdminCog(commands.Cog):
         
         for cmd in self.bot.commands:
             help_text = prefix_map.get(cmd.name, cmd.help)
-            prefix_cmds.append((cmd.name, help_text))
+            prefix_cmds.append((cmd.name, Config.format_desc(help_text, target.guild if isinstance(target, commands.Context) else target.guild)))
             
         slash_cmds = []
-        # Technical details for slash commands
-        tech_map = {
-            "reset_database": Messages.TECH_RESET,
-            "sync": Messages.TECH_SYNC,
-            "add_game": Messages.TECH_ADD_GAME,
-            "status_report": Messages.TECH_STATUS,
-            "game_stats_report": Messages.TECH_GAME_REPORT
-        }
-
         for cmd in self.bot.tree.get_commands():
             if isinstance(cmd, app_commands.Group):
                 for sub in cmd.commands:
-                    slash_cmds.append((f"{cmd.name} {sub.name}", Config.format_desc(sub.description, target.guild)))
+                    slash_cmds.append((f"{cmd.name} {sub.name}", Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target)))
             else:
-                desc = cmd.description
-                tech_detail = tech_map.get(cmd.name)
-                if tech_detail:
-                    desc += f"\n   - **Tech:** {tech_detail}"
-                
-                slash_cmds.append((cmd.name, Config.format_desc(desc, target.guild)))
+                slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target)))
 
         view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
         
