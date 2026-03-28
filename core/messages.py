@@ -23,7 +23,7 @@ class Messages:
         "SECTION_STATS": "### 📈 Statisztikák",
         "SECTION_COMMUNITY": "### 🤝 Közösség (30 nap)",
         "SECTION_GAMES": "### 🎮 Legutóbbi játékok",
-        "STAT_TOTAL_SCORE": "**Összpontszám:** ### **{points}**",
+        "STAT_TOTAL_SCORE": "**Összpontszám:** **{points}**",
         "STAT_DETAILS": "**Üzenetek:** `{msg}` | **Reakciók:** `{reac}` | **Voice:** `{voice}p`",
         "STAT_LAST_ACTIVE": "**Utoljára aktív:** `{time}`",
         "STAT_DAILY_AVG": "**Napi átlag (30 nap):** `{avg:.2f} üzenet/nap`",

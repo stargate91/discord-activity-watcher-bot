@@ -39,7 +39,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 
                 medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
                 
-                info = f"{medal} {name} — **{pts:,} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
+                info = f"{medal} {name} - **{pts:,} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
                 container.add_item(discord.ui.TextDisplay(info))
                 
                 if i < len(items):
@@ -140,7 +140,7 @@ class ModernProfileView(discord.ui.LayoutView):
         
         # 5. Games: Show the top 3 games they have played the most
         if top_games:
-            games_text = " — ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
+            games_text = " | ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
         if self.static:
