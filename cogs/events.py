@@ -213,6 +213,9 @@ class EventsCog(commands.Cog):
             if not r1: continue
             data = self.db.get_all_guild_data(guild.id)
             for uid, d in data.items():
+                # Skip if this is an alt ID (to avoid processing same 'person' multiple times)
+                if Config.get_main_id(uid) != uid: continue
+                
                 # Find all entities for this "person" in the guild
                 members = [m for m in guild.members if Config.get_main_id(m.id) == uid and not m.bot]
                 if not members: continue

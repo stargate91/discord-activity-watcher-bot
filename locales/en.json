@@ -48,7 +48,7 @@
     "GAME_REPORT_DONE": "Finished `{tf}` game report ({count} different games).",
     "DB_RESET_SUCCESS": "Database successfully cleared! All activity data removed.",
     "DB_RESET_ERROR": "Error occurred during deletion: {e}",
-    "REPORT_TITLE_HEADER": "--- REPORT: {guild} ---\nGen: {now}\nUser                      | Stat         | M    | R    | V    | Details",
+    "REPORT_TITLE_HEADER": "--- REPORT: {guild} ---\nGen: {now}\nUser                                | Stat         | M    | R    | V    | Details",
     "REPORT_STAGE_1": "Stage 1",
     "REPORT_STAGE_2": "Stage 2",
     "REPORT_STAGE_NORMAL": "Normal",

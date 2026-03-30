@@ -3,6 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 import os
+import math
 from config_loader import Config
 from core.messages import Messages
 from core.views import ModernInfoView, ModernDevInfoView
@@ -53,18 +54,38 @@ class AdminCog(commands.Cog):
         # Go through every person in the server and add their numbers to the list
         for m in interaction.guild.members:
             if m.bot: continue
-            d = guild_data.get(m.id)
+            
+            main_id = Config.get_main_id(m.id)
+            is_alt = main_id != m.id
+            d = guild_data.get(main_id)
             if not d: continue
+
+            name_display = str(m)[:25]
+            if is_alt:
+                main_m = interaction.guild.get_member(main_id)
+                main_name = str(main_m)[:15] if main_m else f"{main_id} - left"
+                name_display = f"{name_display} (Main: {main_name})"
             
             voice_mins = d['voice_minutes']
-            if m.id in self.bot.voice_start_times:
-                voice_mins += (now - self.bot.voice_start_times[m.id]).total_seconds() / 60
+            if main_id in self.bot.voice_start_times:
+                voice_mins += (now - self.bot.voice_start_times[main_id]).total_seconds() / 60
                 
             s = Messages.REPORT_STAGE_NORMAL
             if r1 in m.roles: s = Messages.REPORT_STAGE_1
             elif r2 in m.roles: s = Messages.REPORT_STAGE_2
-            det = Messages.REPORT_INACTIVE if s == Messages.REPORT_STAGE_1 else (Messages.REPORT_S2_RETURN.format(days=7-(now-d['returned_at'].astimezone(datetime.timezone.utc)).days) if s == Messages.REPORT_STAGE_2 and d["returned_at"] else Messages.REPORT_S1_LIMIT.format(days=Config.STAGE_1_DAYS-(now-d['last_active'].astimezone(datetime.timezone.utc)).days))
-            lines.append(f"{str(m)[:25]:<25} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
+            
+            if s == Messages.REPORT_STAGE_1:
+                det = Messages.REPORT_INACTIVE
+            elif s == Messages.REPORT_STAGE_2 and d["returned_at"]:
+                diff = (now - d['returned_at'].astimezone(datetime.timezone.utc)).total_seconds()
+                days_left = math.ceil((Config.STAGE_2_GRACE_DAYS * 86400 - diff) / 86400)
+                det = Messages.REPORT_S2_RETURN.format(days=max(0, days_left))
+            else:
+                diff = (now - d['last_active'].astimezone(datetime.timezone.utc)).total_seconds()
+                days_left = math.ceil((Config.STAGE_1_DAYS * 86400 - diff) / 86400)
+                det = Messages.REPORT_S1_LIMIT.format(days=max(0, days_left))
+
+            lines.append(f"{name_display:<35} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
         
         # Save everything into a .txt file and send it to the admin
         filename = f"report_{interaction.guild_id}.txt"
