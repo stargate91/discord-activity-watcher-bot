@@ -52,10 +52,16 @@ class Config:
     SUFFIX = _ui.get("suffix", "")
     LEADERBOARD_LIMIT = _ui.get("leaderboard_limit", 10)
     REPORT_LOG_LIMIT = _ui.get("report_log_limit", 300)
-    COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
-    COLOR_SUCCESS = int(str(_ui.get("color_success", "0x2ecc71")), 16)
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
     LANGUAGE = _ui.get("language", "hu")
+    
+    # New UI settings for color and emoji customization
+    THEME = _ui.get("theme", {})
+    EMOJIS = _data.get("emojis", {})
+    
+    # Backward compatibility for these two specific colors
+    COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
+    COLOR_SUCCESS = int(str(_ui.get("color_success", "0x2ecc71")), 16)
 
     # This part helps the bot know if two Discord accounts belong to the same person
     _user_mapping = _data.get("user_mapping", {})

@@ -7,6 +7,12 @@ from config_loader import Config
 from core.game_tracker import GameTracker
 from core.stats_engine import StatsEngine
 from core.messages import Messages
+from core.ui_icons import Icons
+from core.ui_theme import Theme
+
+# Set up the UI icons and theme before loading any messages
+Icons.setup(Config)
+Theme.init_theme(Config)
 
 # Pick the language from our settings so the bot knows how to talk (HU/EN)
 Messages.load_language(Config.LANGUAGE)

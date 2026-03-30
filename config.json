@@ -1,4 +1,16 @@
 {
+    "emojis": {
+        "CHART": "📊",
+        "ROCKET": "🚀",
+        "SUCCESS": "✅",
+        "TRASH": "🗑️",
+        "CONTROLLER": "🎮",
+        "STATS": "📈",
+        "COMMUNITY": "🤝",
+        "ERROR": "❌",
+        "WARNING": "⚠️",
+        "SHUSH": "🤫"
+    },
     "roles": {
         "stage_1_id": 1485292108410781768,
         "stage_2_id": 1485292507477836000,
