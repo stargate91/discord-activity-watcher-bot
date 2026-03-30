@@ -94,5 +94,20 @@
     "CMD_CLEAR_HELP": "Parancsok törlése. (Globális + Szerver)",
     "INFO_DEV_FOOTER_NOTE": "Némelyik parancshoz Dev role szükséges lehet.",
     "CMD_INFO_DESC": "Általános ismertető a botról.",
-    "ERR_STATS_NOT_FOUND": "A statisztika csatorna nem található a konfigurációban! (stats_id)"
+    "ERR_STATS_NOT_FOUND": "A statisztika csatorna nem található a konfigurációban! (stats_id)",
+    "CMD_SERVER_ANALYSIS_DESC": "Vizuális elemzés a szerver aktivitásáról.",
+    "CMD_SERVER_ANALYSIS_TYPE_DESC": "Milyen típusú elemzést kérsz?",
+    "CMD_SERVER_ANALYSIS_TF_DESC": "Milyen időszakra vonatkozzon?",
+    "CHART_PEAK_TITLE": "Szerver Aktivitási Hőtérkép ({tf})",
+    "CHART_VOICE_TITLE": "Voice Csatorna Népszerűség ({tf})",
+    "CHART_X_HOUR": "Óra (0-23)",
+    "CHART_Y_DAY": "Nap",
+    "CHART_Y_MINUTES": "Összes perc",
+    "DAY_0": "Vasárnap",
+    "DAY_1": "Hétfő",
+    "DAY_2": "Kedd",
+    "DAY_3": "Szerda",
+    "DAY_4": "Csütörtök",
+    "DAY_5": "Péntek",
+    "DAY_6": "Szombat"
 }

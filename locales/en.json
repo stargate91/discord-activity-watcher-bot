@@ -94,5 +94,20 @@
     "CMD_CLEAR_HELP": "Commands clearing tool. (Global + Guild)",
     "INFO_DEV_FOOTER_NOTE": "Some commands may require a Dev role.",
     "CMD_INFO_DESC": "General introduction to the bot.",
-    "ERR_STATS_NOT_FOUND": "Stats channel not found in config! (stats_id)"
+    "ERR_STATS_NOT_FOUND": "Stats channel not found in config! (stats_id)",
+    "CMD_SERVER_ANALYSIS_DESC": "Visual analysis of server activity.",
+    "CMD_SERVER_ANALYSIS_TYPE_DESC": "What type of analysis do you want?",
+    "CMD_SERVER_ANALYSIS_TF_DESC": "For which timeframe?",
+    "CHART_PEAK_TITLE": "Server Activity Heatmap ({tf})",
+    "CHART_VOICE_TITLE": "Voice Channel Popularity ({tf})",
+    "CHART_X_HOUR": "Hour (0-23)",
+    "CHART_Y_DAY": "Day",
+    "CHART_Y_MINUTES": "Total Minutes",
+    "DAY_0": "Sunday",
+    "DAY_1": "Monday",
+    "DAY_2": "Tuesday",
+    "DAY_3": "Wednesday",
+    "DAY_4": "Thursday",
+    "DAY_5": "Friday",
+    "DAY_6": "Saturday"
 }

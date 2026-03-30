@@ -7,6 +7,7 @@ import math
 from config_loader import Config
 from core.messages import Messages
 from core.views import ModernInfoView, ModernDevInfoView
+from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 
 def is_admin():
     async def predicate(ctx):
@@ -93,6 +94,66 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
         # Delete the file from the computer after sending it
         os.remove(filename)
+
+    @app_commands.command(name="server_analysis", description=Messages.CMD_SERVER_ANALYSIS_DESC)
+    @app_commands.describe(
+        type=Messages.CMD_SERVER_ANALYSIS_TYPE_DESC,
+        timeframe=Messages.CMD_SERVER_ANALYSIS_TF_DESC
+    )
+    @app_commands.choices(type=[
+        app_commands.Choice(name="Peak Activity Heatmap", value="peak"),
+        app_commands.Choice(name="Voice Usage Ranking", value="voice")
+    ], timeframe=[
+        app_commands.Choice(name="Weekly (7d)", value="7"),
+        app_commands.Choice(name="Monthly (30d)", value="30"),
+        app_commands.Choice(name="All-time", value="alltime")
+    ])
+    @is_admin_interaction()
+    async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        days = int(timeframe) if timeframe != "alltime" else None
+        # Handle timeframe name for title
+        tf_name = timeframe if timeframe == "alltime" else f"{timeframe}d"
+        
+        if type == "peak":
+            data = self.db.get_peak_activity_raw(interaction.guild_id, days)
+            if not data:
+                await interaction.followup.send(Messages.LB_EMPTY)
+                return
+            
+            day_names = [getattr(Messages, f"DAY_{i}") for i in range(7)]
+            output = f"peak_{interaction.guild_id}.png"
+            draw_peak_heatmap(data, Messages.CHART_PEAK_TITLE.format(tf=tf_name), 
+                            Messages.CHART_X_HOUR, Messages.CHART_Y_DAY, day_names, output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
+            
+        elif type == "voice":
+            raw_data = self.db.get_voice_usage_raw(interaction.guild_id, days)
+            if not raw_data:
+                await interaction.followup.send(Messages.LB_EMPTY)
+                return
+            
+            # Resolve channel names
+            formatted_data = []
+            for cid, mins in raw_data:
+                ch = interaction.guild.get_channel(cid)
+                name = ch.name if ch else f"Unknown ({cid})"
+                formatted_data.append((name, mins))
+            
+            output = f"voice_{interaction.guild_id}.png"
+            # Switch axes description for bar chart: x is minutes, y is Channel
+            draw_voice_usage_bars(formatted_data, Messages.CHART_VOICE_TITLE.format(tf=tf_name), 
+                                Messages.CHART_Y_MINUTES, "Channel", output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
 
     @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     async def game_role_report(self, interaction: discord.Interaction):

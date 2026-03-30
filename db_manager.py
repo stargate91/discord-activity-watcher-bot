@@ -487,3 +487,44 @@ class DBManager:
         with self._get_connection() as conn:
             for table in tables: conn.execute(f"DELETE FROM {table}")
             conn.commit()
+
+    # --- VISUAL ANALYSIS QUERIES ---
+    
+    def get_peak_activity_raw(self, guild_id, days=None):
+        cutoff = None
+        if days:
+            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+        
+        with self._get_connection() as conn:
+            # Reactions count by day and hour
+            react_query = "SELECT strftime('%w', timestamp) as d, strftime('%H', timestamp) as h, COUNT(*) FROM reaction_history WHERE guild_id = ?"
+            react_params = [guild_id]
+            if cutoff:
+                react_query += " AND timestamp >= ?"
+                react_params.append(cutoff)
+            react_query += " GROUP BY d, h"
+            
+            # Voice start counts by day and hour
+            voice_query = "SELECT strftime('%w', start_time) as d, strftime('%H', start_time) as h, COUNT(*) FROM voice_sessions WHERE guild_id = ?"
+            voice_params = [guild_id]
+            if cutoff:
+                voice_query += " AND start_time >= ?"
+                voice_params.append(cutoff)
+            voice_query += " GROUP BY d, h"
+            
+            r_data = conn.execute(react_query, react_params).fetchall()
+            v_data = conn.execute(voice_query, voice_params).fetchall()
+            
+            # Combine them: List of (day, hour, count)
+            return r_data + v_data
+
+    def get_voice_usage_raw(self, guild_id, days=None):
+        query = "SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions WHERE guild_id = ?"
+        params = [guild_id]
+        if days:
+            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+            query += " AND start_time >= ?"
+            params.append(cutoff)
+        query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
+        with self._get_connection() as conn:
+            return conn.execute(query, params).fetchall()
