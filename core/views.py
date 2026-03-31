@@ -311,14 +311,12 @@ class ModernChampionsView(discord.ui.LayoutView):
             icon = category_icons.get(cat_id, "🏆")
             avatar_url = member.display_avatar.url if member else None
             
-            # Format the value if it's a number (minutes)
-            if isinstance(value, (int, float)):
-                formatted_value = f"{value:.0f}"
-            else:
-                formatted_value = str(value)
-                
-            # Construct description from template
-            winner_line = f"### {icon} {msg_template.format(name=name, value=formatted_value)}"
+            # Construct description from template using raw value (templates handle formatting)
+            try:
+                winner_line = f"### {icon} {msg_template.format(name=name, value=value)}"
+            except Exception as e:
+                # Fallback if formatting fails
+                winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
             # Use Section with Thumbnail for the winner
             container.add_item(discord.ui.Section(

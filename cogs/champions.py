@@ -228,15 +228,18 @@ class ChampionsCog(commands.Cog):
             "streamer": (uid, 60, Messages.CHAMPION_STREAMER)
         }
         
-        dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=interaction.user.mention)]
-        
-        view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
-        
-        await interaction.followup.send(
-            "### 🧪 Layout Teszt (Dummy Adatok)\nEz az üzenet csak neked látható (ephemeral), és segít ellenőrizni a designt.", 
-            view=view, 
-            ephemeral=True
-        )
+        try:
+            view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
+            
+            await interaction.followup.send(
+                "### 🧪 Layout Teszt (Dummy Adatok)\nEz az üzenet csak neked látható (ephemeral), és segít ellenőrizni a designt.", 
+                view=view, 
+                ephemeral=True
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await interaction.followup.send(f"❌ Error during layout test: {e}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ChampionsCog(bot))
