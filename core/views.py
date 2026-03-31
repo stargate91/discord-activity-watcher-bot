@@ -293,7 +293,7 @@ class ModernChampionsView(discord.ui.LayoutView):
             accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
         ))
         
-        container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.large))
+        container.add_item(discord.ui.Separator())
         
         # 2. Winners Section with Thumbnails
         from core.ui_icons import Icons
@@ -321,11 +321,11 @@ class ModernChampionsView(discord.ui.LayoutView):
             # Use Section with Thumbnail for the winner
             container.add_item(discord.ui.Section(
                 winner_line,
-                accessory=discord.ui.Thumbnail(avatar_url) if avatar_url else None
+                accessory=discord.ui.Thumbnail(str(avatar_url)) if avatar_url else None
             ))
             
             # Small separator between champions
-            container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.small))
+            container.add_item(discord.ui.Separator())
             winners_count += 1
             
         if winners_count == 0:
@@ -333,13 +333,13 @@ class ModernChampionsView(discord.ui.LayoutView):
             
         # 3. Special Awards (Hall of Fame) - Integrated into the view
         if hof_notices:
-            container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.large))
+            container.add_item(discord.ui.Separator())
             for notice in hof_notices:
                 # Use a specific icon for HOF
                 container.add_item(discord.ui.TextDisplay(f"🌟 {notice}"))
         
         # 4. Footer
-        container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.small, visible=False))
+        container.add_item(discord.ui.Separator())
         container.add_item(discord.ui.TextDisplay(f"*{Messages.CHAMPIONS_FOOTER}*"))
         
         self.add_item(container)
