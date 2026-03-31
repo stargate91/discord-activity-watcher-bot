@@ -218,6 +218,7 @@ class ChampionsCog(commands.Cog):
     @discord.app_commands.checks.has_permissions(administrator=True)
     async def test_weekly_layout(self, interaction: discord.Interaction):
         """A test command to preview the new layout with dummy data."""
+        await interaction.response.defer(ephemeral=True)
         # Dummy data for the preview
         uid = interaction.user.id
         dummy_data = {
@@ -231,7 +232,7 @@ class ChampionsCog(commands.Cog):
         
         view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
         
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "### 🧪 Layout Teszt (Dummy Adatok)\nEz az üzenet csak neked látható (ephemeral), és segít ellenőrizni a designt.", 
             view=view, 
             ephemeral=True

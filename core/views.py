@@ -101,13 +101,13 @@ class ModernProfileView(discord.ui.LayoutView):
             Messages.STAT_DETAILS.format(
                 msg=data.get('message_count', 0), 
                 reac=data.get('reaction_count', 0), 
+                media=data.get('media_count', 0),
                 voice=int(data.get('voice_minutes', 0)),
                 stream=int(data.get('stream_minutes', 0))
-            ) + "\n" +
-            Messages.STAT_MEDIA.format(media=data.get('media_count', 0))
+            ) + "\n"
         )
         if data.get('spotify_minutes', 0) > 0:
-            stats_text += "\n" + Messages.STAT_SPOTIFY.format(spotify=int(data['spotify_minutes']))
+            stats_text += Messages.STAT_SPOTIFY.format(spotify=int(data['spotify_minutes'])) + "\n"
         
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
@@ -159,7 +159,7 @@ class ModernProfileView(discord.ui.LayoutView):
                 Messages.STAT_LOYALTY.format(efficiency=f"{efficiency:.2f}")
             )
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_VETERAN + "\n" + vet_text))
-
+ 
         # 6. Games: Show the top 3 games they have played the most
         if top_games:
             games_text = " | ".join([f"`{g[0].replace(Config.GAME_ROLE_PREFIX, '')}` ({int(g[1] or 0)}p)" for g in top_games])
@@ -168,8 +168,9 @@ class ModernProfileView(discord.ui.LayoutView):
         # 7. Activity Chart: Show the 7-day points graph
         if chart_url:
             container.add_item(discord.ui.Separator())
-            from core.ui_icons import Icons
-            container.add_item(discord.ui.TextDisplay(f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"))
+            # Fixed double emoji: SECTION_ACTIVITY usually already contains the bar chart icon if configured,
+            # but user specifically asked for 1 emoji only.
+            container.add_item(discord.ui.TextDisplay(f"{Messages.SECTION_ACTIVITY} (7D)"))
             container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(chart_url)))
 
         if self.static:
