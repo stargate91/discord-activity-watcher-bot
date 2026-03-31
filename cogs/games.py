@@ -16,6 +16,17 @@ def is_admin_check():
         return False
     return app_commands.check(predicate)
 
+def is_tester_check():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if interaction.user.guild_permissions.administrator:
+            return True
+        if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID):
+            return True
+        if Config.TESTER_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.TESTER_ROLE_ID):
+            return True
+        return False
+    return app_commands.check(predicate)
+
 class GamesCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -36,9 +47,11 @@ class GamesCog(commands.Cog):
 
     @app_commands.command(name="add_game", description=Messages.CMD_ADD_GAME_DESC)
     @app_commands.describe(search_name=Messages.CMD_ADD_GAME_NAME_DESC, role_suffix=Messages.CMD_ADD_GAME_SUFFIX_DESC)
+    @is_admin_check()
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
         # This command adds a new game for the bot to track
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+        # Restricted to Admin Channel
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
             
@@ -51,7 +64,8 @@ class GamesCog(commands.Cog):
     @is_admin_check()
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
         # This command stops the bot from tracking a specific game
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+        # Restricted to Admin Channel
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
             
@@ -60,9 +74,11 @@ class GamesCog(commands.Cog):
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
 
     @app_commands.command(name="list_games", description=Messages.CMD_LIST_GAMES_DESC)
+    @is_tester_check()
     async def list_games(self, interaction: discord.Interaction):
         # This command shows a list of all the games the bot is currently watching
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+        # Restricted to Admin Channel
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
             
@@ -77,9 +93,11 @@ class GamesCog(commands.Cog):
 
     @app_commands.command(name="game_stats_report", description=Messages.CMD_GAME_REPORT_DESC)
     @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
+    @is_tester_check()
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # This command creates a .txt file that shows which games are the most popular
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+        # Restricted to Admin Channel
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
             return
             
