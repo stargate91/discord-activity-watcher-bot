@@ -98,7 +98,8 @@ class ChampionsCog(commands.Cog):
                 "spotify": (stats.get("spotify"), Config.SPOTIVIBE_ROLE_ID, Messages.CHAMPION_SPOTIFY),
                 "gamer_total": (stats.get("gamer_total"), Config.GODGAMER_TOTAL_ROLE_ID, Messages.CHAMPION_GAMER_TOTAL),
                 "gamer_variety": (stats.get("gamer_variety"), Config.GODGAMER_VARIETY_ROLE_ID, Messages.CHAMPION_GAMER_VARIETY),
-                "streamer": (stats.get("streamer"), Config.SHARING_ROLE_ID, Messages.CHAMPION_STREAMER)
+                "streamer": (stats.get("streamer"), Config.SHARING_ROLE_ID, Messages.CHAMPION_STREAMER),
+                "media": (stats.get("media"), Config.MEMELORD_ROLE_ID, Messages.CHAMPION_MEMELORD)
             }
             
             # Manage old roles
@@ -112,6 +113,7 @@ class ChampionsCog(commands.Cog):
                     elif category == "gamer_total": role_id = Config.GODGAMER_TOTAL_ROLE_ID
                     elif category == "gamer_variety": role_id = Config.GODGAMER_VARIETY_ROLE_ID
                     elif category == "streamer": role_id = Config.SHARING_ROLE_ID
+                    elif category == "media": role_id = Config.MEMELORD_ROLE_ID
                     
                     role = guild.get_role(role_id)
                     if role and role in member.roles:
@@ -199,7 +201,8 @@ class ChampionsCog(commands.Cog):
                     "spotify": f"{Icons.SPOTIFY} SpotiVibe",
                     "gamer_total": f"{Icons.GAMER} Gamer (H)",
                     "gamer_variety": f"{Icons.VARIETY} Gamer (S)",
-                    "streamer": f"{Icons.STREAMER} Streamer"
+                    "streamer": f"{Icons.STREAMER} Streamer",
+                    "media": f"{Icons.MEME} MemeLord"
                 }.get(cat, cat)
                 summary.append(f"{cat_name}: {wins}x")
             
@@ -219,7 +222,8 @@ class ChampionsCog(commands.Cog):
             "spotify": (uid, 120, Messages.CHAMPION_SPOTIFY),
             "gamer_total": (uid, 450, Messages.CHAMPION_GAMER_TOTAL),
             "gamer_variety": (uid, 5, Messages.CHAMPION_GAMER_VARIETY),
-            "streamer": (uid, 60, Messages.CHAMPION_STREAMER)
+            "streamer": (uid, 60, Messages.CHAMPION_STREAMER),
+            "media": (uid, 25, Messages.CHAMPION_MEMELORD)
         }
         # Define HOF with bold name instead of mention
         dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{interaction.user.display_name}**")]
