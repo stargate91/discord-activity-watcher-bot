@@ -59,7 +59,7 @@
     },
     "ui": {
         "prefix": "!",
-        "suffix": "_a",
+        "suffix": "_elf",
         "leaderboard_limit": 10,
         "report_log_limit": 300,
         "color_primary": "0x3498db",
