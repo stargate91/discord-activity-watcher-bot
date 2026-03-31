@@ -3,8 +3,9 @@ import datetime
 from config_loader import Config
 
 class StatsEngine:
-    def __init__(self, db):
+    def __init__(self, db, bot=None):
         self.db = db
+        self.bot = bot # Store bot reference for live tier lookups
 
     def get_leaderboard(self, guild, user=None, timeframe="alltime", live_voice_times=None):
         # This function calculates the points for everyone to see who is the most active
@@ -26,7 +27,7 @@ class StatsEngine:
                     
                     # Calculate live multiplier
                     # Note: We access the Cog's tier method for consistency
-                    events = self.db.bot.get_cog("EventsCog")
+                    events = self.bot.get_cog("EventsCog") if self.bot else None
                     if events:
                         tier, is_streaming = events.get_person_participation_tier(main_id, guild)
                         data[main_id]["points"] += (curr_mins * tier)
@@ -39,7 +40,12 @@ class StatsEngine:
                     m = guild.get_member(main_id)
                     if m:
                         curr_mins = (now_utc - start).total_seconds() / 60
-                        tier, is_streaming = self.db.bot.cogs["EventsCog"].get_person_participation_tier(main_id, guild) if "EventsCog" in self.db.bot.cogs else (2.0, False) # Fallback if events not ready
+                        events = self.bot.get_cog("EventsCog") if self.bot else None
+                        if events:
+                            tier, is_streaming = events.get_person_participation_tier(main_id, guild)
+                        else:
+                            tier, is_streaming = (2.0, False)
+                            
                         live_points = curr_mins * tier
                         live_stream = curr_mins if is_streaming else 0
                         data[main_id] = {"messages": 0, "reactions": 0, "voice": curr_mins, "points": live_points, "stream": live_stream}

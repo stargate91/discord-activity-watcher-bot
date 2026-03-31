@@ -33,7 +33,7 @@ class CheekyBot(commands.Bot):
         # Set up the database and the special tools for tracking games and stats
         self.db = DBManager()
         self.tracker = GameTracker(self.db, self)
-        self.engine = StatsEngine(self.db)
+        self.engine = StatsEngine(self.db, self)
         
         # A simple dictionary to remember when people joined a voice channel
         self.voice_start_times = {}
