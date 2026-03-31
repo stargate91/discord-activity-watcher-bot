@@ -27,6 +27,7 @@ class Config:
     GODGAMER_VARIETY_ROLE_ID = _roles.get("godgamer_variety_id", 0)
     SHARING_ROLE_ID = _roles.get("sharing_id", 0)
     HALL_OF_FAMER_ROLE_ID = _roles.get("hall_of_famer_id", 0)
+    MEMELORD_ROLE_ID = _roles.get("memelord_id", 0)
     
     # These tell the bot where to post stats or look for admins
     _channels: dict = _data.get("channels", {})

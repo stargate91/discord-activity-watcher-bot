@@ -299,7 +299,8 @@ class ModernChampionsView(discord.ui.LayoutView):
             "spotify": Icons.SPOTIFY,
             "gamer_total": Icons.GAMER,
             "gamer_variety": Icons.VARIETY,
-            "streamer": Icons.STREAMER
+            "streamer": Icons.STREAMER,
+            "media": Icons.MEME
         }
         
         # 2. Winners Section with Padding around the whole block

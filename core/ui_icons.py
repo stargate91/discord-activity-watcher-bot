@@ -21,7 +21,7 @@ class Icons:
             "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
             "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
             "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️",
-            "COOLDOWN": "⏳"
+            "COOLDOWN": "⏳", "MEME": "🖼️"
         }
 
         # Load from config if available (Config.EMOJIS)

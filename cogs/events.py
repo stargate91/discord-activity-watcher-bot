@@ -160,22 +160,28 @@ class EventsCog(commands.Cog):
         # This runs every time someone sends a message
         if message.author.bot or not message.guild: return
         
-        # Calculate dynamic points: Base (1) + min(Length / 10, 100)
-        points = ActivityProcessor.calculate_message_points(message.content)
-        
-        # 1. Media Detection (Attachments or specific Links)
-        has_media = ActivityProcessor.is_media(message)
-        
-        # We still call handle_member_activity for side effects (roles, activity times)
-        await self.handle_member_activity(message.author, event_type=None, channel_id=message.channel.id)
-        
-        # Manually call increment_messages with calculated points
-        main_id = Config.get_main_id(message.author.id)
-        self.db.increment_messages(main_id, message.guild.id, message.channel.id, points=points)
-        
-        # 2. Increment Media if found (+ bonus points)
-        if has_media:
-            self.db.increment_media(main_id, message.guild.id, message.channel.id, points=Config.POINTS_MEDIA_BONUS)
+        try:
+            # Calculate dynamic points: Base (1) + min(Length / 10, 100)
+            points = ActivityProcessor.calculate_message_points(message.content)
+            
+            # 1. Media Detection (Attachments or specific Links)
+            has_media = ActivityProcessor.is_media(message)
+            
+            # We still call handle_member_activity for side effects (roles, activity times)
+            await self.handle_member_activity(message.author, event_type=None, channel_id=message.channel.id)
+            
+            # Manually call increment_messages with calculated points
+            main_id = Config.get_main_id(message.author.id)
+            self.db.increment_messages(main_id, message.guild.id, message.channel.id, points=points)
+            
+            # 2. Increment Media if found (+ bonus points)
+            if has_media:
+                self.db.increment_media(main_id, message.guild.id, message.channel.id, points=Config.POINTS_MEDIA_BONUS)
+                
+        except Exception as e:
+            log.error(f"Error in on_message handler: {e}")
+            # Optional: Report error to admin channel? 
+            # (Keep it simple for now, logging is enough)
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, after):

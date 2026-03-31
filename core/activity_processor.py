@@ -38,6 +38,25 @@ class ActivityProcessor:
         return False
 
     @staticmethod
+    def is_media(message):
+        """
+        Detects if a Discord Message object contains media.
+        Checks both attachments and content for media links.
+        """
+        if not message:
+            return False
+            
+        # 1. Check for physical attachments
+        if len(message.attachments) > 0:
+            return True
+            
+        # 2. Check content for specific media links (YouTube, TikTok, etc.)
+        if ActivityProcessor.contains_media(message.content):
+            return True
+            
+        return False
+
+    @staticmethod
     def get_participation_tier(member_id, guild):
         """
         Determines the voice activity tier based on current member status 

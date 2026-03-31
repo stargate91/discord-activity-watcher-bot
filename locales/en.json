@@ -127,7 +127,7 @@
     "STREAM_HISTORY_GEN": "Generating stream history report...",
     "STREAM_HISTORY_EMPTY": "No recorded stream sessions found for this period.",
     "STREAM_HISTORY_DONE": "Stream history for the last {days} days generated ({count} entries).",
-    "SECTION_VETERAN": "SERVER VETERAN",
+    "SECTION_VETERAN": "Server Veteran",
     "STAT_JOIN_DATE": "**Joined:** {date}",
     "STAT_TENURE": "**Tenure:** {days} days",
     "STAT_LOYALTY": "**Loyalty Index:** {efficiency} pts/day",
@@ -141,5 +141,6 @@
     "CHAMPION_GAMER_TOTAL": "**GodGamer (Hardcore):** {name} ({value:.0f} min)",
     "CHAMPION_GAMER_VARIETY": "**GodGamer (Variety):** {name} ({value} different games)",
     "CHAMPION_STREAMER": "**Sharing is Caring:** {name} ({value:.0f} min)",
+    "CHAMPION_MEMELORD": "**MemeLord:** {name} ({value} shared media)",
     "CHAMPION_HALL_OF_FAME": "\n**NEW HALL OF FAMER:** {name} reached their 5th victory, earning permanent membership!"
 }

@@ -961,11 +961,19 @@ class DBManager:
                 GROUP BY user_id ORDER BY total DESC LIMIT 1
             """, (guild_id, start_date, end_date)).fetchone()
             
+            # 5. Media (MemeLord)
+            media_top = conn.execute("""
+                SELECT user_id, SUM(media_count) as total FROM daily_stats 
+                WHERE guild_id = ? AND date >= ? AND date <= ?
+                GROUP BY user_id ORDER BY total DESC LIMIT 1
+            """, (guild_id, start_date, end_date)).fetchone()
+            
             return {
                 "spotify": spotify_top,
                 "gamer_total": game_top,
                 "gamer_variety": variety_top,
-                "streamer": stream_top
+                "streamer": stream_top,
+                "media": media_top
             }
 
     def log_champion_win(self, user_id, guild_id, category, win_date):
