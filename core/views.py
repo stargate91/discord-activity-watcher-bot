@@ -320,8 +320,8 @@ class ModernChampionsView(discord.ui.LayoutView):
                 # Fallback if formatting fails
                 winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Use Section WITHOUT winner thumbnail as requested
-            container.add_item(discord.ui.Section(winner_line))
+            # Use TextDisplay WITHOUT winner thumbnail as requested
+            container.add_item(discord.ui.TextDisplay(winner_line))
             
             # Add separator between items, but NOT after the last winner if HOF follows
             if i < len(winners_list) - 1:
