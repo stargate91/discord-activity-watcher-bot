@@ -67,19 +67,19 @@ class StatsCog(commands.Cog):
             user, data, points, voice_mins, rank = user_full_stats
             
             # Calculate extra social stats (who they talk to most, favorite emoji, etc.)
-            social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-            partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-            top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
+            social = self.db.get_user_social_stats(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+            partners = self.db.get_top_voice_partners(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+            top_games = self.db.get_user_top_games(main_id, interaction.guild_id, limit=3)
             
             # Calculate Daily Average (30 days)
             monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-            user_monthly = monthly_data.get(user.id, {"messages":0})
+            user_monthly = monthly_data.get(main_id, {"messages":0})
             avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
             
             # Avg Voice Session Duration
-            avg_voice = self.db.get_user_average_voice_duration(user.id, interaction.guild_id)
+            avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
             
-            view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice)
+            view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="me")
             await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             await interaction.followup.send(Messages.ERR_STATS_LOAD.format(e=e), ephemeral=True)

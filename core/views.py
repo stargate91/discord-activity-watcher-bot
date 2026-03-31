@@ -39,7 +39,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 
                 medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
                 
-                info = f"{medal} {name} - **{pts:,} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
+                info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
                 container.add_item(discord.ui.TextDisplay(info))
                 
                 if i < len(items):
@@ -72,7 +72,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
 
 class ModernProfileView(discord.ui.LayoutView):
     # This is the class that builds the profile card when you check someone's stats
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="alltime", static=False, shared_by=None):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="me", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
@@ -95,7 +95,7 @@ class ModernProfileView(discord.ui.LayoutView):
         
         # 2. Activity: Show points, messages, reactions and voice time
         stats_text = (
-            Messages.STAT_TOTAL_SCORE.format(points=f"{points:,}") + "\n" +
+            Messages.STAT_TOTAL_SCORE.format(points=f"{points:,.2f}") + "\n" +
             Messages.STAT_DETAILS.format(
                 msg=data.get('message_count', 0), 
                 reac=data.get('reaction_count', 0), 
