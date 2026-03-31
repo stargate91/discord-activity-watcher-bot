@@ -83,7 +83,7 @@
     "CMD_SYNC_DESC": "Slash parancsok manuális szinkronizálása.",
     "CMD_SYNC_MODE_DESC": "Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)",
     "ERR_STATS_LOAD": "Hiba történt a statisztikák betöltésekor: {e}",
-    "ERR_COOLDOWN": "Kérlek várj egy kicsit! Ezt a parancsot csak {retry_after:.1f} másodperc múlva használhatod újra.",
+    "ERR_COOLDOWN": "Kérlek várj egy kicsit! Ezt a parancsot csak {retry_after:.1f} másodperc múva használhatod újra.",
     "CMD_CLEAR_DONE": "Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a {cmd} parancsot a frissítéshez.",
     "INFO_TITLE": "{bot_name} - Ismertető",
     "INFO_DESC": "Szia! Én egy komplex aktivitásfigyelő bot vagyok. Követem az üzeneteidet, a hangcsatornákon töltött idődet, sőt még a Spotify hallgatásodat és a játékaidat is, amikből pontokat és rangokat szerezhetsz!",
@@ -95,7 +95,7 @@
     "INFO_DEV_SLASH": "Slash parancsok (Adminisztráció)\n",
     "CMD_INFO_DEV_DESC": "Kilistázza az összes parancsot az adminoknak.",
     "CMD_CLEAR_HELP": "Parancsok törlése. (Globális + Szerver)",
-    "INFO_DEV_FOOTER_NOTE": "Némelyik parancshoz Dev role szükséges lehet.",
+    "INFO_DEV_FOOTER_NOTE": "A legtöbb parancsnál a bot automatikusan Ephemeral (csak te látod) üzenetet küld a csatornák rendben tartása végett.",
     "CMD_INFO_DESC": "Általános ismertető a botról.",
     "ERR_STATS_NOT_FOUND": "A statisztika csatorna nem található a konfigurációban! (stats_id)",
     "CMD_SERVER_ANALYSIS_DESC": "Vizuális elemzés a szerver aktivitásáról.",
@@ -142,5 +142,11 @@
     "CHAMPION_GAMER_VARIETY": "**GodGamer (Sokszínű):** {name} ({value} különböző játék)",
     "CHAMPION_STREAMER": "**Sharing is Caring:** {name} ({value:.0f} perc)",
     "CHAMPION_MEMELORD": "**MemeLord:** {name} ({value} megosztott média)",
-    "CHAMPION_HALL_OF_FAME": "**ÚJ HALL OF FAMER:** {name} elérte az 5. győzelmét, így megkapta az örökös tagságot!"
+    "CHAMPION_HALL_OF_FAME": "**ÚJ HALL OF FAMER:** {name} elérte az 5. győzelmét, így megkapta az örökös tagságot!",
+    "HELP_ROLE_EVERYONE": "Mindenki",
+    "HELP_ROLE_ADMIN": "Admin",
+    "HELP_ROLE_TESTER": "Tester+",
+    "HELP_CHAN_ANY": "Bárhol",
+    "HELP_CHAN_ADMIN": "Admin csat.",
+    "HELP_CHAN_STATS": "Publikus csat"
 }
