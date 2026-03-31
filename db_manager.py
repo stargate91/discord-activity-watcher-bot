@@ -497,6 +497,8 @@ class DBManager:
                     "voice_minutes": row[4],
                     "media_count": row[5],
                     "spotify_minutes": row[6],
+                    "points_total": row[7],
+                    "stream_minutes": row[8],
                 }
             return None
 
@@ -554,9 +556,8 @@ class DBManager:
 
     def get_all_guild_data(self, guild_id):
         # [DEPRECATED] Use get_inactive_users or specific queries instead
-        with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, spotify_minutes
+                SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
                 FROM user_activity WHERE guild_id = ?
             """, (guild_id,))
             rows = cursor.fetchall()
@@ -568,7 +569,10 @@ class DBManager:
                     "message_count": row[3],
                     "reaction_count": row[4],
                     "voice_minutes": row[5],
-                    "spotify_minutes": row[6]
+                    "media_count": row[6],
+                    "spotify_minutes": row[7],
+                    "points_total": row[8],
+                    "stream_minutes": row[9]
                 }
             return data
 

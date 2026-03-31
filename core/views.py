@@ -294,15 +294,6 @@ class ModernChampionsView(discord.ui.LayoutView):
         ))
         
         # 2. Winners Section with Space
-        from core.ui_icons import Icons
-        category_icons = {
-            "spotify": Icons.SPOTIFY,
-            "gamer_total": Icons.GAMER,
-            "gamer_variety": Icons.VARIETY,
-            "streamer": Icons.STREAMER,
-            "media": Icons.MEME
-        }
-        
         # 2. Winners Section with Padding around the whole block
         winners_count = 0
         winners_list = list(champion_data.items())
@@ -317,12 +308,11 @@ class ModernChampionsView(discord.ui.LayoutView):
             name = f"**{member.display_name}**" if member else f"**{user_id}**"
             
             # 3. Construct description from template
-            icon = category_icons.get(cat_id, "")
             try:
-                winner_line = f"### {icon} {msg_template.format(name=name, value=value)}"
+                winner_line = f"### {msg_template.format(name=name, value=value)}"
             except Exception as e:
                 # Fallback if formatting fails
-                winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
+                winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
             # Content without individual separators
             container.add_item(discord.ui.TextDisplay(winner_line))
