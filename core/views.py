@@ -311,39 +311,34 @@ class ModernChampionsView(discord.ui.LayoutView):
             member = guild.get_member(user_id)
             # No mentions, use display name
             name = f"**{member.display_name}**" if member else f"**{user_id}**"
-            icon = category_icons.get(cat_id, "🏆")
             
             # Construct description from template using raw value (templates handle formatting)
             try:
-                winner_line = f"### {icon} {msg_template.format(name=name, value=value)}"
+                winner_line = f"### {msg_template.format(name=name, value=value)}"
             except Exception as e:
                 # Fallback if formatting fails
-                winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
+                winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Use TextDisplay WITHOUT winner thumbnail as requested
-            container.add_item(discord.ui.TextDisplay(winner_line))
+            # Use separator + newline + content + newline as requested for "airier" feel
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.TextDisplay("\n" + winner_line + "\n"))
             
-            # Add separator between items, but NOT after the last winner if HOF follows
-            if i < len(winners_list) - 1:
-                container.add_item(discord.ui.Separator())
             winners_count += 1
             
         if winners_count == 0:
-            container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.TextDisplay("\n" + Messages.LB_EMPTY + "\n"))
             
         # 3. Special Awards (Hall of Fame) - Integrated into the view
         if hof_notices:
-            # Only add separator if we had winners
-            if winners_count > 0:
-                container.add_item(discord.ui.Separator())
-                
+            container.add_item(discord.ui.Separator())
             for notice in hof_notices:
-                # Use a specific icon for HOF
-                container.add_item(discord.ui.TextDisplay(f"🌟 {notice}"))
+                # Add spacing for HOF items too
+                container.add_item(discord.ui.TextDisplay("\n" + notice + "\n"))
         
         # 4. Footer
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(f"*{Messages.CHAMPIONS_FOOTER}*"))
+        container.add_item(discord.ui.TextDisplay(f"\n*{Messages.CHAMPIONS_FOOTER}*\n"))
         
         self.add_item(container)
 
