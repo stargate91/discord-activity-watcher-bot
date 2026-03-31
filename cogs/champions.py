@@ -161,12 +161,6 @@ class ChampionsCog(commands.Cog):
                 
                 log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
 
-    @commands.command(name="setup_champions")
-    @commands.has_permissions(administrator=True)
-    async def setup_champs_cmd(self, ctx):
-        """Manual command to trigger role setup."""
-        await self._setup_roles(ctx.guild)
-        await ctx.send("✅ Champion roles setup complete and config updated!")
 
     @discord.app_commands.command(name="champion_log", description="Heti bajnoki statisztikák megtekintése.")
     async def champion_log(self, interaction: discord.Interaction):

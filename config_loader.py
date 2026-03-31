@@ -101,6 +101,26 @@ class Config:
         return cls.USER_MAPPING.get(user_id, user_id)
 
     @classmethod
+    def update_user_mapping(cls, alt_id: int, main_id: int):
+        """Adds or updates an alt-to-main account mapping and persists it to config.json."""
+        # Update in-memory mapping
+        cls.USER_MAPPING[alt_id] = main_id
+        
+        # Update the original _data for future saves (if any)
+        if "user_mapping" not in cls._data:
+            cls._data["user_mapping"] = {}
+        cls._data["user_mapping"][str(alt_id)] = main_id
+        
+        # Persist to config.json
+        try:
+            with open("config.json", "w", encoding="utf-8") as f:
+                json.dump(cls._data, f, indent=4)
+            return True
+        except Exception as e:
+            print(f"Error saving config.json: {e}")
+            return False
+
+    @classmethod
     def validate(cls):
         if not cls.TOKEN:
             return "DISCORD_TOKEN is missing from .env"
