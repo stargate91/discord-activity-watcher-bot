@@ -40,7 +40,7 @@ class EventsCog(commands.Cog):
                 continue
             
             # Streaming state
-            if m.voice.self_stream or m.voice.stream:
+            if m.voice.self_stream:
                 is_streaming = True
                 # Try to find the name of the app/game
                 if not stream_name:
