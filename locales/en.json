@@ -87,7 +87,7 @@
     "INFO_TITLE": "{bot_name} - Introduction",
     "INFO_DESC": "Hi! I am a complex activity watcher bot. I track your messages, voice time, Spotify listening, and gaming activities to help you earn points and ranks!",
     "INFO_FEATURES_TITLE": "Features & Commands",
-    "INFO_FEATURES_DESC": "• `/top` & `/me` - Check the server leaderboard and your personal profile card.\n• **Weekly Champions** - Compete to be the GodGamer, SpotiViber, or Streamer of the week!\n• **Meme Factory** - Share images, videos, or links to earn extra bonus points!\n• **Server Veteran** - Tracking your tenure and loyalty to the server.\n• **Automatic Game Roles** - Get roles automatically for your favorite games!\n• **Inactivity Watcher** - Stay active to avoid the {role} role!",
+    "INFO_FEATURES_DESC": "• `/top`, `/me` & `/server_analysis` - Check the server leaderboard, personal profile card, or visual analysis.\n• **Weekly Champions** - Compete to be the GodGamer, SpotiViber, or Streamer of the week!\n• **Meme Factory** - Share images, videos, or links to earn extra bonus points!\n• **Server Veteran** - Tracking your tenure and loyalty to the server.\n• **Automatic Game Roles** - Get roles automatically for your favorite games!\n• **Inactivity Watcher** - Stay active to avoid the {role} role!",
     "INFO_FOOTER": "Use the commands in the {channel} channel!",
     "INFO_DEV_TITLE": "{bot_name} • Administrator Control Panel",
     "INFO_DEV_PREFIX": "Prefix Commands (Suffix: `{suffix}`)\n",

@@ -87,7 +87,7 @@
     "INFO_TITLE": "{bot_name} - Ismertető",
     "INFO_DESC": "Szia! Én egy komplex aktivitásfigyelő bot vagyok. Követem az üzeneteidet, a hangcsatornákon töltött idődet, sőt még a Spotify hallgatásodat és a játékaidat is, amikből pontokat és rangokat szerezhetsz!",
     "INFO_FEATURES_TITLE": "Funkciók & Parancsok",
-    "INFO_FEATURES_DESC": "• `/top` & `/me` - Nézd meg a szerver toplistáját és a saját részletes kártyádat.\n• **Heti Bajnokok** - Legyél te a hét GodGamere, SpotiVibere vagy Streamere és nyerj egyedi rangot!\n• **Mém Gyár** - Ossz meg képeket, videókat vagy linkeket extra bónusz pontokért!\n• **Szerver Veterán** - Követem mióta vagy velünk és mennyire vagy lojális a szerverhez.\n• **Automata Játékos Rangok** - Kapj rangot automatikusan a kedvenc játékaidhoz!\n• **Inaktivitás Figyelő** - Maradj aktív, hogy elkerüld a {role} rangot!",
+    "INFO_FEATURES_DESC": "• `/top`, `/me` & `/server_analysis` - Nézd meg a szerver toplistáját, saját kártyádat vagy a vizuális elemzéseket.\n• **Heti Bajnokok** - Legyél te a hét GodGamere, SpotiVibere vagy Streamere és nyerj egyedi rangot!\n• **Mém Gyár** - Ossz meg képeket, videókat vagy linkeket extra bónusz pontokért!\n• **Szerver Veterán** - Követem mióta vagy velünk és mennyire vagy lojális a szerverhez.\n• **Automata Játékos Rangok** - Kapj rangot automatikusan a kedvenc játékaidhoz!\n• **Inaktivitás Figyelő** - Maradj aktív, hogy elkerüld a {role} rangot!",
     "INFO_FOOTER": "Használd a parancsokat a {channel} csatornán!",
     "INFO_DEV_TITLE": "{bot_name} • Rendszergazdai Vezérlőpult",
     "INFO_DEV_PREFIX": "Prefix parancsok (Suffix: `{suffix}`)\n",
