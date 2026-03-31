@@ -125,20 +125,24 @@ class StatsCog(commands.Cog):
                 elif action == "share":
                     # Determine what to share
                     if current_tf == "me":
-                        _, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, "alltime")
+                        # We must use the Main ID to get the combined stats for sharing
+                        main_id = Config.get_main_id(interaction.user.id)
+                        main_member = interaction.guild.get_member(main_id) or interaction.user
+                        
+                        _, u_stats = self.bot.get_top_data(interaction.guild, main_member, "alltime")
                         if not u_stats: return
                         user, data, points, voice_mins, rank = u_stats
                         
-                        social = self.db.get_user_social_stats(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                        partners = self.db.get_top_voice_partners(user.id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                        top_games = self.db.get_user_top_games(user.id, interaction.guild_id, limit=3)
+                        social = self.db.get_user_social_stats(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+                        partners = self.db.get_top_voice_partners(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
+                        top_games = self.db.get_user_top_games(main_id, interaction.guild_id, limit=3)
                         
                         monthly_data = self.db.get_leaderboard_data(interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
-                        user_monthly = monthly_data.get(user.id, {"messages":0})
+                        user_monthly = monthly_data.get(main_id, {"messages":0})
                         avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
-                        avg_voice = self.db.get_user_average_voice_duration(user.id, interaction.guild_id)
+                        avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
                         
-                        view_shared = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, static=True, shared_by=interaction.user.display_name)
+                        view_shared = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, static=True, shared_by=interaction.user.display_name)
                     else:
                         top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, current_tf)
                         view_shared = ModernLeaderboardView(top_10, current_tf, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)
