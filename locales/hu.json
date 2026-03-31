@@ -141,5 +141,5 @@
     "CHAMPION_GAMER_TOTAL": "**GodGamer (Hardcore):** {name} ({value:.0f} perc)",
     "CHAMPION_GAMER_VARIETY": "**GodGamer (Sokszínű):** {name} ({value} különböző játék)",
     "CHAMPION_STREAMER": "**Sharing is Caring:** {name} ({value:.0f} perc)",
-    "CHAMPION_HALL_OF_FAME": "\n**ÚJ HALL OF FAMER:** {name} elérte az 5. győzelmét, így megkapta az örökös tagságot!"
+    "CHAMPION_HALL_OF_FAME": "**ÚJ HALL OF FAMER:** {name} elérte az 5. győzelmét, így megkapta az örökös tagságot!"
 }

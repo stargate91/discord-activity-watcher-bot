@@ -293,9 +293,7 @@ class ModernChampionsView(discord.ui.LayoutView):
             accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
         ))
         
-        container.add_item(discord.ui.Separator())
-        
-        # 2. Winners Section with Thumbnails
+        # 2. Winners Section with Space
         from core.ui_icons import Icons
         category_icons = {
             "spotify": Icons.SPOTIFY,
@@ -319,22 +317,26 @@ class ModernChampionsView(discord.ui.LayoutView):
                 # Fallback if formatting fails
                 winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Use separator + newline + content + newline as requested for "airier" feel
+            # Pattern: Separator -> Invisible Spacer -> Content -> Invisible Spacer
             container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.TextDisplay("\n" + winner_line + "\n"))
+            container.add_item(discord.ui.Separator(visible=False))
+            container.add_item(discord.ui.TextDisplay(winner_line))
+            container.add_item(discord.ui.Separator(visible=False))
             
             winners_count += 1
             
         if winners_count == 0:
             container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.TextDisplay("\n" + Messages.LB_EMPTY + "\n"))
+            container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
             
         # 3. Special Awards (Hall of Fame) - Integrated into the view
         if hof_notices:
             container.add_item(discord.ui.Separator())
             for notice in hof_notices:
                 # Add spacing for HOF items too
-                container.add_item(discord.ui.TextDisplay("\n" + notice + "\n"))
+                container.add_item(discord.ui.Separator(visible=False))
+                container.add_item(discord.ui.TextDisplay(notice))
+                container.add_item(discord.ui.Separator(visible=False))
         
         # 4. Footer
         container.add_item(discord.ui.Separator())
