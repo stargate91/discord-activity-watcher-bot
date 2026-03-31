@@ -1,4 +1,5 @@
 import discord
+import datetime
 from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, ActionRow, Button
 from config_loader import Config
 from core.messages import Messages
@@ -74,7 +75,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
 class ModernProfileView(discord.ui.LayoutView):
     # This is the class that builds the profile card when you check someone's stats
     def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
-                 joined_at=None, tenure_days=0, efficiency=0, timeframe="me", static=False, shared_by=None):
+                 joined_at=None, tenure_days=0, efficiency=0, chart_url=None, timeframe="me", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
@@ -161,9 +162,16 @@ class ModernProfileView(discord.ui.LayoutView):
 
         # 6. Games: Show the top 3 games they have played the most
         if top_games:
-            games_text = " | ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
+            games_text = " | ".join([f"`{g[0].replace(Config.GAME_ROLE_PREFIX, '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
+        # 7. Activity Chart: Show the 7-day points graph
+        if chart_url:
+            container.add_item(discord.ui.Separator())
+            from core.ui_icons import Icons
+            container.add_item(discord.ui.TextDisplay(f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"))
+            container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(chart_url)))
+
         if self.static:
             self.add_item(container)
             return
@@ -265,3 +273,75 @@ class ModernDevInfoView(discord.ui.LayoutView):
         container.add_item(discord.ui.TextDisplay(footer_text))
         
         self.add_item(container)
+
+class ModernChampionsView(discord.ui.LayoutView):
+    """
+    A premium, high-impact view for announcing the Weekly Champions.
+    Uses Sections with Thumbnails for each category to create a stunning layout.
+    """
+    def __init__(self, guild, champion_data, hof_notices=None):
+        super().__init__()
+        self.guild = guild
+        
+        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_ACCENT))
+        
+        # 1. Header: Big announcement title with Server Icon
+        header_text = f"## {Messages.CHAMPIONS_TITLE}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
+        container.add_item(discord.ui.Section(
+            header_text,
+            accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
+        ))
+        
+        container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.large))
+        
+        # 2. Winners Section with Thumbnails
+        from core.ui_icons import Icons
+        category_icons = {
+            "spotify": Icons.SPOTIFY,
+            "gamer_total": Icons.GAMER,
+            "gamer_variety": Icons.VARIETY,
+            "streamer": Icons.STREAMER
+        }
+        
+        winners_count = 0
+        for cat_id, (user_id, value, msg_template) in champion_data.items():
+            member = guild.get_member(user_id)
+            name = member.mention if member else f"**{user_id}**"
+            icon = category_icons.get(cat_id, "🏆")
+            avatar_url = member.display_avatar.url if member else None
+            
+            # Format the value if it's a number (minutes)
+            if isinstance(value, (int, float)):
+                formatted_value = f"{value:.0f}"
+            else:
+                formatted_value = str(value)
+                
+            # Construct description from template
+            winner_line = f"### {icon} {msg_template.format(name=name, value=formatted_value)}"
+            
+            # Use Section with Thumbnail for the winner
+            container.add_item(discord.ui.Section(
+                winner_line,
+                accessory=discord.ui.Thumbnail(avatar_url) if avatar_url else None
+            ))
+            
+            # Small separator between champions
+            container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.small))
+            winners_count += 1
+            
+        if winners_count == 0:
+            container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
+            
+        # 3. Special Awards (Hall of Fame) - Integrated into the view
+        if hof_notices:
+            container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.large))
+            for notice in hof_notices:
+                # Use a specific icon for HOF
+                container.add_item(discord.ui.TextDisplay(f"🌟 {notice}"))
+        
+        # 4. Footer
+        container.add_item(discord.ui.Separator(style=discord.ui.SeparatorStyle.small, visible=False))
+        container.add_item(discord.ui.TextDisplay(f"*{Messages.CHAMPIONS_FOOTER}*"))
+        
+        self.add_item(container)
+

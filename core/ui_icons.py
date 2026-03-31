@@ -11,6 +11,7 @@ class Icons:
     ERROR: discord.PartialEmoji = None
     WARNING: discord.PartialEmoji = None
     SHUSH: discord.PartialEmoji = None
+    COOLDOWN: discord.PartialEmoji = None
 
     @classmethod
     def setup(cls, config):
@@ -19,7 +20,8 @@ class Icons:
             "CHART": "📊", "ROCKET": "🚀", "SUCCESS": "✅", "TRASH": "🗑️",
             "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
             "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
-            "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️"
+            "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️",
+            "COOLDOWN": "⏳"
         }
 
         # Load from config if available (Config.EMOJIS)

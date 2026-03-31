@@ -1,40 +1,47 @@
-# 👁️ Watcher Bot - Activity & Role Manager
+# 👁️ Watcher Bot - Elite Activity & Engagement Manager
 
-A professional Discord bot designed for high-precision activity monitoring, automatic game role management, and incentivizing server engagement through a clean, modern leaderboard system.
+A state-of-the-art Discord bot designed for professional community management. It provides high-precision activity monitoring, automated game role distribution, and a gamified engagement system through a modern, configuration-driven UI.
 
-## ✨ Features
+## ✨ Key Features
 
--   **Unified Identity Tracking (Alt Linking)**:
-    -   Link multiple Discord accounts (alts) to a single primary identity via `config.json`.
-    -   Messages, reactions, voice time, and game playtime are automatically aggregated to the main account.
-    -   Alts are hidden from top lists; `/me` on any linked account shows the unified primary stats.
--   **Atomic Role Synchronization**:
-    -   **Inactivity Roles**: "Inactive" and "Returning" roles are automatically synced across all linked accounts of a user.
-    -   **Game Roles**: When a user starts a game (e.g., *Player: Minecraft*), the role is assigned to ALL their linked accounts simultaneously.
--   **Persistent Voice & Game Tracking**:
-    -   Real-time session tracking that persists across channel moves, game restarts, and bot reboots via SQLite.
-    -   Smart voice logic: If multiple linked accounts are in voice, time is only counted once. Continuous tracking if a user switches between accounts.
--   **Configurable Restrictions**:
-    -   Dedicated **Stats Channel** for public commands (`/top`, `/me`).
-    -   Dedicated **Admin Channel** for reports and system management.
--   **Multilingual Hungarian Support**: All user-facing messages are centralized and localized.
+### 🏆 Gamification & Rewards
+- **Weekly Champions**: Automatically awards unique roles every Monday to the top performers:
+  - **GodGamer (Hardcore)**: Most minutes spent in games.
+  - **GodGamer (Variety)**: Played the most diverse set of games.
+  - **SpotiVibe**: Most active music listener.
+  - **Sharing is Caring**: Most time spent streaming to the community.
+- **Hall of Fame**: Permanent recognition for users who win 5+ weekly championships.
+- **Modern Leaderboards**: Beautiful, icon-mapped `/top` (Weekly, Monthly, All-time) and `/me` profiles.
+
+### 🛡️ Smart Activity Processing
+- **ActivityProcessor**: Centralized business logic for point calculation and media detection.
+- **Media Factory**: Earn bonus points for sharing YouTube, TikTok, images, or links.
+- **Dynamic Multipliers**: Voice points are calculated based on participation tiers (Streaming, Camera on, etc.).
+- **Server Veteran System**: Tracks tenure and calculates a **Loyalty Index** based on activity vs. time joined.
+
+### 🔗 Unified Identity (Alt Linking)
+- Link multiple Discord accounts to a single primary identity via `config.json`.
+- Automatic aggregation of messages, reactions, voice time, and game playtime.
+- **Atomic Role Sync**: Inactivity and game roles are automatically synced across ALL linked accounts.
+
+### ⚡ Professional Infrastructure
+- **Optimized for Scale**: Lazy-loading for leaderboards and targeted database queries ensure smooth performance for 1000+ member servers.
+- **Spam Protection**: Configurable cooldowns on all public slash commands.
+- **Localization Engine**: Dynamic support for Hungarian and English, driven by centralized JSON locale files.
+- **Persistence**: Real-time session tracking (Voice/Games) that survives bot reboots.
 
 ## 🚀 Setup & Installation
 
 ### 1. Prerequisites
--   Python 3.10+
--   Discord Bot Token ([Developer Portal](https://discord.com/developers/applications))
--   **Privileged Intents**: `Server Members`, `Presence`, `Message Content`, `Voice States`.
+- Python 3.10+
+- SQLite3
+- **Privileged Intents**: `Server Members`, `Presence`, `Message Content`, `Voice States`.
 
 ### 2. Configuration
-The bot uses a hybrid approach to separate secrets from settings:
-
-1.  **[.env](file:///.env)**:
-    ```env
-    DISCORD_TOKEN=your_token_here
-    ```
-2.  **[config.json](file:///config.json)**: Edit this file to manage all your Role IDs, Channel IDs, point values, and inactivity thresholds.
-    -   **`primary_accounts`**: Map alt IDs to primary IDs here for unified tracking.
+The bot is fully driven by a professional configuration system:
+- **[.env](file:///.env)**: Store your secret `DISCORD_TOKEN`.
+- **[config.json](file:///config.json)**: Manage Role IDs, Channel IDs, Emojis, Tiers, and Activity Thresholds.
+- **[locales/](file:///locales/)**: Customize all bot responses in `hu.json` or `en.json`.
 
 ### 3. Running the Bot
 ```bash
@@ -42,23 +49,25 @@ pip install -r requirements.txt
 python bot.py
 ```
 
-## 🛠️ Commands
+## 🛠️ Command Suites
 
-### 📊 Stats Commands (Stats Channel only)
--   `/top [timeframe]` - Display the top 10 most active members (Weekly, Monthly, All-time).
--   `/me` - Display your personal activity profile, ranking, and **Top 3 Games by Playtime**.
+### 📊 Public Commands (Stats Channel)
+- `/top [timeframe]` - Explore the leaderboard with medals and tiers.
+- `/me` - View your comprehensive profile card, social connections, and veteran stats.
+- `/server_analysis [type]` - Generate visual heatmaps and charts of server activity.
 
-### 🛡️ Admin Commands (Admin Channel only)
--   `/status_report` - Generates a detailed TXT report of all members' activity.
--   `/game_stats_report` - Generates a report on the popularity of different games in the server.
--   `/game_role_report` - Downloads the history of all automatic game role assignments.
--   `/add_game` / `/remove_game` - Manage which game franchises the bot monitors.
--   `/reset_database` - Wipes all activity data while keeping configuration intact.
+### 🛡️ Management Commands (Admin Channel)
+- `/status_report` - Detailed audit of all members' activity and inactivity status.
+- `/game_report` - Detailed analytics on game popularity and trends.
+- `/membership_logs` - Export join/leave history to TXT.
+- `/stream_history` - Review all recorded community streaming sessions.
+- `/add_game` / `/remove_game` - Control the automatic game-role engine.
 
-### ⚙️ System Commands
--   `!sync` / `/sync` - Manually propagate slash commands. Use `!sync copy` for the first run! (Owner only).
+## ⚙️ Core Architecture
+- **`db_manager.py`**: High-performance SQLite interaction with optimized indexing.
+- **`core/activity_processor.py`**: The "brain" behind scoring and media detection.
+- **`core/ui_utils.py`**: Dynamic icon-mapping and translation bridge.
+- **`cogs/events.py`**: Event-driven architecture for real-time tracking and automation.
 
-## 📄 Data Management
--   **`activity.db`**: SQLite database storing all user stats, active sessions, and history.
--   **`core/messages.py`**: Central repository for all Hungarian text strings.
--   **`cogs/`**: The core logic split into specialized modules (Stats, Events, Admin, Games).
+---
+*Built for communities that value engagement and transparency.*

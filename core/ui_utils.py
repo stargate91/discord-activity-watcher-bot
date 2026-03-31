@@ -17,6 +17,7 @@ def get_feedback(key: str, **kwargs) -> str:
         "ERR_ADMIN_ONLY": Icons.WARNING,
         "ERR_STATS_LOAD": Icons.ERROR,
         "ERR_STATS_NOT_FOUND": Icons.ERROR,
+        "ERR_COOLDOWN": Icons.COOLDOWN,
         "DB_RESET_ERROR": Icons.ERROR,
 
         # --- Success ---

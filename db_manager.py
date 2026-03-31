@@ -1,5 +1,6 @@
 import sqlite3
 import datetime
+from config_loader import Config
 
 class DBManager:
     def __init__(self, db_path="activity.db"):
@@ -133,9 +134,17 @@ class DBManager:
                     guild_id INTEGER,
                     channel_id INTEGER,
                     joined_at TIMESTAMP,
+                    multiplier REAL DEFAULT 2.0,
+                    is_streaming INTEGER DEFAULT 0,
+                    stream_name TEXT,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
+            
+            # Migrations for active_voice_sessions
+            for col, ctype in [("multiplier", "REAL DEFAULT 2.0"), ("is_streaming", "INTEGER DEFAULT 0"), ("stream_name", "TEXT")]:
+                try: conn.execute(f"ALTER TABLE active_voice_sessions ADD COLUMN {col} {ctype}")
+                except sqlite3.OperationalError: pass
             # active_game_sessions: Remembers who is currently playing a game
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_game_sessions (
@@ -268,7 +277,48 @@ class DBManager:
             if "spotify_minutes" not in [row[1] for row in cursor.fetchall()]:
                 try: conn.execute("ALTER TABLE daily_stats ADD COLUMN spotify_minutes REAL DEFAULT 0")
                 except sqlite3.OperationalError: pass
-                
+            # --- INDEXES FOR PERFORMANCE ---
+            
+            # user_activity: guild_id for server-wide lookups
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_guild ON user_activity(guild_id)")
+            
+            # daily_stats: guild_id+date (leaderboard) and user+guild+date (individual stats)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_guild_date ON daily_stats(guild_id, date)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_user_guild_date ON daily_stats(user_id, guild_id, date)")
+            
+            # voice_sessions: user+guild for profile lookups, start_time for history
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_sessions_user_guild ON voice_sessions(user_id, guild_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_sessions_start ON voice_sessions(start_time)")
+            
+            # reaction_history: user+guild and timestamp for social metrics
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_reaction_history_user_guild ON reaction_history(user_id, guild_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_reaction_history_time ON reaction_history(timestamp)")
+            
+            # role_history: user+guild and timestamp for audit logs
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_role_history_user_guild ON role_history(user_id, guild_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_role_history_time ON role_history(timestamp)")
+            
+            # membership_history: user+guild and timestamp for event tracking
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_membership_history_user_guild ON membership_history(user_id, guild_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_membership_history_time ON membership_history(timestamp)")
+            
+            # game_activity: user+guild for profile game-time lookup
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_game_activity_user_guild ON game_activity(user_id, guild_id)")
+
+            # --- VOICE OVERLAPS CACHE ---
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS voice_overlaps (
+                    user_id1 INTEGER,
+                    user_id2 INTEGER,
+                    guild_id INTEGER,
+                    date DATE,
+                    overlap_minutes REAL DEFAULT 0,
+                    PRIMARY KEY (user_id1, user_id2, guild_id, date)
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_overlaps_u1_g ON voice_overlaps(user_id1, guild_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_overlaps_u2_g ON voice_overlaps(user_id2, guild_id)")
+
             conn.commit()
 
     def update_activity(self, user_id, guild_id, last_active=None):
@@ -399,21 +449,24 @@ class DBManager:
             """, (user_id, guild_id, channel_id, today, minutes, points, stream_inc, minutes, points, stream_inc))
             conn.commit()
 
-    def get_leaderboard_data(self, guild_id, days=None):
+    def get_leaderboard_data(self, guild_id, days=None, limit=None):
         # Get the top players for the leaderboard (last X days or all-time)
+        limit_clause = f" LIMIT {limit}" if limit else ""
         with self._get_connection() as conn:
             if days:
                 cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
-                cursor = conn.execute("""
+                query = f"""
                     SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes), SUM(media_count)
                     FROM daily_stats WHERE guild_id = ? AND date >= ? 
-                    GROUP BY user_id
-                """, (guild_id, cutoff_date))
+                    GROUP BY user_id ORDER BY SUM(points) DESC{limit_clause}
+                """
+                cursor = conn.execute(query, (guild_id, cutoff_date))
             else:
-                cursor = conn.execute("""
+                query = f"""
                     SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes, media_count
-                    FROM user_activity WHERE guild_id = ?
-                """, (guild_id,))
+                    FROM user_activity WHERE guild_id = ? ORDER BY points_total DESC{limit_clause}
+                """
+                cursor = conn.execute(query, (guild_id,))
             
             rows = cursor.fetchall()
             # Note: We now return 7 values per user to include streaming and media
@@ -429,7 +482,7 @@ class DBManager:
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes
+                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
                 FROM user_activity WHERE user_id = ? AND guild_id = ?
             """, (user_id, guild_id))
             row = cursor.fetchone()
@@ -443,11 +496,64 @@ class DBManager:
                     "reaction_count": row[3],
                     "voice_minutes": row[4],
                     "media_count": row[5],
-                    "spotify_minutes": row[6]
+                    "spotify_minutes": row[6],
                 }
             return None
 
+    def get_user_daily_points(self, user_id, guild_id, days=7):
+        """Fetches daily point totals for a user for the last X days, filling gaps with 0."""
+        cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT date, SUM(points) as daily_points 
+                FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ?
+                GROUP BY date ORDER BY date ASC
+            """, (user_id, guild_id, cutoff_date.isoformat()))
+            
+            rows = cursor.fetchall()
+            
+            # Create a dictionary with all dates in the range, default 0 points
+            result = {}
+            for i in range(days):
+                d = cutoff_date + datetime.timedelta(days=i)
+                result[d.isoformat()] = 0
+            
+            # Update with actual data from DB
+            for date_str, points in rows:
+                result[date_str] = points or 0
+            
+            # Return as sorted list of tuples (date_str, points)
+            return sorted(list(result.items()))
+
+    def get_user_daily_activity(self, user_id, guild_id, days=7):
+        """Fetches daily point totals and voice minutes for a user for the last X days, filling gaps with 0."""
+        cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT date, SUM(points) as daily_points, SUM(voice_minutes) as daily_voice
+                FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ?
+                GROUP BY date ORDER BY date ASC
+            """, (user_id, guild_id, cutoff_date.isoformat()))
+            
+            rows = cursor.fetchall()
+            
+            # Create a dictionary with all dates in the range, default 0
+            result = {}
+            for i in range(days):
+                d = cutoff_date + datetime.timedelta(days=i)
+                result[d.isoformat()] = {"points": 0, "voice": 0}
+            
+            # Update with actual data from DB
+            for date_str, points, voice in rows:
+                result[date_str] = {"points": points or 0, "voice": voice or 0}
+            
+            # Return as sorted list of tuples (date_str, points, voice)
+            return [(d, r["points"], r["voice"]) for d, r in sorted(result.items())]
+
     def get_all_guild_data(self, guild_id):
+        # [DEPRECATED] Use get_inactive_users or specific queries instead
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, spotify_minutes
@@ -465,6 +571,55 @@ class DBManager:
                     "spotify_minutes": row[6]
                 }
             return data
+
+    def get_inactive_users(self, guild_id, threshold_days):
+        """Fetches only users who are inactive based on the threshold, for more efficient processing."""
+        cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=threshold_days)
+        cutoff_str = cutoff_date.isoformat()
+        
+        with self._get_connection() as conn:
+            # We fetch those whose last_active is old OR they have a returned_at (grace period check)
+            cursor = conn.execute("""
+                SELECT user_id, last_active, returned_at FROM user_activity 
+                WHERE guild_id = ? AND (last_active < ? OR returned_at IS NOT NULL)
+            """, (guild_id, cutoff_str))
+            
+            rows = cursor.fetchall()
+            return {row[0]: {
+                "last_active": datetime.datetime.fromisoformat(row[1]),
+                "returned_at": datetime.datetime.fromisoformat(row[2]) if row[2] else None
+            } for row in rows}
+
+    def get_user_rank(self, user_id, guild_id, days=None):
+        """Calculates a user's rank compared to others in the server efficiently."""
+        with self._get_connection() as conn:
+            if days:
+                cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
+                # 1. Get user's points for the period
+                cursor = conn.execute("""
+                    SELECT SUM(points) FROM daily_stats 
+                    WHERE user_id = ? AND guild_id = ? AND date >= ?
+                """, (user_id, guild_id, cutoff_date))
+                user_points = cursor.fetchone()[0] or 0
+                
+                # 2. Count users with more points
+                cursor = conn.execute("""
+                    SELECT COUNT(*) + 1 FROM (
+                        SELECT user_id, SUM(points) as total_pts FROM daily_stats 
+                        WHERE guild_id = ? AND date >= ? 
+                        GROUP BY user_id HAVING total_pts > ?
+                    )
+                """, (guild_id, cutoff_date, user_points))
+                return cursor.fetchone()[0]
+            else:
+                # 1. Get user's total points
+                cursor = conn.execute("SELECT points_total FROM user_activity WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+                row = cursor.fetchone()
+                user_points = row[0] if row else 0
+                
+                # 2. Count users with more points
+                cursor = conn.execute("SELECT COUNT(*) + 1 FROM user_activity WHERE guild_id = ? AND points_total > ?", (guild_id, user_points))
+                return cursor.fetchone()[0]
 
     def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
         # Write down in the history that a role was added or removed
@@ -557,6 +712,37 @@ class DBManager:
     # --- ADVANCED TRACKING ---
     # These functions track extra things like who you talk to or who reacts to you
 
+    def _record_overlaps(self, conn, user_id, guild_id, channel_id, start_time, end_time):
+        # Find other sessions in the SAME channel that overlap with this one
+        # Logic: overlap = session2.start < session1.end AND session2.end > session1.start
+        cursor = conn.execute("""
+            SELECT user_id, start_time, end_time 
+            FROM voice_sessions 
+            WHERE guild_id = ? AND channel_id = ? AND user_id != ?
+              AND start_time < ? AND end_time > ?
+        """, (guild_id, channel_id, user_id, end_time.isoformat(), start_time.isoformat()))
+        
+        rows = cursor.fetchall()
+        today = start_time.date()
+        
+        for other_uid, o_start_str, o_end_str in rows:
+            o_start = datetime.datetime.fromisoformat(o_start_str)
+            o_end = datetime.datetime.fromisoformat(o_end_str)
+            
+            # Calculate overlap duration
+            overlap_start = max(start_time, o_start)
+            overlap_end = min(end_time, o_end)
+            overlap_duration = (overlap_end - overlap_start).total_seconds() / 60.0
+            
+            if overlap_duration > 0:
+                uid1, uid2 = min(user_id, other_uid), max(user_id, other_uid)
+                conn.execute("""
+                    INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(user_id1, user_id2, guild_id, date) DO UPDATE SET 
+                        overlap_minutes = overlap_minutes + excluded.overlap_minutes
+                """, (uid1, uid2, guild_id, today, overlap_duration))
+
     def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
         # Save the details of a finished voice call (start time, end time, which room)
         with self._get_connection() as conn:
@@ -564,6 +750,10 @@ class DBManager:
                 INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration, stream_detail))
+            
+            # Record overlaps for the cache table
+            self._record_overlaps(conn, user_id, guild_id, channel_id, start_time, end_time)
+            
             conn.commit()
 
     def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
@@ -577,25 +767,22 @@ class DBManager:
             conn.commit()
 
     def get_top_voice_partners(self, user_id, guild_id, days=30):
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+        # Much faster query using the pre-calculated overlaps table
+        cutoff_date = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).date()
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT s2.user_id, SUM(
-                    (MIN(julianday(s1.end_time), julianday(s2.end_time)) - 
-                     MAX(julianday(s1.start_time), julianday(s2.start_time))) * 1440.0
-                ) as overlap_mins
-                FROM voice_sessions s1
-                JOIN voice_sessions s2 ON s1.guild_id = s2.guild_id 
-                    AND s1.channel_id = s2.channel_id
-                    AND s1.user_id != s2.user_id
-                WHERE s1.user_id = ? 
-                    AND s1.start_time >= ?
-                    AND s2.start_time < s1.end_time 
-                    AND s2.end_time > s1.start_time
-                GROUP BY s2.user_id
-                ORDER BY overlap_mins DESC
+                SELECT partner_id, SUM(overlap_minutes) as total_overlap
+                FROM (
+                    SELECT user_id2 as partner_id, overlap_minutes FROM voice_overlaps
+                    WHERE user_id1 = ? AND guild_id = ? AND date >= ?
+                    UNION ALL
+                    SELECT user_id1 as partner_id, overlap_minutes FROM voice_overlaps
+                    WHERE user_id2 = ? AND guild_id = ? AND date >= ?
+                )
+                GROUP BY partner_id
+                ORDER BY total_overlap DESC
                 LIMIT 5
-            """, (user_id, cutoff))
+            """, (user_id, guild_id, cutoff_date, user_id, guild_id, cutoff_date))
             return cursor.fetchall()
 
     def get_user_social_stats(self, user_id, guild_id, days=30):
@@ -638,30 +825,54 @@ class DBManager:
 
     # --- VOICE PERSISTENCE ---
 
-    def start_voice_session(self, user_id, guild_id, channel_id, joined_at):
+    def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier=2.0, is_streaming=False, stream_name=None):
         joined_at_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
         with self._get_connection() as conn:
             conn.execute("""
-                INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(user_id, guild_id) DO UPDATE SET joined_at = excluded.joined_at, channel_id = excluded.channel_id
-            """, (user_id, guild_id, channel_id, joined_at_str))
+                INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at, multiplier, is_streaming, stream_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET 
+                    joined_at = excluded.joined_at, 
+                    channel_id = excluded.channel_id,
+                    multiplier = excluded.multiplier,
+                    is_streaming = excluded.is_streaming,
+                    stream_name = excluded.stream_name
+            """, (user_id, guild_id, channel_id, joined_at_str, multiplier, 1 if is_streaming else 0, stream_name))
             conn.commit()
 
     def end_voice_session(self, user_id, guild_id):
         with self._get_connection() as conn:
-            cursor = conn.execute("SELECT joined_at FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            cursor = conn.execute("""
+                SELECT joined_at, multiplier, is_streaming, stream_name 
+                FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id))
             row = cursor.fetchone()
             if row:
                 conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
                 conn.commit()
-                return datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
+                joined_at = datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
+                return {
+                    "joined_at": joined_at,
+                    "multiplier": row[1],
+                    "is_streaming": bool(row[2]),
+                    "stream_name": row[3]
+                }
             return None
 
-    def get_active_voice_sessions(self):
+    def get_active_voice_sessions(self, guild_id=None):
         with self._get_connection() as conn:
-            cursor = conn.execute("SELECT user_id, joined_at FROM active_voice_sessions")
-            return {row[0]: (datetime.datetime.fromisoformat(row[1]) if isinstance(row[1], str) else row[1]) for row in cursor.fetchall()}
+            if guild_id:
+                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions WHERE guild_id = ?", (guild_id,))
+            else:
+                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions")
+            
+            rows = cursor.fetchall()
+            return {row[0]: {
+                "joined_at": (datetime.datetime.fromisoformat(row[1]) if isinstance(row[1], str) else row[1]),
+                "multiplier": row[2],
+                "is_streaming": bool(row[3]),
+                "stream_name": row[4]
+            } for row in rows}
 
     # --- GAME PERSISTENCE ---
 
@@ -753,6 +964,7 @@ class DBManager:
             return {
                 "spotify": spotify_top,
                 "gamer_total": game_top,
+                "gamer_variety": variety_top,
                 "streamer": stream_top
             }
 
@@ -938,3 +1150,44 @@ class DBManager:
                 ORDER BY start_time DESC
             """, (guild_id, cutoff))
             return cursor.fetchall()
+
+    def get_user_average_voice_duration(self, user_id, guild_id):
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT AVG(duration_minutes) FROM voice_sessions 
+                WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id))
+            row = cursor.fetchone()
+            return row[0] if row and row[0] is not None else 0
+
+    def migrate_voice_overlaps(self):
+        # One-time migration to populate voice_overlaps from voice_sessions
+        with self._get_connection() as conn:
+            # Check if already migrated (simple check: is the table empty?)
+            count = conn.execute("SELECT COUNT(*) FROM voice_overlaps").fetchone()[0]
+            if count > 0:
+                return # Already has data
+                
+            print("Migrating voice overlaps... this may take a moment.")
+            # This query is basically the old get_top_voice_partners logic but for EVERYONE
+            cursor = conn.execute("""
+                SELECT s1.user_id, s2.user_id, s1.guild_id, date(s1.start_time),
+                       SUM((MIN(julianday(s1.end_time), julianday(s2.end_time)) - 
+                            MAX(julianday(s1.start_time), julianday(s2.start_time))) * 1440.0) as duration
+                FROM voice_sessions s1
+                JOIN voice_sessions s2 ON s1.guild_id = s2.guild_id 
+                     AND s1.channel_id = s2.channel_id
+                     AND s1.user_id < s2.user_id
+                WHERE s2.start_time < s1.end_time 
+                  AND s2.end_time > s1.start_time
+                GROUP BY s1.user_id, s2.user_id, s1.guild_id, date(s1.start_time)
+            """)
+            
+            rows = cursor.fetchall()
+            if rows:
+                conn.executemany("""
+                    INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
+                    VALUES (?, ?, ?, ?, ?)
+                """, rows)
+                conn.commit()
+            print(f"Migration complete. {len(rows)} overlap records created.")

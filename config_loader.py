@@ -47,6 +47,9 @@ class Config:
     CHAMPION_WIN_THRESHOLD = _thresholds.get("champions_win_threshold", 5)
     VARIETY_MIN_MINUTES = _thresholds.get("variety_min_minutes", 30)
 
+    # Weekly Champion Role definitions (Names and Colors)
+    CHAMPION_ROLES = _data.get("champion_roles", {})
+
     # How many points people get for messages and reactions
     _scoring = _data.get("scoring", {})
     POINTS_MESSAGE_BASE = _scoring.get("points_message_base", 1)
@@ -63,8 +66,10 @@ class Config:
     SUFFIX = _ui.get("suffix", "")
     LEADERBOARD_LIMIT = _ui.get("leaderboard_limit", 10)
     REPORT_LOG_LIMIT = _ui.get("report_log_limit", 300)
+    DEFAULT_GAMES = _ui.get("default_games", {})
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
     LANGUAGE = _ui.get("language", "hu")
+    GAME_ROLE_PREFIX = _ui.get("game_role_prefix", "Player: ")
     
     # New UI settings for color and emoji customization
     THEME = _ui.get("theme", {})
@@ -73,6 +78,17 @@ class Config:
     # Backward compatibility for these two specific colors
     COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
     COLOR_SUCCESS = int(str(_ui.get("color_success", "0x2ecc71")), 16)
+    COLOR_WARNING = int(str(_ui.get("color_warning", "0xFEE75C")), 16)
+    COLOR_DANGER = int(str(_ui.get("color_danger", "0xED4245")), 16)
+    COLOR_ACCENT = int(str(_ui.get("color_accent", "0xEB459E")), 16)
+    DEFAULT_STREAM_NAME = _ui.get("default_stream_name", "Screen")
+
+    # Patterns for media detection (YouTube, TikTok, images, etc.)
+    _media = _data.get("media", {})
+    MEDIA_PATTERNS = _media.get("patterns", [
+        r"https?://(?:www\.)?(?:youtube\.com|youtu\.be|tiktok\.com|imgur\.com|instagram\.com|giphy\.com|media\.giphy\.com|tenor\.com|fb\.watch|facebook\.com|fbcdn\.net)/[^\s]+",
+        r"https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp|mp4|webm|mov)(?:\?[^\s]+)?"
+    ])
 
     # This part helps the bot know if two Discord accounts belong to the same person
     _user_mapping = _data.get("user_mapping", {})

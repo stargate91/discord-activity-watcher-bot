@@ -19,16 +19,8 @@ class GameTracker:
         db_games = self.db.get_tracked_games()
         
         if not db_games:
-            # Fallback to defaults + save them to DB for first run
-            defaults = {
-                "Counter-Strike": "CS2", "The Sims": "Sims", "Apex Legends": "Apex Legends",
-                "FINAL FANTASY": "Final Fantasy", "Age of Empires": "Age of Empires", 
-                "Overwatch": "Overwatch", "Jurassic World Evolution": "Jurassic World Evolution",
-                "Dota": "Dota 2", "League of Legends": "League of Legends", 
-                "World of Warcraft": "World of Warcraft", "Space Engineers": "Space Engineers",
-                "Fortnite": "Fortnite", "Stellaris": "Stellaris", "EVE Online": "EVE Online",
-                "Valorant": "Valorant", "Minecraft": "Minecraft", "The Bazaar": "The Bazaar"
-            }
+            # Fallback to defaults from config + save them to DB for first run
+            defaults = Config.DEFAULT_GAMES
             for sub, suf in defaults.items():
                 self.db.add_tracked_game(sub, suf)
             self.franchises = defaults
@@ -50,7 +42,7 @@ class GameTracker:
                 # Standardize if matched
                 for franchise_key, role_suffix in self.franchises.items():
                     if franchise_key.lower() in name.lower():
-                        name = f"Player: {role_suffix}"
+                        name = f"{Config.GAME_ROLE_PREFIX}{role_suffix}"
                         break
                 games.add(name)
         return games
@@ -106,9 +98,9 @@ class GameTracker:
                     self.active_sessions[key] = now
                     self.db.start_game_session(main_id, after.guild.id, game, now)
                 
-                # If it's a game we track, give them the special role (Minecraft -> Player: Minecraft)
+                # If it's a game we track, give them the special role
                 bot_assigned = False
-                if game.startswith("Player: "):
+                if game.startswith(Config.GAME_ROLE_PREFIX):
                     role = discord.utils.get(after.guild.roles, name=game)
                     if role:
                         bot_assigned = True

@@ -74,3 +74,45 @@ def draw_voice_usage_bars(data, title, x_label, y_label, output_path="voice_bars
     plt.savefig(output_path, dpi=150)
     plt.close()
     return output_path
+
+def draw_user_activity_chart(data, title, output_path="activity_chart.png"):
+    """
+    Creates a composite line chart showing daily points and voice minutes for a user.
+    data: list of tuples (date_str, points, voice_minutes)
+    """
+    if not data:
+        return None
+        
+    df = pd.DataFrame(data, columns=['date', 'points', 'voice'])
+    # Convert date strings to short format (e.g. 03-31)
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%m-%d')
+    
+    plt.figure(figsize=(10, 4))
+    
+    # 1. Primary axis: Points (Blue)
+    color_points = "#3498db"
+    ax1 = sns.lineplot(x='date', y='points', data=df, marker='o', color=color_points, linewidth=2.5, label="Points")
+    plt.fill_between(df['date'], df['points'], color=color_points, alpha=0.1)
+    
+    # 2. Secondary axis: Voice Mins (Greenish-Yellow/Gold)
+    ax2 = ax1.twinx()
+    color_voice = "#f1c40f"
+    sns.lineplot(x='date', y='voice', data=df, marker='s', color=color_voice, linewidth=1.5, ls='--', ax=ax2, label="Voice Mins")
+    
+    ax1.set_title(title, fontsize=14, pad=15)
+    ax1.set_xlabel(None)
+    ax1.set_ylabel("Activity Points", color=color_points, fontsize=10)
+    ax2.set_ylabel("Voice Minutes", color=color_voice, fontsize=10)
+    
+    # Grid and legend
+    ax1.grid(True, alpha=0.3, ls=':')
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+    
+    # Remove top spines
+    sns.despine(top=True, right=False)
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=120, transparent=False, facecolor='white')
+    plt.close()
+    return output_path

@@ -83,6 +83,7 @@
     "CMD_SYNC_DESC": "Manually sync slash commands.",
     "CMD_SYNC_MODE_DESC": "Choice: guild (to this server), global (everywhere), copy (copy global here)",
     "ERR_STATS_LOAD": "Error occurred while loading stats: {e}",
+    "ERR_COOLDOWN": "Please slow down! You can use this command again in {retry_after:.1f} seconds.",
     "CMD_CLEAR_DONE": "All registered commands (global and server) have been cleared. You can now use {cmd} to refresh them.",
     "INFO_TITLE": "{bot_name} - Introduction",
     "INFO_DESC": "Hi! I am a complex activity watcher bot. I track your messages, voice time, Spotify listening, and gaming activities to help you earn points and ranks!",

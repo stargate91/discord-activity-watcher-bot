@@ -83,6 +83,7 @@
     "CMD_SYNC_DESC": "Slash parancsok manuális szinkronizálása.",
     "CMD_SYNC_MODE_DESC": "Válassz: guild (ebbe a szerverbe), global (mindenhova), copy (globális másolása ide)",
     "ERR_STATS_LOAD": "Hiba történt a statisztikák betöltésekor: {e}",
+    "ERR_COOLDOWN": "Kérlek várj egy kicsit! Ezt a parancsot csak {retry_after:.1f} másodperc múlva használhatod újra.",
     "CMD_CLEAR_DONE": "Minden regisztrált parancs (globális és szerver) törölve lett. Most már használhatod a {cmd} parancsot a frissítéshez.",
     "INFO_TITLE": "{bot_name} - Ismertető",
     "INFO_DESC": "Szia! Én egy komplex aktivitásfigyelő bot vagyok. Követem az üzeneteidet, a hangcsatornákon töltött idődet, sőt még a Spotify hallgatásodat és a játékaidat is, amikből pontokat és rangokat szerezhetsz!",

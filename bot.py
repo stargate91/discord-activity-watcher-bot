@@ -56,6 +56,9 @@ class CheekyBot(commands.Bot):
         # Remind the admin to sync the commands so they actually show up in Discord
         log.info(f"Extensions loaded. Use {Config.PREFIX}sync{Config.SUFFIX} to propagate slash commands.")
 
+        # One-time migration for voice overlaps cache
+        self.db.migrate_voice_overlaps()
+
     # These are shortcut functions that other parts of the bot can use easily
     def get_top_data(self, guild, user=None, timeframe="alltime"):
         return self.engine.get_leaderboard(guild, user, timeframe, self.voice_start_times)

@@ -4,6 +4,7 @@ import datetime
 from core.logger import log
 from config_loader import Config
 from core.messages import Messages
+from core.activity_processor import ActivityProcessor
 
 class EventsCog(commands.Cog):
     def __init__(self, bot):
@@ -21,55 +22,7 @@ class EventsCog(commands.Cog):
         self.check_inactivity_task.cancel()
         self.cleanup_inactive_roles_task.cancel()
 
-    def get_person_participation_tier(self, main_id, guild):
-        """
-        Determines the best participation multiplier and streaming state for a person.
-        Returns: (multiplier, is_streaming)
-        """
-        best_multiplier = 0.0
-        is_streaming = False
-        stream_name = None
-        
-        # Check all members linked to this main_id
-        for m in guild.members:
-            if m.bot: continue
-            if Config.get_main_id(m.id) != main_id: continue
-            
-            # Must be in a valid VC
-            if not (m.voice and m.voice.channel and m.voice.channel.id != Config.AFK_CHANNEL_ID and m.voice.channel != guild.afk_channel):
-                continue
-            
-            # Streaming state
-            if m.voice.self_stream:
-                is_streaming = True
-                # Try to find the name of the app/game
-                if not stream_name:
-                    for act in m.activities:
-                        if isinstance(act, discord.Streaming):
-                            stream_name = act.name
-                            break
-                        if isinstance(act, discord.Game) or (hasattr(act, "type") and act.type == discord.ActivityType.playing):
-                            stream_name = act.name
-                            break
-                if not stream_name:
-                    stream_name = "Screen"
-                
-            # Determine this account's base multiplier
-            if m.voice.deaf or m.voice.self_deaf:
-                current = 0.0
-            elif m.voice.mute or m.voice.self_mute:
-                current = 1.0
-            else:
-                current = 2.0
-                
-            if current > best_multiplier:
-                best_multiplier = current
-        
-        # Add streaming bonus if applicable
-        if is_streaming:
-            best_multiplier += Config.POINTS_STREAM_BONUS
-                
-        return best_multiplier, is_streaming, stream_name
+    # Logic moved to ActivityProcessor
 
     async def handle_member_activity(self, member: discord.Member, event_type=None, channel_id=None):
         # This part updates the database whenever someone sends a message or adds a reaction
@@ -104,11 +57,13 @@ class EventsCog(commands.Cog):
         for m in all_linked:
             if stage1_role and stage1_role in m.roles:
                 try:
+                    stats = self.db.get_user_data(main_id, member.guild.id)
                     if stage2_role and stage2_role not in m.roles:
                         await m.add_roles(stage2_role)
                     await m.remove_roles(stage1_role)
                     self.db.set_returned_at(main_id, member.guild.id, datetime.datetime.now(datetime.timezone.utc))
-                except discord.Forbidden: pass
+                except discord.Forbidden:
+                    log.warning(f"Forbidden: Could not toggle Stage 1/2 roles for {m.display_name} in {member.guild.name}. Check bot role hierarchy.")
             elif stage2_role and stage2_role in m.roles:
                 if data and data["returned_at"]:
                     delta = datetime.datetime.now(datetime.timezone.utc) - data["returned_at"].astimezone(datetime.timezone.utc)
@@ -116,7 +71,8 @@ class EventsCog(commands.Cog):
                         try: 
                             await m.remove_roles(stage2_role)
                             self.db.set_returned_at(main_id, member.guild.id, None)
-                        except discord.Forbidden: pass
+                        except discord.Forbidden:
+                            log.warning(f"Forbidden: Could not remove Stage 2 role from {m.display_name} in {member.guild.name}. Check bot role hierarchy.")
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -160,16 +116,19 @@ class EventsCog(commands.Cog):
                         
                     if main_id in db_sessions:
                         # Continue existing session from DB
-                        self.bot.voice_start_times[main_id] = db_sessions[main_id]
+                        sess = db_sessions[main_id]
+                        self.bot.voice_start_times[main_id] = sess["joined_at"]
+                        self.bot.voice_multipliers[main_id] = (sess["multiplier"], sess["is_streaming"], sess["stream_name"])
                     else:
                         # New session
                         now = datetime.datetime.now(datetime.timezone.utc)
-                        tier, is_streaming, stream_name = self.get_person_participation_tier(main_id, guild)
+                        tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(main_id, guild)
                         
                         if tier > 0:
                             self.bot.voice_start_times[main_id] = now
                             self.bot.voice_multipliers[main_id] = (tier, is_streaming, stream_name)
-                            self.db.start_voice_session(main_id, guild.id, m.voice.channel.id, now)
+                            # Now with full metadata
+                            self.db.start_voice_session(main_id, guild.id, m.voice.channel.id, now, tier, is_streaming, stream_name)
                 
                 # Case B: In DB session but NOT in voice now
                 elif main_id in db_sessions:
@@ -182,15 +141,17 @@ class EventsCog(commands.Cog):
                     )
                     
                     if not is_someone_still_in:
-                        start = self.db.end_voice_session(main_id, guild.id)
+                        sess_data = self.db.end_voice_session(main_id, guild.id)
                         self.bot.voice_start_times.pop(main_id, None)
-                        if start:
+                        if sess_data:
+                            start = sess_data["joined_at"]
+                            mult = sess_data["multiplier"]
+                            strm = sess_data["is_streaming"]
+                            
                             now = datetime.datetime.now(datetime.timezone.utc)
                             mins = (now - start).total_seconds() / 60
                             if mins > 0:
-                                # Retrieve the multiplier used for this stale session (or default to 2)
-                                mult = self.bot.voice_multipliers.get(main_id, 2.0)
-                                self.db.add_voice_minutes(main_id, guild.id, 0, mins, multiplier=mult)
+                                self.db.add_voice_minutes(main_id, guild.id, 0, mins, multiplier=mult, is_streaming=strm)
                                 log.info(f"Closed stale voice session for main user {main_id} ({int(mins)} mins credited at x{mult})")
                         self.bot.voice_multipliers.pop(main_id, None)
 
@@ -200,24 +161,10 @@ class EventsCog(commands.Cog):
         if message.author.bot or not message.guild: return
         
         # Calculate dynamic points: Base (1) + min(Length / 10, 100)
-        length = len(message.content)
-        points = Config.POINTS_MESSAGE_BASE + (length / Config.POINTS_MESSAGE_SCALE)
-        points = min(points, Config.POINTS_MESSAGE_MAX)
+        points = ActivityProcessor.calculate_message_points(message.content)
         
         # 1. Media Detection (Attachments or specific Links)
-        # Patterns for: YouTube, TikTok, Imgur, Instagram, Giphy (+media.giphy), Facebook (+fbcdn), and direct file extensions
-        media_patterns = [
-            r"https?://(?:www\.)?(?:youtube\.com|youtu\.be|tiktok\.com|imgur\.com|instagram\.com|giphy\.com|media\.giphy\.com|tenor\.com|fb\.watch|facebook\.com|fbcdn\.net)/[^\s]+",
-            r"https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp|mp4|webm|mov)(?:\?[^\s]+)?"
-        ]
-        
-        has_media = len(message.attachments) > 0
-        if not has_media:
-            import re
-            for pattern in media_patterns:
-                if re.search(pattern, message.content, re.IGNORECASE):
-                    has_media = True
-                    break
+        has_media = ActivityProcessor.is_media(message)
         
         # We still call handle_member_activity for side effects (roles, activity times)
         await self.handle_member_activity(message.author, event_type=None, channel_id=message.channel.id)
@@ -263,7 +210,7 @@ class EventsCog(commands.Cog):
         now = datetime.datetime.now(datetime.timezone.utc)
         
         # Determine current and previous states
-        new_tier, is_streaming, stream_name = self.get_person_participation_tier(main_id, member.guild)
+        new_tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(main_id, member.guild)
         old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, None))
         old_tier, old_streaming, old_name = old_data
         is_tracking = main_id in self.bot.voice_start_times
@@ -274,8 +221,9 @@ class EventsCog(commands.Cog):
         
         if is_tracking and (state_changed or channel_changed):
             # Close previous segment
-            start = self.db.end_voice_session(main_id, member.guild.id)
-            if start:
+            sess_data = self.db.end_voice_session(main_id, member.guild.id)
+            if sess_data:
+                start = sess_data["joined_at"]
                 mins = (now - start).total_seconds() / 60
                 if mins > 0:
                     # Use the tier and streaming state they WERE at for this segment
@@ -296,11 +244,12 @@ class EventsCog(commands.Cog):
                 self.bot.voice_start_times[main_id] = now
                 self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
                 chan_id = after.channel.id if after.channel else 0
-                self.db.start_voice_session(main_id, member.guild.id, chan_id, now)
+                # Record to DB with new multiplier/streaming state
+                self.db.start_voice_session(main_id, member.guild.id, chan_id, now, new_tier, is_streaming, stream_name)
 
         # Step 2: Handle NEW sessions (was not tracking, now active)
         elif not is_tracking and new_tier > 0:
-            self.db.start_voice_session(main_id, member.guild.id, after.channel.id, now)
+            self.db.start_voice_session(main_id, member.guild.id, after.channel.id, now, new_tier, is_streaming, stream_name)
             self.bot.voice_start_times[main_id] = now
             self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
             await self.handle_member_activity(member)
@@ -333,7 +282,12 @@ class EventsCog(commands.Cog):
                                     message_id=payload.message_id,
                                     emoji=str(payload.emoji)
                                 )
-                except (discord.NotFound, discord.Forbidden): pass
+                except discord.NotFound:
+                    pass # Message/channel might have been deleted quickly
+                except discord.Forbidden:
+                    log.warning(f"Forbidden: Could not fetch message {payload.message_id} in {guild.name}. Check channel permissions.")
+                except Exception as e:
+                    log.debug(f"Error in reaction logging: {e}")
 
     @tasks.loop(hours=Config.CHECK_INTERVAL_HOURS) 
     async def check_inactivity_task(self):
@@ -342,7 +296,7 @@ class EventsCog(commands.Cog):
         for guild in self.bot.guilds:
             r1, r2 = guild.get_role(Config.STAGE_1_ROLE_ID), guild.get_role(Config.STAGE_2_ROLE_ID)
             if not r1: continue
-            data = self.db.get_all_guild_data(guild.id)
+            data = self.db.get_inactive_users(guild.id, Config.STAGE_1_DAYS)
             for uid, d in data.items():
                 # Skip if this is an alt ID (to avoid processing same 'person' multiple times)
                 if Config.get_main_id(uid) != uid: continue
@@ -359,12 +313,14 @@ class EventsCog(commands.Cog):
                                 await m.add_roles(r1)
                                 if r2 and r2 in m.roles: await m.remove_roles(r2)
                                 self.db.set_returned_at(uid, guild.id, None)
-                            except discord.Forbidden: pass
+                            except discord.Forbidden:
+                                log.warning(f"Forbidden: Could not manage inactivity roles for {m.display_name} in {guild.name}. Check bot role hierarchy.")
                     elif d["returned_at"]:
                         if (now - d["returned_at"].astimezone(datetime.timezone.utc)).days >= Config.STAGE_2_GRACE_DAYS:
                             if r2 and r2 in m.roles:
                                 try: await m.remove_roles(r2)
-                                except discord.Forbidden: pass
+                                except discord.Forbidden:
+                                    log.warning(f"Forbidden: Could not remove grace role for {m.display_name} in {guild.name}. Check bot role hierarchy.")
                             self.db.set_returned_at(uid, guild.id, None)
 
     @tasks.loop(hours=24)

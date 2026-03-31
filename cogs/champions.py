@@ -6,6 +6,7 @@ import os
 from core.logger import log
 from config_loader import Config
 from core.messages import Messages
+from core.views import ModernChampionsView
 
 class ChampionsCog(commands.Cog):
     def __init__(self, bot):
@@ -18,13 +19,7 @@ class ChampionsCog(commands.Cog):
 
     async def _setup_roles(self, guild):
         """Automatically creates the champion roles if they are missing and updates the config."""
-        role_configs = [
-            ("spotivibe_id", "SpotiVibe", 0x1DB954),
-            ("godgamer_total_id", "GodGamer (Hardcore)", 0xFFD700),
-            ("godgamer_variety_id", "GodGamer (Sokszínű)", 0xFFD700),
-            ("sharing_id", "Sharing is Caring", 0x9146FF),
-            ("hall_of_famer_id", "Hall of Famer", 0xB9F2FF)
-        ]
+        role_configs = Config.CHAMPION_ROLES
         
         updated = False
         with open("config.json", "r", encoding="utf-8") as f:
@@ -33,17 +28,23 @@ class ChampionsCog(commands.Cog):
         if "roles" not in config_data:
             config_data["roles"] = {}
 
-        for key, name, color in role_configs:
+        for key, data in role_configs.items():
+            name = data.get("name", key)
+            color_str = data.get("color", "0xFFFFFF")
+            try:
+                color_int = int(str(color_str), 16)
+            except:
+                color_int = 0xFFFFFF
+
             role_id = config_data["roles"].get(key, 0)
             role = guild.get_role(role_id) if role_id else None
             
             if not role:
-                # Search by name first to avoid duplicates
                 role = discord.utils.get(guild.roles, name=name)
                 
                 if not role:
                     try:
-                        role = await guild.create_role(name=name, color=discord.Color(color), reason="Automated Champion System Setup")
+                        role = await guild.create_role(name=name, color=discord.Color(color_int), reason="Automated Champion System Setup")
                         log.info(f"Created role: {name}")
                     except discord.Forbidden:
                         log.error(f"Failed to create role {name}: Missing permissions.")
@@ -117,16 +118,15 @@ class ChampionsCog(commands.Cog):
                         try: await member.remove_roles(role)
                         except discord.Forbidden: pass
             
-            # Award new ones & build message
-            announcement_lines = [Messages.CHAMPIONS_TITLE]
-            hof_winners = []
+            # Award new ones & collect data for the view
+            champion_announcement_data = {}
+            hof_notices = []
             
             for cat_id, (data, role_id, msg_template) in categories.items():
                 if not data: continue
                 
                 uid, val = data
                 member = guild.get_member(uid)
-                name = member.display_name if member else Messages.LB_UNKNOWN_USER.format(id=uid)
                 
                 # 1. Log win
                 self.db.log_champion_win(uid, guild.id, cat_id, today)
@@ -137,8 +137,8 @@ class ChampionsCog(commands.Cog):
                     try: await member.add_roles(role)
                     except discord.Forbidden: pass
                 
-                # 3. Add to message
-                announcement_lines.append(msg_template.format(name=name, value=val))
+                # 3. Collect for view (using name/mention as appropriate in view)
+                champion_announcement_data[cat_id] = (uid, val, msg_template)
                 
                 # 4. Check Hall of Fame
                 wins = self.db.get_champion_wins(uid, guild.id)
@@ -148,17 +148,18 @@ class ChampionsCog(commands.Cog):
                     if member and hof_role and hof_role not in member.roles:
                         try:
                             await member.add_roles(hof_role)
-                            hof_winners.append(Messages.CHAMPION_HALL_OF_FAME.format(name=name))
+                            hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=member.mention))
                         except discord.Forbidden: pass
 
-            announcement_lines.extend(hof_winners)
-            announcement_lines.append(Messages.CHAMPIONS_FOOTER)
-            
-            # Send to stats channel
+            # Send to stats channel using ModernChampionsView
             stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
             if stats_channel:
-                await stats_channel.send("\n".join(announcement_lines))
-                log.info(f"Weekly Champions announced in {stats_channel.name}")
+                view = ModernChampionsView(guild, champion_announcement_data, hof_notices=hof_notices)
+                
+                # The view now handles HOF integration in a premium layout
+                await stats_channel.send(view=view)
+                
+                log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
 
     @commands.command(name="setup_champions")
     @commands.has_permissions(administrator=True)
@@ -212,6 +213,29 @@ class ChampionsCog(commands.Cog):
             count += 1
             
         await interaction.followup.send(embed=embed)
+
+    @discord.app_commands.command(name="test_weekly_layout", description="Az új heti bajnoki layout előnézete dummy adatokkal.")
+    @discord.app_commands.checks.has_permissions(administrator=True)
+    async def test_weekly_layout(self, interaction: discord.Interaction):
+        """A test command to preview the new layout with dummy data."""
+        # Dummy data for the preview
+        uid = interaction.user.id
+        dummy_data = {
+            "spotify": (uid, 120, Messages.CHAMPION_SPOTIFY),
+            "gamer_total": (uid, 450, Messages.CHAMPION_GAMER_TOTAL),
+            "gamer_variety": (uid, 5, Messages.CHAMPION_GAMER_VARIETY),
+            "streamer": (uid, 60, Messages.CHAMPION_STREAMER)
+        }
+        
+        dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=interaction.user.mention)]
+        
+        view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
+        
+        await interaction.response.send_message(
+            "### 🧪 Layout Teszt (Dummy Adatok)\nEz az üzenet csak neked látható (ephemeral), és segít ellenőrizni a designt.", 
+            view=view, 
+            ephemeral=True
+        )
 
 async def setup(bot):
     await bot.add_cog(ChampionsCog(bot))
