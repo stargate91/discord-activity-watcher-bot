@@ -6,7 +6,7 @@ import os
 import math
 from config_loader import Config
 from core.messages import Messages
-from core.views import ModernInfoView, ModernDevInfoView
+from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 
 def is_admin():
@@ -110,7 +110,6 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="Monthly (30d)", value="30"),
         app_commands.Choice(name="All-time", value="alltime")
     ])
-    @is_admin_interaction()
     async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
         # Allow use in both Admin Channel and Stats Channel
         allowed_channels = [Config.ADMIN_CHANNEL_ID, Config.STATS_CHANNEL_ID]
@@ -524,6 +523,16 @@ class AdminCog(commands.Cog):
             await target.send(view=view)
         else:
             await target.response.send_message(view=view)
+
+    @app_commands.command(name="link_alt", description="Mini account összekötése egy fő accounttal.")
+    @is_admin_interaction()
+    async def link_alt(self, interaction: discord.Interaction):
+        # This command opens the modal to link an alt account to a main account
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
+        await interaction.response.send_modal(AltAccountModal())
 
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""

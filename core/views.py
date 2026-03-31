@@ -1,6 +1,6 @@
 import discord
 import datetime
-from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, ActionRow, Button
+from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, ActionRow, Button, Modal, TextInput
 from config_loader import Config
 from core.messages import Messages
 
@@ -348,3 +348,43 @@ class ModernChampionsView(discord.ui.LayoutView):
         
         self.add_item(container)
 
+class AltAccountModal(discord.ui.Modal):
+    # This modal allows administrators to link an alt/mini account to a main account
+    def __init__(self):
+        super().__init__(title="Mini Account Összekötés")
+        
+        self.alt_id = TextInput(
+            label="Mini Account Discord ID",
+            placeholder="Például: 123456789012345678",
+            min_length=17,
+            max_length=20,
+            required=True
+        )
+        self.main_id = TextInput(
+            label="Fő Account Discord ID",
+            placeholder="Például: 987654321098765432",
+            min_length=17,
+            max_length=20,
+            required=True
+        )
+        
+        self.add_item(self.alt_id)
+        self.add_item(self.main_id)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # We check if the IDs are actually numbers
+        if not self.alt_id.value.isdigit() or not self.main_id.value.isdigit():
+            await interaction.response.send_message("❌ Érvénytelen Discord ID (csak számokat tartalmazhat)!", ephemeral=True)
+            return
+            
+        alt_id_int = int(self.alt_id.value)
+        main_id_int = int(self.main_id.value)
+        
+        # Update config and memory
+        if Config.update_user_mapping(alt_id_int, main_id_int):
+            await interaction.response.send_message(
+                f"✅ **Összekötés sikeres!**\nSikeresen összekötöttük a(z) <@{alt_id_int}> fiókot a(z) <@{main_id_int}> fő fiókkal.",
+                ephemeral=True
+            )
+        else:
+            await interaction.response.send_message("❌ Hiba történt a konfiguráció mentése során!", ephemeral=True)
