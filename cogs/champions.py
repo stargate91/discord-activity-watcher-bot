@@ -148,7 +148,7 @@ class ChampionsCog(commands.Cog):
                     if member and hof_role and hof_role not in member.roles:
                         try:
                             await member.add_roles(hof_role)
-                            hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=member.mention))
+                            hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{member.display_name}**"))
                         except discord.Forbidden: pass
 
             # Send to stats channel using ModernChampionsView
@@ -227,7 +227,8 @@ class ChampionsCog(commands.Cog):
             "gamer_variety": (uid, 5, Messages.CHAMPION_GAMER_VARIETY),
             "streamer": (uid, 60, Messages.CHAMPION_STREAMER)
         }
-        dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=interaction.user.mention)]
+        # Define HOF with bold name instead of mention
+        dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{interaction.user.display_name}**")]
         
         try:
             view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)

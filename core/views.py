@@ -305,11 +305,13 @@ class ModernChampionsView(discord.ui.LayoutView):
         }
         
         winners_count = 0
-        for cat_id, (user_id, value, msg_template) in champion_data.items():
+        winners_list = list(champion_data.items())
+        
+        for i, (cat_id, (user_id, value, msg_template)) in enumerate(winners_list):
             member = guild.get_member(user_id)
-            name = member.mention if member else f"**{user_id}**"
+            # No mentions, use display name
+            name = f"**{member.display_name}**" if member else f"**{user_id}**"
             icon = category_icons.get(cat_id, "🏆")
-            avatar_url = member.display_avatar.url if member else None
             
             # Construct description from template using raw value (templates handle formatting)
             try:
@@ -318,14 +320,12 @@ class ModernChampionsView(discord.ui.LayoutView):
                 # Fallback if formatting fails
                 winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Use Section with Thumbnail for the winner
-            container.add_item(discord.ui.Section(
-                winner_line,
-                accessory=discord.ui.Thumbnail(str(avatar_url)) if avatar_url else None
-            ))
+            # Use Section WITHOUT winner thumbnail as requested
+            container.add_item(discord.ui.Section(winner_line))
             
-            # Small separator between champions
-            container.add_item(discord.ui.Separator())
+            # Add separator between items, but NOT after the last winner if HOF follows
+            if i < len(winners_list) - 1:
+                container.add_item(discord.ui.Separator())
             winners_count += 1
             
         if winners_count == 0:
@@ -333,7 +333,10 @@ class ModernChampionsView(discord.ui.LayoutView):
             
         # 3. Special Awards (Hall of Fame) - Integrated into the view
         if hof_notices:
-            container.add_item(discord.ui.Separator())
+            # Only add separator if we had winners
+            if winners_count > 0:
+                container.add_item(discord.ui.Separator())
+                
             for notice in hof_notices:
                 # Use a specific icon for HOF
                 container.add_item(discord.ui.TextDisplay(f"🌟 {notice}"))
