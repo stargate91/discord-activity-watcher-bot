@@ -232,8 +232,10 @@ class ChampionsCog(commands.Cog):
         try:
             view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
             
+            # Since Components V2 doesn't allow 'content' alongside 'view', 
+            # we would normally add a TextDisplay to the view, but for a simple test,
+            # we'll just send the view alone. 
             await interaction.followup.send(
-                "### 🧪 Layout Teszt (Dummy Adatok)\nEz az üzenet csak neked látható (ephemeral), és segít ellenőrizni a designt.", 
                 view=view, 
                 ephemeral=True
             )
