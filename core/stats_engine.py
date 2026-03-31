@@ -29,7 +29,7 @@ class StatsEngine:
                     # Note: We access the Cog's tier method for consistency
                     events = self.bot.get_cog("EventsCog") if self.bot else None
                     if events:
-                        tier, is_streaming = events.get_person_participation_tier(main_id, guild)
+                        tier, is_streaming, stream_name = events.get_person_participation_tier(main_id, guild)
                         data[main_id]["points"] += (curr_mins * tier)
                         if is_streaming:
                             data[main_id]["stream"] += curr_mins
@@ -42,9 +42,9 @@ class StatsEngine:
                         curr_mins = (now_utc - start).total_seconds() / 60
                         events = self.bot.get_cog("EventsCog") if self.bot else None
                         if events:
-                            tier, is_streaming = events.get_person_participation_tier(main_id, guild)
+                            tier, is_streaming, stream_name = events.get_person_participation_tier(main_id, guild)
                         else:
-                            tier, is_streaming = (2.0, False)
+                            tier, is_streaming, stream_name = (2.0, False, None)
                             
                         live_points = curr_mins * tier
                         live_stream = curr_mins if is_streaming else 0
