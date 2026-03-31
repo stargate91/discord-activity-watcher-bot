@@ -11,7 +11,19 @@ class Icons:
     ERROR: discord.PartialEmoji = None
     WARNING: discord.PartialEmoji = None
     SHUSH: discord.PartialEmoji = None
+    SPOTIFY: discord.PartialEmoji = None
+    GAMER: discord.PartialEmoji = None
+    VARIETY: discord.PartialEmoji = None
+    STREAMER: discord.PartialEmoji = None
+    TROPHY: discord.PartialEmoji = None
+    VETERAN: discord.PartialEmoji = None
+    MEDAL_1: discord.PartialEmoji = None
+    MEDAL_2: discord.PartialEmoji = None
+    MEDAL_3: discord.PartialEmoji = None
+    TOOLS: discord.PartialEmoji = None
+    LIGHTNING: discord.PartialEmoji = None
     COOLDOWN: discord.PartialEmoji = None
+    MEME: discord.PartialEmoji = None
 
     @classmethod
     def setup(cls, config):
@@ -21,7 +33,8 @@ class Icons:
             "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
             "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
             "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️",
-            "COOLDOWN": "⏳", "MEME": "🖼️"
+            "MEDAL_1": "🥇", "MEDAL_2": "🥈", "MEDAL_3": "🥉", "TOOLS": "🛠️",
+            "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️"
         }
 
         # Load from config if available (Config.EMOJIS)
