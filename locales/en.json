@@ -137,7 +137,7 @@
     "MEMBERSHIP_LOG_DONE": "Membership log generated ({count} entries).",
     "CHAMPIONS_TITLE": "WEEKLY CHAMPIONS (Monday - Sunday)",
     "CHAMPIONS_FOOTER": "\nCongratulations to the champions! Wear your roles with pride for 1 week!",
-    "CHAMPION_SPOTIFY": "**SpotiVibe:** {name} ({value:.0f} min)",
+    "CHAMPION_SPOTIFY": "**SpotiViber:** {name} ({value:.0f} min)",
     "CHAMPION_GAMER_TOTAL": "**GodGamer (Hardcore):** {name} ({value:.0f} min)",
     "CHAMPION_GAMER_VARIETY": "**GodGamer (Variety):** {name} ({value} different games)",
     "CHAMPION_STREAMER": "**Sharing is Caring:** {name} ({value:.0f} min)",
