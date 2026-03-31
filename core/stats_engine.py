@@ -23,21 +23,33 @@ class StatsEngine:
                 if main_id in data:
                     curr_mins = (now_utc - start).total_seconds() / 60
                     data[main_id]["voice"] += curr_mins
+                    
+                    # Calculate live multiplier
+                    # Note: We access the Cog's tier method for consistency
+                    events = self.db.bot.get_cog("EventsCog")
+                    if events:
+                        tier, is_streaming = events.get_person_participation_tier(main_id, guild)
+                        data[main_id]["points"] += (curr_mins * tier)
+                        if is_streaming:
+                            data[main_id]["stream"] += curr_mins
+                    else:
+                        data[main_id]["points"] += (curr_mins * Config.POINTS_VOICE)
                 else:
                     # If they are in the server but not in the database yet, we add them now
                     m = guild.get_member(main_id)
                     if m:
                         curr_mins = (now_utc - start).total_seconds() / 60
-                        data[main_id] = {"messages": 0, "reactions": 0, "voice": curr_mins}
+                        tier, is_streaming = self.db.bot.cogs["EventsCog"].get_person_participation_tier(main_id, guild) if "EventsCog" in self.db.bot.cogs else (2.0, False) # Fallback if events not ready
+                        live_points = curr_mins * tier
+                        live_stream = curr_mins if is_streaming else 0
+                        data[main_id] = {"messages": 0, "reactions": 0, "voice": curr_mins, "points": live_points, "stream": live_stream}
 
         # Now we turn messages and voice minutes into actual points (the 'score')
         scores = []
         user_full_stats = None 
         
         for uid, stats in data.items():
-            points = (stats["messages"] * Config.POINTS_MESSAGE) + \
-                     (stats["reactions"] * Config.POINTS_REACTION) + \
-                     (int(stats["voice"]) * Config.POINTS_VOICE)
+            points = stats["points"]
             if points > 0:
                 scores.append((uid, points, stats))
         
@@ -56,6 +68,7 @@ class StatsEngine:
                     "message_count": u_entry[2]["messages"],
                     "reaction_count": u_entry[2]["reactions"],
                     "voice_minutes": u_entry[2]["voice"], 
+                    "stream_minutes": u_entry[2].get("stream", 0),
                     "last_active": now_utc 
                 }
                 user_full_stats = (user, db_compat_data, u_entry[1], u_entry[2]["voice"], rank)

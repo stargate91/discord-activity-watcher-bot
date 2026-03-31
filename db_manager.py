@@ -23,19 +23,25 @@ class DBManager:
                     message_count INTEGER DEFAULT 0,
                     reaction_count INTEGER DEFAULT 0,
                     voice_minutes REAL DEFAULT 0,
+                    points_total REAL DEFAULT 0,
+                    stream_minutes REAL DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
             # daily_stats: Remembers what happened each day so we can make weekly/monthly charts
+            # Updated to track per-channel activity!
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS daily_stats (
                     user_id INTEGER,
                     guild_id INTEGER,
+                    channel_id INTEGER DEFAULT 0,
                     date DATE,
                     messages INTEGER DEFAULT 0,
                     reactions INTEGER DEFAULT 0,
                     voice_minutes REAL DEFAULT 0,
-                    PRIMARY KEY (user_id, guild_id, date)
+                    points REAL DEFAULT 0,
+                    stream_minutes REAL DEFAULT 0,
+                    PRIMARY KEY (user_id, guild_id, channel_id, date)
                 )
             """)
             # role_history: A log of when the bot gave or took away a role from someone
@@ -70,7 +76,8 @@ class DBManager:
                     channel_id INTEGER,
                     start_time TIMESTAMP,
                     end_time TIMESTAMP,
-                    duration_minutes REAL
+                    duration_minutes REAL,
+                    stream_detail TEXT
                 )
             """)
             # reaction_history: Remembers who gave a reaction to which message
@@ -128,6 +135,70 @@ class DBManager:
             try: conn.execute("ALTER TABLE game_activity ADD COLUMN total_minutes REAL DEFAULT 0")
             except sqlite3.OperationalError: pass
             
+            # Migration for daily_stats (Add channel_id and update Primary Key)
+            # Check if channel_id already exists
+            cursor = conn.execute("PRAGMA table_info(daily_stats)")
+            cols = [row[1] for row in cursor.fetchall()]
+            if "channel_id" not in cols:
+                try:
+                    # Rename old, create new, copy data
+                    conn.execute("ALTER TABLE daily_stats RENAME TO daily_stats_old")
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS daily_stats (
+                            user_id INTEGER,
+                            guild_id INTEGER,
+                            channel_id INTEGER DEFAULT 0,
+                            date DATE,
+                            messages INTEGER DEFAULT 0,
+                            reactions INTEGER DEFAULT 0,
+                            voice_minutes REAL DEFAULT 0,
+                            PRIMARY KEY (user_id, guild_id, channel_id, date)
+                        )
+                    """)
+                    conn.execute("""
+                        INSERT INTO daily_stats (user_id, guild_id, channel_id, date, messages, reactions, voice_minutes)
+                        SELECT user_id, guild_id, 0, date, messages, reactions, voice_minutes FROM daily_stats_old
+                    """)
+                    conn.execute("DROP TABLE daily_stats_old")
+                except sqlite3.OperationalError as e:
+                    print(f"Migration error: {e}")
+            
+            # Migration to add points columns if they don't exist
+            # 1. user_activity points_total
+            cursor = conn.execute("PRAGMA table_info(user_activity)")
+            if "points_total" not in [row[1] for row in cursor.fetchall()]:
+                try: 
+                    conn.execute("ALTER TABLE user_activity ADD COLUMN points_total REAL DEFAULT 0")
+                    # Initialize based on old formula: msg*10 + reac*5 + voice*2
+                    conn.execute("UPDATE user_activity SET points_total = (message_count * 10) + (reaction_count * 5) + (voice_minutes * 2)")
+                except sqlite3.OperationalError: pass
+                
+            # 2. daily_stats points
+            cursor = conn.execute("PRAGMA table_info(daily_stats)")
+            if "points" not in [row[1] for row in cursor.fetchall()]:
+                try: 
+                    conn.execute("ALTER TABLE daily_stats ADD COLUMN points REAL DEFAULT 0")
+                    # Initialize based on old formula
+                    conn.execute("UPDATE daily_stats SET points = (messages * 10) + (reactions * 5) + (voice_minutes * 2)")
+                except sqlite3.OperationalError: pass
+            
+            # Migration for stream_minutes
+            cursor = conn.execute("PRAGMA table_info(user_activity)")
+            if "stream_minutes" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE user_activity ADD COLUMN stream_minutes REAL DEFAULT 0")
+                except sqlite3.OperationalError: pass
+                
+            cursor = conn.execute("PRAGMA table_info(daily_stats)")
+            if "stream_minutes" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN stream_minutes REAL DEFAULT 0")
+                except sqlite3.OperationalError: pass
+            
+            # Migration for voice_sessions stream_detail
+            cursor = conn.execute("PRAGMA table_info(voice_sessions)")
+            if "stream_detail" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE voice_sessions ADD COLUMN stream_detail TEXT")
+                except sqlite3.OperationalError: pass
+                
             conn.commit()
 
     def update_activity(self, user_id, guild_id, last_active=None):
@@ -154,44 +225,71 @@ class DBManager:
             """, (timestamp_str, user_id, guild_id))
             conn.commit()
 
-    def increment_messages(self, user_id, guild_id):
+    def increment_messages(self, user_id, guild_id, channel_id=0, points=10):
         # Add 1 to the message count for a user (both total and for today)
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
-            conn.execute("UPDATE user_activity SET message_count = message_count + 1 WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            conn.execute("""
+                UPDATE user_activity SET 
+                    message_count = message_count + 1,
+                    points_total = points_total + ?
+                WHERE user_id = ? AND guild_id = ?
+            """, (points, user_id, guild_id))
             # Daily
             conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, date, messages) VALUES (?, ?, ?, 1)
-                ON CONFLICT(user_id, guild_id, date) DO UPDATE SET messages = messages + 1
-            """, (user_id, guild_id, today))
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, messages, points) VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
+                    messages = messages + 1,
+                    points = points + ?
+            """, (user_id, guild_id, channel_id, today, points, points))
             conn.commit()
 
-    def increment_reactions(self, user_id, guild_id):
+    def increment_reactions(self, user_id, guild_id, channel_id=0, points=5):
         # Add 1 to the reaction count for a user (both total and for today)
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
-            conn.execute("UPDATE user_activity SET reaction_count = reaction_count + 1 WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            conn.execute("""
+                UPDATE user_activity SET 
+                    reaction_count = reaction_count + 1,
+                    points_total = points_total + ?
+                WHERE user_id = ? AND guild_id = ?
+            """, (points, user_id, guild_id))
             # Daily
             conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, date, reactions) VALUES (?, ?, ?, 1)
-                ON CONFLICT(user_id, guild_id, date) DO UPDATE SET reactions = reactions + 1
-            """, (user_id, guild_id, today))
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, reactions, points) VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
+                    reactions = reactions + 1,
+                    points = points + ?
+            """, (user_id, guild_id, channel_id, today, points, points))
             conn.commit()
 
-    def add_voice_minutes(self, user_id, guild_id, minutes):
+    def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False):
         # Add the minutes someone spent in voice to their stats
         today = datetime.date.today()
-        # Use float (REAL in SQLite) for better precision across moves
+        # Use provided multiplier or fall back to config
+        rate = multiplier if multiplier is not None else Config.POINTS_VOICE
+        points = minutes * rate
+        stream_inc = minutes if is_streaming else 0
+        
         with self._get_connection() as conn:
             # Total
-            conn.execute("UPDATE user_activity SET voice_minutes = voice_minutes + ? WHERE user_id = ? AND guild_id = ?", (minutes, user_id, guild_id))
+            conn.execute("""
+                UPDATE user_activity SET 
+                    voice_minutes = voice_minutes + ?,
+                    points_total = points_total + ?,
+                    stream_minutes = stream_minutes + ?
+                WHERE user_id = ? AND guild_id = ?
+            """, (minutes, points, stream_inc, user_id, guild_id))
             # Daily
             conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, date, voice_minutes) VALUES (?, ?, ?, ?)
-                ON CONFLICT(user_id, guild_id, date) DO UPDATE SET voice_minutes = voice_minutes + ?
-            """, (user_id, guild_id, today, minutes, minutes))
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, voice_minutes, points, stream_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
+                    voice_minutes = voice_minutes + ?,
+                    points = points + ?,
+                    stream_minutes = stream_minutes + ?
+            """, (user_id, guild_id, channel_id, today, minutes, points, stream_inc, minutes, points, stream_inc))
             conn.commit()
 
     def get_leaderboard_data(self, guild_id, days=None):
@@ -200,18 +298,25 @@ class DBManager:
             if days:
                 cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
                 cursor = conn.execute("""
-                    SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes) 
+                    SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes)
                     FROM daily_stats WHERE guild_id = ? AND date >= ? 
                     GROUP BY user_id
                 """, (guild_id, cutoff_date))
             else:
                 cursor = conn.execute("""
-                    SELECT user_id, message_count, reaction_count, voice_minutes 
+                    SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes
                     FROM user_activity WHERE guild_id = ?
                 """, (guild_id,))
             
             rows = cursor.fetchall()
-            return {row[0]: {"messages": row[1] or 0, "reactions": row[2] or 0, "voice": row[3] or 0} for row in rows}
+            # Note: We now return 6 values per user to include streaming
+            return {row[0]: {
+                "messages": row[1] or 0, 
+                "reactions": row[2] or 0, 
+                "voice": row[3] or 0, 
+                "points": row[4] or 0,
+                "stream": row[5] or 0
+            } for row in rows}
 
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:
@@ -341,13 +446,13 @@ class DBManager:
     # --- ADVANCED TRACKING ---
     # These functions track extra things like who you talk to or who reacts to you
 
-    def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration):
+    def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
         # Save the details of a finished voice call (start time, end time, which room)
         with self._get_connection() as conn:
             conn.execute("""
-                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration))
+                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration, stream_detail))
             conn.commit()
 
     def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
@@ -528,3 +633,79 @@ class DBManager:
         query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
         with self._get_connection() as conn:
             return conn.execute(query, params).fetchall()
+
+    def get_user_average_voice_duration(self, user_id, guild_id):
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT AVG(duration_minutes) FROM voice_sessions 
+                WHERE user_id = ? AND guild_id = ?
+            """, (user_id, guild_id))
+            row = cursor.fetchone()
+            return row[0] if row and row[0] else 0
+
+    def get_top_average_voice_duration(self, guild_id, days=None):
+        query = """
+            SELECT user_id, AVG(duration_minutes) as avg_dur 
+            FROM voice_sessions 
+            WHERE guild_id = ? {time_filter}
+            GROUP BY user_id 
+            HAVING COUNT(*) >= 3
+            ORDER BY avg_dur DESC 
+            LIMIT 10
+        """
+        params = [guild_id]
+        if days:
+            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+            query = query.replace("{time_filter}", "AND start_time >= ?")
+            params.append(cutoff)
+        else:
+            query = query.replace("{time_filter}", "")
+            
+        with self._get_connection() as conn:
+            return conn.execute(query, params).fetchall()
+
+    def get_game_top_players(self, guild_id, game_name):
+        with self._get_connection() as conn:
+            # Matches both direct name and 'Player: Name' format
+            query = """
+                SELECT user_id, total_minutes, last_played 
+                FROM game_activity 
+                WHERE guild_id = ? AND (role_name = ? OR role_name = ?)
+                ORDER BY total_minutes DESC
+            """
+            alt_name = f"Player: {game_name}" if not game_name.startswith("Player: ") else game_name
+            raw_name = game_name.replace("Player: ", "")
+            
+            return conn.execute(query, (guild_id, raw_name, alt_name)).fetchall()
+
+    def get_all_unique_games(self, guild_id):
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT DISTINCT 
+                CASE WHEN role_name LIKE 'Player: %' THEN SUBSTR(role_name, 9) ELSE role_name END as clean_name
+                FROM game_activity 
+                WHERE guild_id = ?
+            """, (guild_id,))
+            return [row[0] for row in cursor.fetchall() if row[0]]
+
+    def get_channel_activity_raw(self, guild_id, days=None):
+        query = "SELECT channel_id, SUM(messages) as total FROM daily_stats WHERE guild_id = ? AND channel_id != 0"
+        params = [guild_id]
+        if days:
+            cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+            query += " AND date >= ?"
+            params.append(cutoff)
+        query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
+        with self._get_connection() as conn:
+            return conn.execute(query, params).fetchall()
+    def get_stream_history(self, guild_id, days=7):
+        # Get a list of recent voice sessions that included streaming
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT user_id, start_time, duration_minutes, stream_detail, channel_id
+                FROM voice_sessions 
+                WHERE guild_id = ? AND stream_detail IS NOT NULL AND start_time >= ?
+                ORDER BY start_time DESC
+            """, (guild_id, cutoff))
+            return cursor.fetchall()

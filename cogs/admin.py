@@ -102,7 +102,9 @@ class AdminCog(commands.Cog):
     )
     @app_commands.choices(type=[
         app_commands.Choice(name="Peak Activity Heatmap", value="peak"),
-        app_commands.Choice(name="Voice Usage Ranking", value="voice")
+        app_commands.Choice(name="Voice Usage Ranking", value="voice"),
+        app_commands.Choice(name="Voice Dedication (Longest Sessions)", value="dedication"),
+        app_commands.Choice(name="Text Channel Activity", value="text_channels")
     ], timeframe=[
         app_commands.Choice(name="Weekly (7d)", value="7"),
         app_commands.Choice(name="Monthly (30d)", value="30"),
@@ -110,8 +112,12 @@ class AdminCog(commands.Cog):
     ])
     @is_admin_interaction()
     async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+        # Allow use in both Admin Channel and Stats Channel
+        allowed_channels = [Config.ADMIN_CHANNEL_ID, Config.STATS_CHANNEL_ID]
+        if 0 in allowed_channels: allowed_channels = [c for c in allowed_channels if c != 0]
+        
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id not in allowed_channels:
+            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -154,6 +160,144 @@ class AdminCog(commands.Cog):
             
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)
+            
+        elif type == "dedication":
+            raw_data = self.db.get_top_average_voice_duration(interaction.guild_id, days)
+            if not raw_data:
+                await interaction.followup.send(Messages.LB_EMPTY)
+                return
+            
+            # Resolve user names
+            formatted_data = []
+            for uid, avg_mins in raw_data:
+                member = interaction.guild.get_member(uid)
+                name = member.display_name if member else f"Unknown ({uid})"
+                formatted_data.append((name, avg_mins))
+            
+            output = f"dedication_{interaction.guild_id}.png"
+            draw_voice_usage_bars(formatted_data, Messages.CHART_DEDICATION_TITLE.format(tf=tf_name), 
+                                Messages.CHART_X_MIN_SESSION, "User", output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
+            
+        elif type == "text_channels":
+            raw_data = self.db.get_channel_activity_raw(interaction.guild_id, days)
+            if not raw_data:
+                await interaction.followup.send(Messages.LB_EMPTY)
+                return
+                
+            formatted_data = []
+            for cid, total in raw_data:
+                channel = interaction.guild.get_channel(cid)
+                name = f"#{channel.name}" if channel else f"#{cid}"
+                formatted_data.append((name, total))
+                
+            output = f"channels_{interaction.guild_id}.png"
+            draw_voice_usage_bars(formatted_data, Messages.CHART_CHANNEL_TITLE.format(tf=tf_name), 
+                                Messages.CHART_Y_MESSAGES, "Channel", output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
+
+    @app_commands.command(name="game_details", description=Messages.CMD_GAME_DETAILS_DESC)
+    @app_commands.describe(game=Messages.CMD_GAME_DETAILS_GAME_DESC)
+    async def game_details(self, interaction: discord.Interaction, game: str):
+        # Allow use in both Admin Channel and Stats Channel
+        allowed_channels = [Config.ADMIN_CHANNEL_ID, Config.STATS_CHANNEL_ID]
+        if 0 in allowed_channels: allowed_channels = [c for c in allowed_channels if c != 0]
+        
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id not in allowed_channels:
+            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        raw_data = self.db.get_game_top_players(interaction.guild_id, game)
+        if not raw_data:
+            await interaction.followup.send(Messages.GAME_REPORT_EMPTY, ephemeral=True)
+            return
+            
+        now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+        header = Messages.GAME_DETAILS_HEADER
+        line_sep = "-" * len(header)
+        
+        # Build report
+        report_lines = [
+            Messages.GAME_DETAILS_TITLE.format(game=game, guild=interaction.guild.name, now=now, header=header, line=line_sep)
+        ]
+        
+        for i, (uid, mins, last_played) in enumerate(raw_data, 1):
+            member = interaction.guild.get_member(uid)
+            name = member.display_name if member else f"Unknown ({uid})"
+            last_dt = datetime.datetime.fromisoformat(last_played).strftime("%Y-%m-%d")
+            report_lines.append(f"{i:2}. | {name:<30} | {int(mins):<10} | {last_dt}")
+            
+        filename = f"game_details_{interaction.guild_id}.txt"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("\n".join(report_lines))
+            
+        await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+        if os.path.exists(filename): os.remove(filename)
+
+    @game_details.autocomplete("game")
+    async def game_details_autocomplete(self, interaction: discord.Interaction, current: str):
+        games = self.db.get_all_unique_games(interaction.guild_id)
+        return [
+            app_commands.Choice(name=g, value=g)
+            for g in games if current.lower() in g.lower()
+        ][:25]
+
+    @app_commands.command(name="stream_history", description=Messages.CMD_STREAM_HISTORY_DESC)
+    @app_commands.describe(days=Messages.CMD_STREAM_HISTORY_DAYS_DESC)
+    async def stream_history(self, interaction: discord.Interaction, days: int = 7):
+        # Admin only command to see exactly what people were streaming
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        history = self.db.get_stream_history(interaction.guild_id, days=days)
+        if not history:
+            await interaction.followup.send(Messages.STREAM_HISTORY_EMPTY, ephemeral=True)
+            return
+
+        now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"stream_history_{interaction.guild_id}_{now_str}.txt"
+        
+        # Header for the file
+        title = f"--- STREAM HISTORY: {interaction.guild.name} (Last {days} days) ---\n"
+        header = f"{'Timestamp':<20} | {'User':<25} | {'Duration':<10} | {'Stream Content'}\n"
+        line = "-" * 80 + "\n"
+        
+        content = title + header + line
+        
+        for user_id, start_time, duration, detail, _ in history:
+            user = interaction.guild.get_member(user_id)
+            user_name = user.display_name if user else f"Unknown ({user_id})"
+            
+            # Format time
+            try:
+                dt = datetime.datetime.fromisoformat(start_time)
+                time_str = dt.strftime("%Y-%m-%d %H:%M")
+            except:
+                time_str = str(start_time)[:16]
+                
+            content += f"{time_str:<20} | {user_name:<25} | {int(duration):>3} min   | {detail}\n"
+            
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        await interaction.followup.send(
+            Messages.STREAM_HISTORY_DONE.format(days=days, count=len(history)),
+            file=discord.File(filename),
+            ephemeral=True
+        )
+        
+        # Clean up the file after sending
+        if os.path.exists(filename):
+            os.remove(filename)
 
     @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     async def game_role_report(self, interaction: discord.Interaction):

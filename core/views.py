@@ -72,13 +72,13 @@ class ModernLeaderboardView(discord.ui.LayoutView):
 
 class ModernProfileView(discord.ui.LayoutView):
     # This is the class that builds the profile card when you check someone's stats
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, timeframe="alltime", static=False, shared_by=None):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="alltime", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
         self.shared_by = shared_by
         # Store for sharing
-        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily)
+        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice)
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
         
         if self.shared_by:
@@ -96,15 +96,21 @@ class ModernProfileView(discord.ui.LayoutView):
         # 2. Activity: Show points, messages, reactions and voice time
         stats_text = (
             Messages.STAT_TOTAL_SCORE.format(points=f"{points:,}") + "\n" +
-            Messages.STAT_DETAILS.format(msg=data['message_count'], reac=data['reaction_count'], voice=int(voice_mins))
+            Messages.STAT_DETAILS.format(
+                msg=data.get('message_count', 0), 
+                reac=data.get('reaction_count', 0), 
+                voice=int(data.get('voice_minutes', 0)),
+                stream=int(data.get('stream_minutes', 0))
+            )
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
-        # 3. Timing: Show when they were last active and their daily average
+        # 3. Timing: Show when they were last active, their daily average and avg voice session
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
         timing_text = (
             Messages.STAT_LAST_ACTIVE.format(time=last_active_str) + "\n" +
-            Messages.STAT_DAILY_AVG.format(avg=avg_daily)
+            Messages.STAT_DAILY_AVG.format(avg=avg_daily) + "\n" +
+            Messages.STAT_AVG_VOICE.format(avg=avg_voice)
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_STATS + "\n" + timing_text))
         

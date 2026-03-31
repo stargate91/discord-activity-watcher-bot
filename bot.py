@@ -37,6 +37,8 @@ class CheekyBot(commands.Bot):
         
         # A simple dictionary to remember when people joined a voice channel
         self.voice_start_times = {}
+        # Tracks the current point multiplier for each person (Main ID) in voice
+        self.voice_multipliers = {}
 
     async def setup_hook(self):
         # Make sure we don't have old or double commands hanging around on Discord

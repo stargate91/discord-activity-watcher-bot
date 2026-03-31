@@ -42,9 +42,12 @@ class Config:
 
     # How many points people get for messages and reactions
     _scoring = _data.get("scoring", {})
-    POINTS_MESSAGE = _scoring.get("points_message", 10)
+    POINTS_MESSAGE_BASE = _scoring.get("points_message_base", 1)
+    POINTS_MESSAGE_SCALE = _scoring.get("points_message_scale", 10)
+    POINTS_MESSAGE_MAX = _scoring.get("points_message_max", 100)
     POINTS_REACTION = _scoring.get("points_reaction", 5)
     POINTS_VOICE = _scoring.get("points_voice_per_min", 2)
+    POINTS_STREAM_BONUS = _scoring.get("points_voice_streaming_bonus", 2)
 
     # Settings for how the bot looks and how much data it shows
     _ui = _data.get("ui", {})
