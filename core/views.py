@@ -302,8 +302,13 @@ class ModernChampionsView(discord.ui.LayoutView):
             "streamer": Icons.STREAMER
         }
         
+        # 2. Winners Section with Padding around the whole block
         winners_count = 0
         winners_list = list(champion_data.items())
+        
+        if winners_list:
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.Separator(visible=False))
         
         for i, (cat_id, (user_id, value, msg_template)) in enumerate(winners_list):
             member = guild.get_member(user_id)
@@ -317,17 +322,16 @@ class ModernChampionsView(discord.ui.LayoutView):
                 # Fallback if formatting fails
                 winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Pattern: Separator -> Invisible Spacer -> Content -> Invisible Spacer
-            container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.Separator(visible=False))
+            # Content without individual separators
             container.add_item(discord.ui.TextDisplay(winner_line))
-            container.add_item(discord.ui.Separator(visible=False))
-            
             winners_count += 1
             
         if winners_count == 0:
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
+        else:
+            # Bottom spacing after all winners
+            container.add_item(discord.ui.Separator(visible=False))
             
         # 3. Special Awards (Hall of Fame) - Integrated into the view
         if hof_notices:
