@@ -41,7 +41,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 from core.ui_icons import Icons
                 medal = {1: Icons.MEDAL_1, 2: Icons.MEDAL_2, 3: Icons.MEDAL_3}.get(i, f"**{i:02d}.**")
                 
-                info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
+                info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p | Me: {stats['media']} | S: {int(stats['stream'])}p`"
                 container.add_item(discord.ui.TextDisplay(info))
                 
                 if i < len(items):

@@ -49,6 +49,9 @@ def get_feedback(key: str, **kwargs) -> str:
         "CHAMPION_GAMER_VARIETY": Icons.VARIETY,
         "CHAMPION_STREAMER": Icons.STREAMER,
         "CHAMPION_HALL_OF_FAME": Icons.VETERAN,
+        "MEDAL_1": Icons.MEDAL_1,
+        "MEDAL_2": Icons.MEDAL_2,
+        "MEDAL_3": Icons.MEDAL_3,
 
         # --- Others (No Emoji yet) ---
         "LB_TITLE_DEFAULT": "",
