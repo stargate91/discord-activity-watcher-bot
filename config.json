@@ -41,7 +41,8 @@
         "points_message_max": 100,
         "points_reaction": 5,
         "points_voice_per_min": 2,
-        "points_voice_streaming_bonus": 2
+        "points_voice_streaming_bonus": 2,
+        "points_media_bonus": 3
     },
     "ui": {
         "prefix": "!",

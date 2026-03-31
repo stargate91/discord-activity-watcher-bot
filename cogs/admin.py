@@ -299,6 +299,46 @@ class AdminCog(commands.Cog):
         if os.path.exists(filename):
             os.remove(filename)
 
+    @app_commands.command(name="membership_logs", description=Messages.CMD_MEMBERSHIP_LOGS_DESC)
+    @is_admin_interaction()
+    async def membership_logs(self, interaction: discord.Interaction):
+        # Export join/leave history to TXT
+        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+
+        await interaction.response.send_message(Messages.MEMBERSHIP_LOG_GEN, ephemeral=True)
+        
+        try:
+            logs = self.db.get_membership_logs(interaction.guild_id, limit=Config.REPORT_LOG_LIMIT)
+            if not logs:
+                await interaction.followup.send(Messages.MEMBERSHIP_LOG_EMPTY, ephemeral=True)
+                return
+            
+            lines = [f"--- MEMBERSHIP LOG: {interaction.guild.name} ---", f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ""]
+            lines.append(f"{'Timestamp':<20} | {'User ID':<20} | {'Username':<25} | {'Action':<10}")
+            lines.append("-" * 80)
+            
+            for uid, action, ts in logs:
+                m = interaction.guild.get_member(uid)
+                name = str(m) if m else Messages.LB_UNKNOWN_USER.format(id=uid)
+                # ts is isoformat from db
+                display_ts = ts[:19].replace('T', ' ')
+                lines.append(f"{display_ts:<20} | {uid:<20} | {name[:25]:<25} | {action:<10}")
+            
+            filename = f"membership_log_{interaction.guild_id}.txt"
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+            
+            await interaction.followup.send(
+                content=Messages.MEMBERSHIP_LOG_DONE.format(count=len(logs)),
+                file=discord.File(filename), 
+                ephemeral=True
+            )
+            os.remove(filename)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
     @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     async def game_role_report(self, interaction: discord.Interaction):
         # This command creates a report showing when the bot gave or took away game roles

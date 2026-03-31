@@ -72,13 +72,14 @@ class ModernLeaderboardView(discord.ui.LayoutView):
 
 class ModernProfileView(discord.ui.LayoutView):
     # This is the class that builds the profile card when you check someone's stats
-    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="me", static=False, shared_by=None):
+    def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
+                 joined_at=None, tenure_days=0, efficiency=0, timeframe="me", static=False, shared_by=None):
         super().__init__()
         self.timeframe = timeframe
         self.static = static
         self.shared_by = shared_by
         # Store for sharing
-        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice)
+        self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, joined_at, tenure_days, efficiency)
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
         
         if self.shared_by:
@@ -93,7 +94,6 @@ class ModernProfileView(discord.ui.LayoutView):
         
         container.add_item(discord.ui.Separator())
         
-        # 2. Activity: Show points, messages, reactions and voice time
         stats_text = (
             Messages.STAT_TOTAL_SCORE.format(points=f"{points:,.2f}") + "\n" +
             Messages.STAT_DETAILS.format(
@@ -101,7 +101,8 @@ class ModernProfileView(discord.ui.LayoutView):
                 reac=data.get('reaction_count', 0), 
                 voice=int(data.get('voice_minutes', 0)),
                 stream=int(data.get('stream_minutes', 0))
-            )
+            ) + "\n" +
+            Messages.STAT_MEDIA.format(media=data.get('media_count', 0))
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
@@ -144,7 +145,17 @@ class ModernProfileView(discord.ui.LayoutView):
         if social_lines:
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
         
-        # 5. Games: Show the top 3 games they have played the most
+        # 5. Veteran: Show how long they have been on the server
+        if joined_at:
+            join_str = joined_at.strftime("%Y-%m-%d")
+            vet_text = (
+                Messages.STAT_JOIN_DATE.format(date=join_str) + "\n" +
+                Messages.STAT_TENURE.format(days=tenure_days) + "\n" +
+                Messages.STAT_LOYALTY.format(efficiency=f"{efficiency:.2f}")
+            )
+            container.add_item(discord.ui.TextDisplay(Messages.SECTION_VETERAN + "\n" + vet_text))
+
+        # 6. Games: Show the top 3 games they have played the most
         if top_games:
             games_text = " | ".join([f"`{g[0].replace('Player: ', '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))

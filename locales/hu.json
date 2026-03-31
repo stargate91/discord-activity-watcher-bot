@@ -7,7 +7,7 @@
     "LB_EMPTY": "*Nincs elég adat az időszakhoz... Legyél te az első!*",
     "LB_UNKNOWN_USER": "Ismeretlen ({id})",
     "LB_POINTS": "pont",
-    "LB_FOOTER_POINTS": "Üzi 1+ (Hossz/10) | Reakció 5 | Voice 1-2/perc | Stream +2/perc",
+    "LB_FOOTER_POINTS": "Üzi 1+ (Hossz/10) | Reakció 5 | Media +3 | Voice 1-2/perc | Stream +2/perc",
     "BTN_WEEKLY": "Heti",
     "BTN_MONTHLY": "Havi",
     "BTN_ALLTIME": "Összesített",
@@ -31,6 +31,7 @@
     "SOCIAL_FAV_ROOM_STATIC": "**Kedvenc szoba:** {name}",
     "SOCIAL_MAIN_TARGET_STATIC": "**Fő célpont:** {name}",
     "SOCIAL_BEST_FRIEND_STATIC": "**Best Friend (Voice):** {name}",
+    "STAT_MEDIA": "**Média:** `{media}`",
     "ERR_NO_DATA": "Még nincs adatod az adatbázisban. Írj pár üzenetet előbb!",
     "ERR_NO_DATA_PERIOD": "Sajnos ebben az időszakban még nincs rögzített adatod.",
     "ERR_STATS_CHANNEL": "Ezt a parancsot csak a <#{id}> szobában használhatod!",
@@ -123,5 +124,13 @@
     "CMD_STREAM_HISTORY_DAYS_DESC": "Hány napra visszamenőleg? (Alap: 7)",
     "STREAM_HISTORY_GEN": "Stream napló generálása...",
     "STREAM_HISTORY_EMPTY": "Nem található rögzített stream az adott időszakban.",
-    "STREAM_HISTORY_DONE": "Az elmúlt {days} nap stream naplója elkészült ({count} bejegyzés)."
+    "STREAM_HISTORY_DONE": "Az elmúlt {days} nap stream naplója elkészült ({count} bejegyzés).",
+    "SECTION_VETERAN": "🎖️ SZERVER VETERÁN",
+    "STAT_JOIN_DATE": "**Csatlakozott:** {date}",
+    "STAT_TENURE": "**Tagság:** {days} napja",
+    "STAT_LOYALTY": "**Hűség index:** {efficiency} pont/nap",
+    "CMD_MEMBERSHIP_LOGS_DESC": "Belépési és kilépési napló exportálása TXT fájlba.",
+    "MEMBERSHIP_LOG_GEN": "Tagsági napló generálása...",
+    "MEMBERSHIP_LOG_EMPTY": "Nem található belépési/kilépési esemény az adatbázisban.",
+    "MEMBERSHIP_LOG_DONE": "A tagsági napló elkészült ({count} bejegyzés)."
 }

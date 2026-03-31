@@ -123,5 +123,13 @@
     "CMD_STREAM_HISTORY_DAYS_DESC": "How many days back to search? (Default: 7)",
     "STREAM_HISTORY_GEN": "Generating stream history report...",
     "STREAM_HISTORY_EMPTY": "No recorded stream sessions found for this period.",
-    "STREAM_HISTORY_DONE": "Stream history for the last {days} days generated ({count} entries)."
+    "STREAM_HISTORY_DONE": "Stream history for the last {days} days generated ({count} entries).",
+    "SECTION_VETERAN": "🎖️ SERVER VETERAN",
+    "STAT_JOIN_DATE": "**Joined:** {date}",
+    "STAT_TENURE": "**Tenure:** {days} days",
+    "STAT_LOYALTY": "**Loyalty Index:** {efficiency} pts/day",
+    "CMD_MEMBERSHIP_LOGS_DESC": "Export join and leave logs to a TXT file.",
+    "MEMBERSHIP_LOG_GEN": "Generating membership log...",
+    "MEMBERSHIP_LOG_EMPTY": "No membership events found in the database.",
+    "MEMBERSHIP_LOG_DONE": "Membership log generated ({count} entries)."
 }

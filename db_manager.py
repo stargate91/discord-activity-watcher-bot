@@ -25,6 +25,8 @@ class DBManager:
                     voice_minutes REAL DEFAULT 0,
                     points_total REAL DEFAULT 0,
                     stream_minutes REAL DEFAULT 0,
+                    joined_at TIMESTAMP,
+                    media_count INTEGER DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
@@ -41,6 +43,7 @@ class DBManager:
                     voice_minutes REAL DEFAULT 0,
                     points REAL DEFAULT 0,
                     stream_minutes REAL DEFAULT 0,
+                    media_count INTEGER DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id, channel_id, date)
                 )
             """)
@@ -90,6 +93,16 @@ class DBManager:
                     channel_id INTEGER,
                     message_id INTEGER,
                     emoji TEXT,
+                    timestamp TIMESTAMP
+                )
+            """)
+            # membership_history: Logs every join and leave event
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS membership_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    guild_id INTEGER,
+                    action TEXT, -- 'JOIN' or 'LEAVE'
                     timestamp TIMESTAMP
                 )
             """)
@@ -199,6 +212,23 @@ class DBManager:
                 try: conn.execute("ALTER TABLE voice_sessions ADD COLUMN stream_detail TEXT")
                 except sqlite3.OperationalError: pass
                 
+            # Migration for joined_at in user_activity
+            cursor = conn.execute("PRAGMA table_info(user_activity)")
+            if "joined_at" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE user_activity ADD COLUMN joined_at TIMESTAMP")
+                except sqlite3.OperationalError: pass
+                
+            # Migration for media_count
+            cursor = conn.execute("PRAGMA table_info(user_activity)")
+            if "media_count" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE user_activity ADD COLUMN media_count INTEGER DEFAULT 0")
+                except sqlite3.OperationalError: pass
+            
+            cursor = conn.execute("PRAGMA table_info(daily_stats)")
+            if "media_count" not in [row[1] for row in cursor.fetchall()]:
+                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN media_count INTEGER DEFAULT 0")
+                except sqlite3.OperationalError: pass
+                
             conn.commit()
 
     def update_activity(self, user_id, guild_id, last_active=None):
@@ -265,6 +295,26 @@ class DBManager:
             """, (user_id, guild_id, channel_id, today, points, points))
             conn.commit()
 
+    def increment_media(self, user_id, guild_id, channel_id=0, points=5):
+        # Add 1 to the media count for a user (both total and for today)
+        today = datetime.date.today()
+        with self._get_connection() as conn:
+            # Total
+            conn.execute("""
+                UPDATE user_activity SET 
+                    media_count = media_count + 1,
+                    points_total = points_total + ?
+                WHERE user_id = ? AND guild_id = ?
+            """, (points, user_id, guild_id))
+            # Daily
+            conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, media_count, points) VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
+                    media_count = media_count + 1,
+                    points = points + ?
+            """, (user_id, guild_id, channel_id, today, points, points))
+            conn.commit()
+
     def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False):
         # Add the minutes someone spent in voice to their stats
         today = datetime.date.today()
@@ -298,30 +348,31 @@ class DBManager:
             if days:
                 cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
                 cursor = conn.execute("""
-                    SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes)
+                    SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes), SUM(media_count)
                     FROM daily_stats WHERE guild_id = ? AND date >= ? 
                     GROUP BY user_id
                 """, (guild_id, cutoff_date))
             else:
                 cursor = conn.execute("""
-                    SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes
+                    SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes, media_count
                     FROM user_activity WHERE guild_id = ?
                 """, (guild_id,))
             
             rows = cursor.fetchall()
-            # Note: We now return 6 values per user to include streaming
+            # Note: We now return 7 values per user to include streaming and media
             return {row[0]: {
                 "messages": row[1] or 0, 
                 "reactions": row[2] or 0, 
                 "voice": row[3] or 0, 
                 "points": row[4] or 0,
-                "stream": row[5] or 0
+                "stream": row[5] or 0,
+                "media": row[6] or 0
             } for row in rows}
 
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes 
+                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count 
                 FROM user_activity WHERE user_id = ? AND guild_id = ?
             """, (user_id, guild_id))
             row = cursor.fetchone()
@@ -333,7 +384,8 @@ class DBManager:
                     "returned_at": returned_at,
                     "message_count": row[2],
                     "reaction_count": row[3],
-                    "voice_minutes": row[4]
+                    "voice_minutes": row[4],
+                    "media_count": row[5]
                 }
             return None
 
@@ -588,10 +640,43 @@ class DBManager:
 
     def reset_database(self):
         # DANGER: This wipes everything clean! All stats will be gone.
-        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions", "active_game_sessions"]
+        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions", "active_game_sessions", "membership_history"]
         with self._get_connection() as conn:
             for table in tables: conn.execute(f"DELETE FROM {table}")
             conn.commit()
+
+    def log_membership_event(self, user_id, guild_id, action, timestamp=None):
+        if timestamp is None:
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
+        ts_str = timestamp.isoformat() if isinstance(timestamp, datetime.datetime) else timestamp
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO membership_history (user_id, guild_id, action, timestamp)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, guild_id, action, ts_str))
+            conn.commit()
+
+    def update_join_date(self, user_id, guild_id, joined_at):
+        ts_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
+        with self._get_connection() as conn:
+            conn.execute("""
+                UPDATE user_activity SET joined_at = ? WHERE user_id = ? AND guild_id = ?
+            """, (ts_str, user_id, guild_id))
+            conn.commit()
+
+    def get_user_join_date(self, user_id, guild_id):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT joined_at FROM user_activity WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            row = cursor.fetchone()
+            return datetime.datetime.fromisoformat(row[0]) if row and row[0] else None
+
+    def get_membership_logs(self, guild_id, limit=300):
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT user_id, action, timestamp FROM membership_history 
+                WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?
+            """, (guild_id, limit))
+            return cursor.fetchall()
 
     # --- VISUAL ANALYSIS QUERIES ---
     

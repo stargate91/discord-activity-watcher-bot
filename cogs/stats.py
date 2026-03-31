@@ -79,7 +79,14 @@ class StatsCog(commands.Cog):
             # Avg Voice Session Duration
             avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
             
-            view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="me")
+            # Veteran Stats
+            joined_at = self.db.get_user_join_date(main_id, interaction.guild_id)
+            tenure_days = (datetime.datetime.now(datetime.timezone.utc) - joined_at.replace(tzinfo=datetime.timezone.utc)).days if joined_at else 0
+            # Efficiency (Loyalty index)
+            efficiency = points / (tenure_days + 1) if tenure_days >= 0 else points
+            
+            view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
+                                     joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, timeframe="me")
             await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             await interaction.followup.send(Messages.ERR_STATS_LOAD.format(e=e), ephemeral=True)
@@ -112,6 +119,12 @@ class StatsCog(commands.Cog):
                         return
                     
                     user, data, points, voice_mins, rank = u_stats
+                    
+                    # Veteran Stats for show_me
+                    joined_at = self.db.get_user_join_date(main_id, interaction.guild_id)
+                    tenure_days = (datetime.datetime.now(datetime.timezone.utc) - joined_at.replace(tzinfo=datetime.timezone.utc)).days if joined_at else 0
+                    efficiency = points / (tenure_days + 1) if tenure_days >= 0 else points
+                    
                     social = self.db.get_user_social_stats(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
                     partners = self.db.get_top_voice_partners(main_id, interaction.guild_id, days=Config.SOCIAL_STATS_DAYS)
                     top_games = self.db.get_user_top_games(main_id, interaction.guild_id, limit=3)
@@ -121,7 +134,8 @@ class StatsCog(commands.Cog):
                     avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
                     avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
                     
-                    view = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, timeframe="me")
+                    view = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
+                                             joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, timeframe="me")
                 elif action == "share":
                     # Determine what to share
                     if current_tf == "me":
@@ -142,7 +156,13 @@ class StatsCog(commands.Cog):
                         avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
                         avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
                         
-                        view_shared = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, static=True, shared_by=interaction.user.display_name)
+                        # Veteran Stats for share
+                        joined_at = self.db.get_user_join_date(main_id, interaction.guild_id)
+                        tenure_days = (datetime.datetime.now(datetime.timezone.utc) - joined_at.replace(tzinfo=datetime.timezone.utc)).days if joined_at else 0
+                        efficiency = points / (tenure_days + 1) if tenure_days >= 0 else points
+                        
+                        view_shared = ModernProfileView(main_member, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
+                                                         joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, static=True, shared_by=interaction.user.display_name)
                     else:
                         top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, current_tf)
                         view_shared = ModernLeaderboardView(top_10, current_tf, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)

@@ -78,6 +78,11 @@ class EventsCog(commands.Cog):
             
         main_id = Config.get_main_id(member.id)
         self.db.update_activity(main_id, member.guild.id)
+        
+        # Ensure joined_at is set if missing (lazy sync)
+        if not self.db.get_user_join_date(main_id, member.guild.id):
+            if hasattr(member, 'joined_at') and member.joined_at:
+                self.db.update_join_date(main_id, member.guild.id, member.joined_at)
         if event_type == "message":
             # Dynamic Scoring: Points = Base + min(Length / Scale, Max)
             # member here is used to get the content if available (but handle_member_activity doesn't have message)
@@ -133,6 +138,13 @@ class EventsCog(commands.Cog):
                 if m.bot: continue
                 if not self.db.get_user_data(Config.get_main_id(m.id), guild.id):
                     self.db.update_activity(Config.get_main_id(m.id), guild.id)
+                
+                # Automated Join Date Sync
+                main_id = Config.get_main_id(m.id)
+                if not self.db.get_user_join_date(main_id, guild.id):
+                    if m.joined_at:
+                        self.db.update_join_date(main_id, guild.id, m.joined_at)
+                        log.debug(f"Synced join date for {m.display_name}: {m.joined_at}")
             
             # Sync voice sessions
             for m in guild.members:
@@ -192,16 +204,55 @@ class EventsCog(commands.Cog):
         points = Config.POINTS_MESSAGE_BASE + (length / Config.POINTS_MESSAGE_SCALE)
         points = min(points, Config.POINTS_MESSAGE_MAX)
         
+        # 1. Media Detection (Attachments or specific Links)
+        # Patterns for: YouTube, TikTok, Imgur, Instagram, Giphy (+media.giphy), Facebook (+fbcdn), and direct file extensions
+        media_patterns = [
+            r"https?://(?:www\.)?(?:youtube\.com|youtu\.be|tiktok\.com|imgur\.com|instagram\.com|giphy\.com|media\.giphy\.com|tenor\.com|fb\.watch|facebook\.com|fbcdn\.net)/[^\s]+",
+            r"https?://[^\s]+\.(?:jpg|jpeg|png|gif|webp|mp4|webm|mov)(?:\?[^\s]+)?"
+        ]
+        
+        has_media = len(message.attachments) > 0
+        if not has_media:
+            import re
+            for pattern in media_patterns:
+                if re.search(pattern, message.content, re.IGNORECASE):
+                    has_media = True
+                    break
+        
         # We still call handle_member_activity for side effects (roles, activity times)
         await self.handle_member_activity(message.author, event_type=None, channel_id=message.channel.id)
         
         # Manually call increment_messages with calculated points
         main_id = Config.get_main_id(message.author.id)
         self.db.increment_messages(main_id, message.guild.id, message.channel.id, points=points)
+        
+        # 2. Increment Media if found (+ bonus points)
+        if has_media:
+            self.db.increment_media(main_id, message.guild.id, message.channel.id, points=Config.POINTS_MEDIA_BONUS)
 
     @commands.Cog.listener()
     async def on_presence_update(self, before, after):
         await self.tracker.handle_presence_update(before, after)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        if member.bot: return
+        log.info(f"Member joined: {member} (ID: {member.id})")
+        main_id = Config.get_main_id(member.id)
+        # Log event
+        self.db.log_membership_event(main_id, member.guild.id, "JOIN", member.joined_at)
+        # Update user record
+        self.db.update_activity(main_id, member.guild.id)
+        if member.joined_at:
+            self.db.update_join_date(main_id, member.guild.id, member.joined_at)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        if member.bot: return
+        log.info(f"Member left: {member} (ID: {member.id})")
+        main_id = Config.get_main_id(member.id)
+        # Log event
+        self.db.log_membership_event(main_id, member.guild.id, "LEAVE")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
