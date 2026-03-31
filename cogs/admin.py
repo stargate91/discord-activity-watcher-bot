@@ -523,13 +523,18 @@ class AdminCog(commands.Cog):
             help_text = prefix_map.get(cmd.name, cmd.help)
             prefix_cmds.append((cmd.name, Config.format_desc(help_text, target.guild if isinstance(target, commands.Context) else target.guild)))
             
+        # 3. Slash Commands Section
+        # We categorize them by their required role/access level for clarity
         slash_cmds = []
         for cmd in self.bot.tree.get_commands():
             if isinstance(cmd, app_commands.Group):
                 for sub in cmd.commands:
-                    slash_cmds.append((f"{cmd.name} {sub.name}", Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target)))
+                    full_name = f"{cmd.name} {sub.name}"
+                    access_info = self._get_command_access_info(full_name)
+                    slash_cmds.append((full_name, Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target), access_info))
             else:
-                slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target)))
+                access_info = self._get_command_access_info(cmd.name)
+                slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target), access_info))
 
         view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
         
@@ -537,6 +542,40 @@ class AdminCog(commands.Cog):
             await target.send(view=view)
         else:
             await target.response.send_message(view=view)
+
+    def _get_command_access_info(self, name):
+        """Returns a string describing the role and channel requirements for a command."""
+        from core.ui_icons import Icons
+        
+        # Role Requirements
+        admin_cmds = ["membership_logs", "game_role_report", "reset_database", "sync", "link_alt", "add_game", "remove_game"]
+        tester_cmds = ["status_report", "game_details", "list_games", "game_stats_report", "info_dev"]
+        
+        icon_role = Icons.ROLE_USER
+        label_role = Messages.HELP_ROLE_EVERYONE
+        
+        if name in admin_cmds: 
+            icon_role = Icons.ROLE_ADMIN
+            label_role = Messages.HELP_ROLE_ADMIN
+        elif name in tester_cmds: 
+            icon_role = Icons.ROLE_TESTER
+            label_role = Messages.HELP_ROLE_TESTER
+        
+        # Channel Requirements
+        admin_ch_cmds = admin_cmds + tester_cmds + ["sync"]
+        stats_ch_cmds = ["top", "server_analysis", "champion_log", "info"]
+        
+        icon_chan = Icons.CHAN_ANY
+        label_chan = Messages.HELP_CHAN_ANY
+        
+        if name in admin_ch_cmds: 
+            icon_chan = Icons.CHAN_ADMIN
+            label_chan = Messages.HELP_CHAN_ADMIN
+        elif name in stats_ch_cmds: 
+            icon_chan = Icons.CHAN_STATS
+            label_chan = Messages.HELP_CHAN_STATS
+        
+        return f"{icon_role} {label_role} | {icon_chan} {label_chan}"
 
     @app_commands.command(name="link_alt", description="Mini account összekötése egy fő accounttal.")
     @is_admin_interaction()

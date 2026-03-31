@@ -262,8 +262,8 @@ class ModernDevInfoView(discord.ui.LayoutView):
         # 3. Slash Commands Section
         if slash_cmds:
             container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
-            for name, desc in slash_cmds:
-                container.add_item(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*"))
+            for name, desc, access in slash_cmds:
+                container.add_item(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*\n╰ `{access}`"))
             
             container.add_item(discord.ui.Separator())
 

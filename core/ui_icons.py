@@ -24,6 +24,12 @@ class Icons:
     LIGHTNING: discord.PartialEmoji = None
     COOLDOWN: discord.PartialEmoji = None
     MEME: discord.PartialEmoji = None
+    ROLE_ADMIN: discord.PartialEmoji = None
+    ROLE_TESTER: discord.PartialEmoji = None
+    ROLE_USER: discord.PartialEmoji = None
+    CHAN_ADMIN: discord.PartialEmoji = None
+    CHAN_STATS: discord.PartialEmoji = None
+    CHAN_ANY: discord.PartialEmoji = None
 
     @classmethod
     def setup(cls, config):
@@ -34,7 +40,9 @@ class Icons:
             "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
             "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️",
             "MEDAL_1": "🥇", "MEDAL_2": "🥈", "MEDAL_3": "🥉", "TOOLS": "🛠️",
-            "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️"
+            "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️",
+            "ROLE_ADMIN": "👑", "ROLE_TESTER": "🧪", "ROLE_USER": "👤",
+            "CHAN_ADMIN": "🛠️", "CHAN_STATS": "📊", "CHAN_ANY": "🌐"
         }
 
         # Load from config if available (Config.EMOJIS)
