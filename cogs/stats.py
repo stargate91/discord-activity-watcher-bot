@@ -31,6 +31,7 @@ class StatsCog(commands.Cog):
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # This command shows the Top 10 leaderboard (highest scores) for the server
+        # Restricted to Stats channel
         if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
             await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
             return
@@ -92,14 +93,11 @@ class StatsCog(commands.Cog):
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
     async def me(self, interaction: discord.Interaction):
         # This command shows your personal profile card with all your points
+        # Allowed everywhere, but response is always ephemeral
         target = interaction.user
         main_id = Config.get_main_id(target.id)
         main_member = interaction.guild.get_member(main_id) or target
         
-        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
         
         try:
@@ -161,15 +159,24 @@ class StatsCog(commands.Cog):
                         view_shared = ModernLeaderboardView(top_10, current_tf, interaction.guild, u_stats, static=True, shared_by=interaction.user.display_name)
                         chart_file = None
 
+                    # Redirection logic: Always send shared content to the Stats channel
+                    target_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID) or interaction.channel
+                    
                     if chart_file:
-                        await interaction.channel.send(view=view_shared, file=chart_file)
+                        await target_channel.send(view=view_shared, file=chart_file)
                         # Cleanup for share
                         if os.path.exists(chart_file.fp.name):
                             try: os.remove(chart_file.fp.name)
                             except: pass
                     else:
-                        await interaction.channel.send(view=view_shared)
-                    await interaction.response.send_message(Messages.SUCCESS_SHARED, ephemeral=True)
+                        await target_channel.send(view=view_shared)
+                    
+                    # Inform the user where it was shared
+                    success_msg = Messages.SUCCESS_SHARED
+                    if target_channel.id != interaction.channel_id:
+                        success_msg += f" (➔ <#{target_channel.id}>)"
+                        
+                    await interaction.response.send_message(success_msg, ephemeral=True)
                     return
                 
                 if view:

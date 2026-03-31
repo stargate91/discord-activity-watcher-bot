@@ -22,6 +22,7 @@ class Config:
     STAGE_1_ROLE_ID = _roles.get("stage_1_id", 0)
     STAGE_2_ROLE_ID = _roles.get("stage_2_id", 0)
     ADMIN_ROLE_ID = _roles.get("admin_role_id", 0)
+    TESTER_ROLE_ID = _roles.get("tester_role_id", 0)
     SPOTIVIBE_ROLE_ID = _roles.get("spotivibe_id", 0)
     GODGAMER_TOTAL_ROLE_ID = _roles.get("godgamer_total_id", 0)
     GODGAMER_VARIETY_ROLE_ID = _roles.get("godgamer_variety_id", 0)
