@@ -9,7 +9,18 @@
         "COMMUNITY": "🤝",
         "ERROR": "❌",
         "WARNING": "⚠️",
-        "SHUSH": "🤫"
+        "SHUSH": "🤫",
+        "SPOTIFY": "🎵",
+        "GAMER": "🎮",
+        "VARIETY": "🎯",
+        "STREAMER": "📺",
+        "TROPHY": "🏆",
+        "VETERAN": "🎖️",
+        "MEDAL_1": "🥇",
+        "MEDAL_2": "🥈",
+        "MEDAL_3": "🥉",
+        "TOOLS": "🛠️",
+        "LIGHTNING": "⚡"
     },
     "roles": {
         "stage_1_id": 1485292108410781768,
@@ -33,7 +44,9 @@
         "stage_2_grace_days": 7,
         "inactive_game_days": 30,
         "social_stats_days": 30,
-        "check_interval_hours": 12
+        "check_interval_hours": 12,
+        "champions_win_threshold": 5,
+        "variety_min_minutes": 30
     },
     "scoring": {
         "points_message_base": 1,

@@ -16,36 +16,21 @@ class Icons:
     def setup(cls, config):
         """Initializes all icons from config or hardcoded defaults."""
         defaults = {
-            "CHART": "📊",
-            "ROCKET": "🚀",
-            "SUCCESS": "✅",
-            "TRASH": "🗑️",
-            "CONTROLLER": "🎮",
-            "STATS": "📈",
-            "COMMUNITY": "🤝",
-            "ERROR": "❌",
-            "WARNING": "⚠️",
-            "SHUSH": "🤫"
+            "CHART": "📊", "ROCKET": "🚀", "SUCCESS": "✅", "TRASH": "🗑️",
+            "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
+            "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
+            "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️"
         }
 
         # Load from config if available (Config.EMOJIS)
         provided_data = getattr(config, "EMOJIS", {})
         
-        def get(name):
-            val = provided_data.get(name) or defaults.get(name, "❓")
-            return discord.PartialEmoji.from_str(val)
-
-        # Initialize all class properties
-        cls.CHART = get("CHART")
-        cls.ROCKET = get("ROCKET")
-        cls.SUCCESS = get("SUCCESS")
-        cls.TRASH = get("TRASH")
-        cls.CONTROLLER = get("CONTROLLER")
-        cls.STATS = get("STATS")
-        cls.COMMUNITY = get("COMMUNITY")
-        cls.ERROR = get("ERROR")
-        cls.WARNING = get("WARNING")
-        cls.SHUSH = get("SHUSH")
+        # Merge defaults with provided config
+        all_keys = set(defaults.keys()) | set(provided_data.keys())
+        
+        for key in all_keys:
+            val = provided_data.get(key) or defaults.get(key, "❓")
+            setattr(cls, key, discord.PartialEmoji.from_str(val))
 
 # Default initialization for safe-importing
 class DefaultConfig: EMOJIS = {}

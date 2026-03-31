@@ -37,7 +37,8 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 else:
                     name = m.mention if m else Messages.LB_UNKNOWN_USER.format(id=uid)
                 
-                medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, f"**{i:02d}.**")
+                from core.ui_icons import Icons
+                medal = {1: Icons.MEDAL_1, 2: Icons.MEDAL_2, 3: Icons.MEDAL_3}.get(i, f"**{i:02d}.**")
                 
                 info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p`"
                 container.add_item(discord.ui.TextDisplay(info))
@@ -104,6 +105,9 @@ class ModernProfileView(discord.ui.LayoutView):
             ) + "\n" +
             Messages.STAT_MEDIA.format(media=data.get('media_count', 0))
         )
+        if data.get('spotify_minutes', 0) > 0:
+            stats_text += "\n" + Messages.STAT_SPOTIFY.format(spotify=int(data['spotify_minutes']))
+        
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
         # 3. Timing: Show when they were last active, their daily average and avg voice session

@@ -56,14 +56,44 @@ class GameTracker:
         return games
 
     async def handle_presence_update(self, before, after):
-        # This function runs every time someone's status changes (like starting/stopping a game)
+        # This function runs every time someone's status changes (like starting/stopping a game or music)
         if after.bot or not after.guild: return
         
         main_id = Config.get_main_id(after.id)
+        
+        # 1. Handle Games
         before_games = self._get_games(before)
         after_games = self._get_games(after)
         
-        # Started playing
+        # 2. Handle Spotify
+        # Check if they are listening to Spotify (listening type and name "Spotify")
+        before_spotify = any(a.type == discord.ActivityType.listening and a.name == "Spotify" for a in before.activities)
+        after_spotify = any(a.type == discord.ActivityType.listening and a.name == "Spotify" for a in after.activities)
+        
+        # Spotify Started
+        if after_spotify and not before_spotify:
+            key = (main_id, after.guild.id, "Spotify")
+            if key not in self.active_sessions:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                self.active_sessions[key] = now
+                self.db.start_game_session(main_id, after.guild.id, "Spotify", now)
+        
+        # Spotify Stopped
+        if before_spotify and not after_spotify:
+            key = (main_id, after.guild.id, "Spotify")
+            start_time = self.db.end_game_session(main_id, after.guild.id, "Spotify")
+            if key in self.active_sessions:
+                start_time = self.active_sessions.pop(key)
+            
+            if start_time:
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=datetime.timezone.utc)
+                duration = (datetime.datetime.now(datetime.timezone.utc) - start_time).total_seconds() / 60
+                if duration > 0.1:
+                    self.db.add_spotify_minutes(main_id, after.guild.id, duration)
+                    log.info(f"Logged {duration:.2f}m of Spotify for Main ID {main_id}")
+
+        # 3. Handle Game Logic (original code)
         # If they just opened a game, we add them to our 'active' list and start a timer
         for game in (after_games - before_games):
             key = (main_id, after.guild.id, game)

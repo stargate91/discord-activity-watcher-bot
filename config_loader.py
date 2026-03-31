@@ -22,6 +22,11 @@ class Config:
     STAGE_1_ROLE_ID = _roles.get("stage_1_id", 0)
     STAGE_2_ROLE_ID = _roles.get("stage_2_id", 0)
     ADMIN_ROLE_ID = _roles.get("admin_role_id", 0)
+    SPOTIVIBE_ROLE_ID = _roles.get("spotivibe_id", 0)
+    GODGAMER_TOTAL_ROLE_ID = _roles.get("godgamer_total_id", 0)
+    GODGAMER_VARIETY_ROLE_ID = _roles.get("godgamer_variety_id", 0)
+    SHARING_ROLE_ID = _roles.get("sharing_id", 0)
+    HALL_OF_FAMER_ROLE_ID = _roles.get("hall_of_famer_id", 0)
     
     # These tell the bot where to post stats or look for admins
     _channels: dict = _data.get("channels", {})
@@ -39,6 +44,8 @@ class Config:
     INACTIVE_GAME_DAYS = _thresholds.get("inactive_game_days", 30)
     SOCIAL_STATS_DAYS = _thresholds.get("social_stats_days", 30)
     CHECK_INTERVAL_HOURS = _thresholds.get("check_interval_hours", 12)
+    CHAMPION_WIN_THRESHOLD = _thresholds.get("champions_win_threshold", 5)
+    VARIETY_MIN_MINUTES = _thresholds.get("variety_min_minutes", 30)
 
     # How many points people get for messages and reactions
     _scoring = _data.get("scoring", {})
