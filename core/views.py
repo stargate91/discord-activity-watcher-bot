@@ -316,12 +316,13 @@ class ModernChampionsView(discord.ui.LayoutView):
             # No mentions, use display name
             name = f"**{member.display_name}**" if member else f"**{user_id}**"
             
-            # Construct description from template using raw value (templates handle formatting)
+            # 3. Construct description from template
+            icon = category_icons.get(cat_id, "")
             try:
-                winner_line = f"### {msg_template.format(name=name, value=value)}"
+                winner_line = f"### {icon} {msg_template.format(name=name, value=value)}"
             except Exception as e:
                 # Fallback if formatting fails
-                winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
+                winner_line = f"### {icon} {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
             # Content without individual separators
             container.add_item(discord.ui.TextDisplay(winner_line))
