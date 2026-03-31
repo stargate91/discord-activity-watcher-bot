@@ -127,7 +127,7 @@
     "STREAM_HISTORY_GEN": "Stream napló generálása...",
     "STREAM_HISTORY_EMPTY": "Nem található rögzített stream az adott időszakban.",
     "STREAM_HISTORY_DONE": "Az elmúlt {days} nap stream naplója elkészült ({count} bejegyzés).",
-    "SECTION_VETERAN": "SZERVER VETERÁN",
+    "SECTION_VETERAN": "Szerver veterán",
     "STAT_JOIN_DATE": "**Csatlakozott:** {date}",
     "STAT_TENURE": "**Tagság:** {days} napja",
     "STAT_LOYALTY": "**Hűség index:** {efficiency} pont/nap",
