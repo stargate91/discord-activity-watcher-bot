@@ -227,6 +227,7 @@ class ChampionsCog(commands.Cog):
             "gamer_variety": (uid, 5, Messages.CHAMPION_GAMER_VARIETY),
             "streamer": (uid, 60, Messages.CHAMPION_STREAMER)
         }
+        dummy_hof = [Messages.CHAMPION_HALL_OF_FAME.format(name=interaction.user.mention)]
         
         try:
             view = ModernChampionsView(interaction.guild, dummy_data, hof_notices=dummy_hof)
