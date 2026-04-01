@@ -155,5 +155,7 @@ class Config:
             admin_id=admin_val,
             stats_id=stats_val,
             role_id=role_val,
+            prefix=cls.PREFIX,
+            suffix=cls.SUFFIX,
             bot_name="Activity Watcher"
         )

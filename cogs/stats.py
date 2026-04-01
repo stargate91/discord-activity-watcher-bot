@@ -32,8 +32,11 @@ class StatsCog(commands.Cog):
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # This command shows the Top 10 leaderboard (highest scores) for the server
         # Restricted to Stats channel
-        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_STATS_CHANNEL.format(id=Config.STATS_CHANNEL_ID), ephemeral=True)
+        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(
+                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID), 
+                ephemeral=True
+            )
             return
 
         top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)

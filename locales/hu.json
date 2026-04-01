@@ -95,7 +95,7 @@
     "INFO_DEV_SLASH": "Slash parancsok (Adminisztráció)\n",
     "CMD_INFO_DEV_DESC": "Kilistázza az összes parancsot az adminoknak.",
     "CMD_CLEAR_HELP": "Parancsok törlése. (Globális + Szerver)",
-    "INFO_DEV_FOOTER_NOTE": "A legtöbb parancsnál a bot automatikusan Ephemeral (csak te látod) üzenetet küld a csatornák rendben tartása végett.",
+    "INFO_DEV_FOOTER_NOTE": "A legtöbb parancsnál a bot automatikusan Ephemeral (csak te látod) üzenetet küld a csatornák rendben tartása véget.",
     "CMD_INFO_DESC": "Általános ismertető a botról.",
     "ERR_STATS_NOT_FOUND": "A statisztika csatorna nem található a konfigurációban! (stats_id)",
     "CMD_SERVER_ANALYSIS_DESC": "Vizuális elemzés a szerver aktivitásáról.",
@@ -148,5 +148,16 @@
     "HELP_ROLE_TESTER": "Tester+",
     "HELP_CHAN_ANY": "Bárhol",
     "HELP_CHAN_ADMIN": "Admin csat.",
-    "HELP_CHAN_STATS": "Publikus csat"
+    "HELP_CHAN_STATS": "Publikus csat",
+    "REPORT_CHAMPIONS_EMPTY": "Még nincsenek rögzített bajnokok a szerveren.",
+    "REPORT_CHAMPIONS_TITLE": "CHAMPION LOG - Hall of Fame",
+    "ERR_PUBLIC_CHANNELS": "Ez a parancs az Admin (<#{admin_id}>) vagy a Publikus (<#{stats_id}>) csatornán használható.",
+    "CMD_CHAMPION_LOG_DESC": "Heti bajnoki statisztikák megtekintése.",
+    "CMD_TEST_WEEKLY_LAYOUT_DESC": "Az új heti bajnoki layout előnézete dummy adatokkal.",
+    "CMD_LINK_ALT_DESC": "Mini account összekötése egy fő accounttal.",
+    "CAT_SPOTIFY": "SpotiViber",
+    "CAT_GAMER_TOTAL": "Gamer (Hardcore)",
+    "CAT_GAMER_VARIETY": "Gamer (Sokszínű)",
+    "CAT_STREAMER": "Streamer",
+    "CAT_MEME": "MemeLord"
 }
