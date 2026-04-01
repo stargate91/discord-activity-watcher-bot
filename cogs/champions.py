@@ -4,7 +4,9 @@ import datetime
 import json
 import os
 from core.logger import log
+from config_loader import Config
 from core.messages import Messages
+from core.ui_icons import Icons
 from core.views import ModernChampionsView
 from cogs.admin import is_admin_slash, is_tester_slash
 
@@ -167,7 +169,6 @@ class ChampionsCog(commands.Cog):
     @discord.app_commands.command(name="champion_log", description=Messages.CMD_CHAMPION_LOG_DESC)
     @is_tester_slash()
     async def champion_log(self, interaction: discord.Interaction):
-        from config_loader import Config
         # Channel restriction: Stats or Admin channel only
         if interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
             await interaction.response.send_message(
@@ -196,7 +197,6 @@ class ChampionsCog(commands.Cog):
             if uid not in user_wins: user_wins[uid] = {}
             user_wins[uid][cat] = count
         
-        from core.ui_icons import Icons
         embed = discord.Embed(title=f"{Icons.CHAMPION_LOG} {Messages.REPORT_CHAMPIONS_TITLE}", color=0xFFD700)
         
         count = 0
@@ -206,7 +206,6 @@ class ChampionsCog(commands.Cog):
             name = member.display_name if member else f"Ismeretlen ({uid})"
             
             summary = []
-            from core.ui_icons import Icons
             for cat, wins in categories.items():
                 cat_name = {
                     "spotify": f"{Icons.SPOTIFY} {Messages.CAT_SPOTIFY}",
