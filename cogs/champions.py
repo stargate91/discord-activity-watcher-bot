@@ -41,7 +41,16 @@ class ChampionsCog(commands.Cog):
             role_id = config_data["roles"].get(key, 0)
             role = guild.get_role(role_id) if role_id else None
             
-            if not role:
+            if role:
+                # Sync existing role if name or color changed in config
+                if role.name != name or role.color.value != color_int:
+                    try:
+                        await role.edit(name=name, color=discord.Color(color_int), reason="Syncing champion role with config.json")
+                        log.info(f"Synchronized role: {name} (ID: {role.id})")
+                    except discord.Forbidden:
+                        log.warning(f"Forbidden: Could not update role {name}. Check bot permissions.")
+            else:
+                # Try to find by name if ID is missing or invalid
                 role = discord.utils.get(guild.roles, name=name)
                 
                 if not role:
