@@ -122,7 +122,7 @@ class EventsCog(commands.Cog):
                     else:
                         # New session
                         now = datetime.datetime.now(datetime.timezone.utc)
-                        tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(main_id, guild)
+                        tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(m)
                         
                         if tier > 0:
                             self.bot.voice_start_times[main_id] = now
@@ -216,7 +216,7 @@ class EventsCog(commands.Cog):
         now = datetime.datetime.now(datetime.timezone.utc)
         
         # Determine current and previous states
-        new_tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(main_id, member.guild)
+        new_tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(member)
         old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, None))
         old_tier, old_streaming, old_name = old_data
         is_tracking = main_id in self.bot.voice_start_times

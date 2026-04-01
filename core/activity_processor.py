@@ -1,4 +1,5 @@
 import re
+import discord
 from config_loader import Config
 
 class ActivityProcessor:
@@ -57,7 +58,7 @@ class ActivityProcessor:
         return False
 
     @staticmethod
-    def get_participation_tier(member_id, guild):
+    def get_participation_tier(member):
         """
         Determines the voice activity tier based on current member status 
         (streaming, camera on, or regular voice).
@@ -65,16 +66,19 @@ class ActivityProcessor:
         Returns:
             tuple: (multiplier, is_streaming, status_description)
         """
-        member = guild.get_member(member_id)
-        if not member or not member.voice:
-            return 1, False, "Voice"
+        if not member or not member.voice or not member.voice.channel:
+            return 0, False, "Inactive"
+
+        # Explicitly ignore activity in the AFK channel
+        if member.voice.channel.id == Config.AFK_CHANNEL_ID:
+            return 0, False, "AFK"
 
         # Check if streaming to the server (Go Live)
         if member.voice.self_stream:
             # Check if they are actually in a game to determine stream name
             stream_name = Config.DEFAULT_STREAM_NAME
             for activity in member.activities:
-                if activity.type == "playing":
+                if activity.type == discord.ActivityType.playing:
                     stream_name = activity.name
                     break
             return Config.POINTS_STREAM_BONUS + Config.POINTS_VOICE, True, f"Streaming: {stream_name}"
