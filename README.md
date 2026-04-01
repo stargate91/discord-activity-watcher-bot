@@ -51,14 +51,14 @@ pip install -r requirements.txt
 python bot.py
 ```
 
-## 🛠️ Command Suites (Suffix: `_elf`)
+## 🛠️ Command Suites (Prefix Suffix: `_elf`)
 
 ### 📊 Public Commands (Stats/Public Channels)
 - `/top` - Explore the leaderboard with medals and tiers.
 - `/me` - View your comprehensive profile card and veteran stats.
 - `/champion_log` - View the weekly Hall of Fame and historical winners.
 - `/server_analysis` - Visual heatmaps and charts of server activity.
-- `/info_elf` - General introduction and bot features.
+- `/info` - General introduction and bot features.
 
 ### 🛡️ Management & Dev (Admin/Tester Channels)
 - `/status_report` - Detailed audit of all members' activity and status.
