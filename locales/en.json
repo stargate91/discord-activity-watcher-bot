@@ -71,7 +71,7 @@
     "PRESENCE_TRACKING_GAMES": "Tracking {count} active games... | /me",
     "PRESENCE_PRAISING_CHAMPION": "Praising {user} ({category})!",
     "PRESENCE_TOP_GAME": "Weekly favorite: {game}",
-    "PRESENCE_HELP": "Help: /info_elf",
+    "PRESENCE_HELP": "Help: /info",
     "PRESENCE_SASSY_1": "Judging your gaming skills...",
     "PRESENCE_SASSY_2": "Counting your messages...",
     "PRESENCE_SASSY_3": "Cooking the weekly salt stats...",

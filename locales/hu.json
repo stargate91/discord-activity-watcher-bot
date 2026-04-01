@@ -71,7 +71,7 @@
     "PRESENCE_TRACKING_GAMES": "Követek {count} aktív játékot... | /me",
     "PRESENCE_PRAISING_CHAMPION": "Dicsérem {user}-t ({category})!",
     "PRESENCE_TOP_GAME": "Heti kedvenc: {game}",
-    "PRESENCE_HELP": "Segítség: /info_elf",
+    "PRESENCE_HELP": "Segítség: /info",
     "PRESENCE_SASSY_1": "Ítélkezem a gamertudásotok felett...",
     "PRESENCE_SASSY_2": "Számolom az üzeneteiteket...",
     "PRESENCE_SASSY_3": "Főzöm a heti sós statisztikákat...",
