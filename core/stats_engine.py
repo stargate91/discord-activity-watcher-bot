@@ -25,7 +25,8 @@ class StatsEngine:
                 if main_id in data:
                     curr_mins = (now_utc - start).total_seconds() / 60
                     data[main_id]["voice"] += curr_mins
-                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(main_id, guild)
+                    member = guild.get_member(main_id)
+                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(member)
                     data[main_id]["points"] += (curr_mins * tier)
                     if is_streaming:
                         data[main_id]["stream"] += curr_mins
@@ -76,7 +77,8 @@ class StatsEngine:
                 if live_voice_times and user_id in live_voice_times:
                     start = live_voice_times[user_id]
                     curr_mins = (now_utc - start).total_seconds() / 60
-                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(user_id, guild)
+                    member = guild.get_member(user_id)
+                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(member)
                     live_points = curr_mins * tier
                     u_stats["voice"] += curr_mins
                     u_stats["stream"] += curr_mins if is_streaming else 0
