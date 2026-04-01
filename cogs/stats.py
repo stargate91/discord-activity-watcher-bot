@@ -39,9 +39,16 @@ class StatsCog(commands.Cog):
             )
             return
 
-        top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)
-        view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            top_10, u_stats = self.bot.get_top_data(interaction.guild, interaction.user, timeframe)
+            view = ModernLeaderboardView(top_10, timeframe, interaction.guild, u_stats)
+            await interaction.followup.send(view=view, ephemeral=True)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            await interaction.followup.send(Messages.ERR_STATS_LOAD.format(e=e), ephemeral=True)
 
     async def _prepare_profile(self, interaction, target_user, main_id, timeframe="me", static=False, shared_by=None):
         """Helper to fetch stats, generate chart and prepare ModernProfileView."""
