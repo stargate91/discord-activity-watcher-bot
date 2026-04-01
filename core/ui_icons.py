@@ -10,7 +10,6 @@ class Icons:
     COMMUNITY: discord.PartialEmoji = None
     ERROR: discord.PartialEmoji = None
     WARNING: discord.PartialEmoji = None
-    SHUSH: discord.PartialEmoji = None
     SPOTIFY: discord.PartialEmoji = None
     GAMER: discord.PartialEmoji = None
     VARIETY: discord.PartialEmoji = None
@@ -31,6 +30,8 @@ class Icons:
     CHAN_STATS: discord.PartialEmoji = None
     CHAN_ANY: discord.PartialEmoji = None
     CHAMPION_LOG: discord.PartialEmoji = None
+    CHEEKY: discord.PartialEmoji = None
+    HELP: discord.PartialEmoji = None
 
     @classmethod
     def setup(cls, config):
@@ -38,13 +39,13 @@ class Icons:
         defaults = {
             "CHART": "📊", "ROCKET": "🚀", "SUCCESS": "✅", "TRASH": "🗑️",
             "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
-            "WARNING": "⚠️", "SHUSH": "🤫", "SPOTIFY": "🎵", "GAMER": "🎮",
+            "WARNING": "⚠️", "SPOTIFY": "🎵", "GAMER": "🎮",
             "VARIETY": "🎯", "STREAMER": "📺", "TROPHY": "🏆", "VETERAN": "🎖️",
             "MEDAL_1": "🥇", "MEDAL_2": "🥈", "MEDAL_3": "🥉", "TOOLS": "🛠️",
             "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️",
             "ROLE_ADMIN": "👑", "ROLE_TESTER": "🧪", "ROLE_USER": "👤",
             "CHAN_ADMIN": "🛠️", "CHAN_STATS": "📊", "CHAN_ANY": "🌐", 
-            "CHAMPION_LOG": "🏆"
+            "CHAMPION_LOG": "🏆", "CHEEKY": "🤫", "HELP": "🆘"
         }
 
         # Load from config if available (Config.EMOJIS)

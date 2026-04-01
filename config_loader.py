@@ -72,6 +72,8 @@ class Config:
     RECENT_GAMES_LIMIT = _ui.get("recent_games_limit", 3)
     LANGUAGE = _ui.get("language", "hu")
     GAME_ROLE_PREFIX = _ui.get("game_role_prefix", "Player: ")
+    PRESENCE_ROTATION_MINUTES = _ui.get("presence_rotation_minutes", 5)
+    PRESENCE_ROTATION = _ui.get("presence_rotation", ["stats", "sassy", "help"])
     
     # New UI settings for color and emoji customization
     THEME = _ui.get("theme", {})

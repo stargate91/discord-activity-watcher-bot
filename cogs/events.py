@@ -5,6 +5,7 @@ from core.logger import log
 from config_loader import Config
 from core.messages import Messages
 from core.activity_processor import ActivityProcessor
+from core.ui_icons import Icons
 
 class EventsCog(commands.Cog):
     def __init__(self, bot):
@@ -77,7 +78,6 @@ class EventsCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         # This runs when the bot starts up and is ready to work
-        await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=Messages.PRESENCE_WATCHING))
         await self.bot.load_game_franchises()
         await self.bot.migrate_role_logs()
         

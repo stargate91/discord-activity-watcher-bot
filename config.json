@@ -9,7 +9,6 @@
         "COMMUNITY": "<:COMMUNITY:1488659881207791801>",
         "ERROR": "❌",
         "WARNING": "⚠️",
-        "SHUSH": "🤫",
         "SPOTIFY": "<:SPOTIFY:1488659900149006346>",
         "GAMER": "<:CONTROLLERGAMER:1488659882466087164>",
         "VARIETY": "<:VARIETY:1488659906662895816>",
@@ -29,7 +28,9 @@
         "CHAN_ADMIN": "<:TOOLS:1488659903785468064>",
         "CHAN_STATS": "<:CHAN_STATS:1488680604005564466>",
         "CHAN_ANY": "<:CHAN_ANY:1488680602843746384>",
-        "CHAMPION_LOG": "<:TROPHY:1488659904611745793>"
+        "CHAMPION_LOG": "<:TROPHY:1488659904611745793>",
+        "CHEEKY": "🤫",
+        "HELP": "🆘"
     },
     "champion_roles": {
         "spotivibe_id": {
@@ -127,7 +128,9 @@
         "recent_games_limit": 3,
         "language": "hu",
         "default_stream_name": "Screen",
-        "game_role_prefix": "Player: "
+        "game_role_prefix": "Player: ",
+        "presence_rotation_minutes": 5,
+        "presence_rotation": ["stats", "champions", "games", "sassy", "help"]
     },
     "media": {
         "patterns": [
