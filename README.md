@@ -58,7 +58,7 @@ python bot.py
 - `/me` - View your comprehensive profile card and veteran stats.
 - `/champion_log` - View the weekly Hall of Fame and historical winners.
 - `/server_analysis` - Visual heatmaps and charts of server activity.
-- `/info` / `!info_elf` - General introduction and bot features.
+- `/info_elf` - General introduction and bot features.
 
 ### 🛡️ Management & Dev (Admin/Tester Channels)
 - `/status_report` - Detailed audit of all members' activity and status.
