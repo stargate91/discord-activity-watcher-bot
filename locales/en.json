@@ -148,5 +148,16 @@
     "HELP_ROLE_TESTER": "Tester+",
     "HELP_CHAN_ANY": "Anywhere",
     "HELP_CHAN_ADMIN": "Admin Channel",
-    "HELP_CHAN_STATS": "Public Channel"
+    "HELP_CHAN_STATS": "Public Channel",
+    "REPORT_CHAMPIONS_EMPTY": "No champions recorded on this server yet.",
+    "REPORT_CHAMPIONS_TITLE": "CHAMPION LOG - Hall of Fame",
+    "ERR_PUBLIC_CHANNELS": "This command can be used in either the Admin (<#{admin_id}>) or Public (<#{stats_id}>) channel.",
+    "CMD_CHAMPION_LOG_DESC": "View weekly champion statistics.",
+    "CMD_TEST_WEEKLY_LAYOUT_DESC": "Preview the new weekly champion layout with dummy data.",
+    "CMD_LINK_ALT_DESC": "Link a mini account to a main account.",
+    "CAT_SPOTIFY": "SpotiViber",
+    "CAT_GAMER_TOTAL": "Gamer (Hardcore)",
+    "CAT_GAMER_VARIETY": "Gamer (Variety)",
+    "CAT_STREAMER": "Streamer",
+    "CAT_MEME": "MemeLord"
 }

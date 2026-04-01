@@ -4,9 +4,9 @@ import datetime
 import json
 import os
 from core.logger import log
-from config_loader import Config
 from core.messages import Messages
 from core.views import ModernChampionsView
+from cogs.admin import is_admin_slash, is_tester_slash
 
 class ChampionsCog(commands.Cog):
     def __init__(self, bot):
@@ -164,9 +164,19 @@ class ChampionsCog(commands.Cog):
                 log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
 
 
-    @discord.app_commands.command(name="champion_log", description="Heti bajnoki statisztikák megtekintése.")
+    @discord.app_commands.command(name="champion_log", description=Messages.CMD_CHAMPION_LOG_DESC)
+    @is_tester_slash()
     async def champion_log(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        from config_loader import Config
+        # Channel restriction: Stats or Admin channel only
+        if interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(
+                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID),
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
         
         # Get overall stats from DB
         with self.db._get_connection() as conn:
@@ -177,7 +187,7 @@ class ChampionsCog(commands.Cog):
             rows = cursor.fetchall()
         
         if not rows:
-            await interaction.followup.send("Még nincsenek rögzített bajnokok a szerveren.")
+            await interaction.followup.send(Messages.REPORT_CHAMPIONS_EMPTY, ephemeral=True)
             return
 
         # Group by user
@@ -186,7 +196,8 @@ class ChampionsCog(commands.Cog):
             if uid not in user_wins: user_wins[uid] = {}
             user_wins[uid][cat] = count
         
-        embed = discord.Embed(title="🏆 CHAMPION LOG - Hall of Fame", color=0xFFD700)
+        from core.ui_icons import Icons
+        embed = discord.Embed(title=f"{Icons.CHAMPION_LOG} {Messages.REPORT_CHAMPIONS_TITLE}", color=0xFFD700)
         
         count = 0
         for uid, categories in user_wins.items():
@@ -198,21 +209,21 @@ class ChampionsCog(commands.Cog):
             from core.ui_icons import Icons
             for cat, wins in categories.items():
                 cat_name = {
-                    "spotify": f"{Icons.SPOTIFY} SpotiVibe",
-                    "gamer_total": f"{Icons.GAMER} Gamer (H)",
-                    "gamer_variety": f"{Icons.VARIETY} Gamer (S)",
-                    "streamer": f"{Icons.STREAMER} Streamer",
-                    "media": f"{Icons.MEME} MemeLord"
+                    "spotify": f"{Icons.SPOTIFY} {Messages.CAT_SPOTIFY}",
+                    "gamer_total": f"{Icons.GAMER} {Messages.CAT_GAMER_TOTAL}",
+                    "gamer_variety": f"{Icons.VARIETY} {Messages.CAT_GAMER_VARIETY}",
+                    "streamer": f"{Icons.STREAMER} {Messages.CAT_STREAMER}",
+                    "media": f"{Icons.MEME} {Messages.CAT_MEME}"
                 }.get(cat, cat)
                 summary.append(f"{cat_name}: {wins}x")
             
             embed.add_field(name=name, value=" | ".join(summary), inline=False)
             count += 1
             
-        await interaction.followup.send(embed=embed)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @discord.app_commands.command(name="test_weekly_layout", description="Az új heti bajnoki layout előnézete dummy adatokkal.")
-    @discord.app_commands.checks.has_permissions(administrator=True)
+    @discord.app_commands.command(name="test_weekly_layout", description=Messages.CMD_TEST_WEEKLY_LAYOUT_DESC)
+    @is_admin_slash()
     async def test_weekly_layout(self, interaction: discord.Interaction):
         """A test command to preview the new layout with dummy data."""
         await interaction.response.defer(ephemeral=True)

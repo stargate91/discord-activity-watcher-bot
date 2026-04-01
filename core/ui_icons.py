@@ -30,6 +30,7 @@ class Icons:
     CHAN_ADMIN: discord.PartialEmoji = None
     CHAN_STATS: discord.PartialEmoji = None
     CHAN_ANY: discord.PartialEmoji = None
+    CHAMPION_LOG: discord.PartialEmoji = None
 
     @classmethod
     def setup(cls, config):
@@ -42,7 +43,8 @@ class Icons:
             "MEDAL_1": "🥇", "MEDAL_2": "🥈", "MEDAL_3": "🥉", "TOOLS": "🛠️",
             "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️",
             "ROLE_ADMIN": "👑", "ROLE_TESTER": "🧪", "ROLE_USER": "👤",
-            "CHAN_ADMIN": "🛠️", "CHAN_STATS": "📊", "CHAN_ANY": "🌐"
+            "CHAN_ADMIN": "🛠️", "CHAN_STATS": "📊", "CHAN_ANY": "🌐", 
+            "CHAMPION_LOG": "🏆"
         }
 
         # Load from config if available (Config.EMOJIS)
