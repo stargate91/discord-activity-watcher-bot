@@ -491,7 +491,7 @@ class AdminCog(commands.Cog):
         view = ModernInfoView(ctx.guild)
         await stats_channel.send(view=view)
 
-    @app_commands.command(name="info_elf", description=Messages.CMD_INFO_DESC)
+    @app_commands.command(name="info", description=Messages.CMD_INFO_DESC)
     @is_admin_slash()
     async def info_elf_slash(self, interaction: discord.Interaction):
         # Matches !info specifications
@@ -559,7 +559,7 @@ class AdminCog(commands.Cog):
         
         # Role Requirements
         admin_cmds = ["membership_logs", "game_role_report", "reset_database", "sync", "link_alt", "add_game", "remove_game", "test_weekly_layout"]
-        tester_cmds = ["status_report", "game_details", "list_games", "game_stats_report", "info_dev", "champion_log", "server_analysis", "info_elf"]
+        tester_cmds = ["status_report", "game_details", "list_games", "game_stats_report", "info_dev", "champion_log", "server_analysis", "info"]
         
         icon_role = Icons.ROLE_USER
         label_role = Messages.HELP_ROLE_EVERYONE
@@ -573,7 +573,7 @@ class AdminCog(commands.Cog):
         
         # Channel Requirements
         admin_ch_cmds = admin_cmds + ["status_report", "game_details", "list_games", "game_stats_report", "info_dev"]
-        stats_ch_cmds = ["top", "server_analysis", "champion_log", "info_elf"]
+        stats_ch_cmds = ["top", "server_analysis", "champion_log", "info"]
         any_ch_cmds = ["stream_history", "me"]
         
         icon_chan = Icons.CHAN_ANY
