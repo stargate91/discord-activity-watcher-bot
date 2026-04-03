@@ -403,6 +403,54 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
+    @app_commands.command(name="list_channels", description=Messages.CMD_LIST_CHANNELS_DESC)
+    @is_admin_slash()
+    async def list_channels(self, interaction: discord.Interaction):
+        # Accessible anywhere, but only for Administrators
+        await interaction.response.defer(ephemeral=True)
+
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        title = self.bot.i18n.get("LIST_CHANNELS_TITLE", guild=interaction.guild.name, now=now)
+        
+        # Determine channel types and build the list
+        lines = [title, "-" * 60]
+        
+        # Sort channels by their natural Discord position
+        # Discord sorts by categories first, then channels within categories by their position.
+        # guild.channels is usually pre-sorted this way if we use the default API order.
+        all_channels = sorted(interaction.guild.channels, key=lambda c: (c.category.position if c.category else -1, c.position if not isinstance(c, discord.CategoryChannel) else -1))
+        
+        type_map = {
+            discord.ChannelType.text: "CHAN_TYPE_TEXT",
+            discord.ChannelType.voice: "CHAN_TYPE_VOICE",
+            discord.ChannelType.category: "CHAN_TYPE_CATEGORY",
+            discord.ChannelType.news: "CHAN_TYPE_NEWS",
+            discord.ChannelType.stage_voice: "CHAN_TYPE_STAGE",
+            discord.ChannelType.forum: "CHAN_TYPE_FORUM"
+        }
+
+        for ch in all_channels:
+            type_key = type_map.get(ch.type, "UNKNOWN")
+            type_label = self.bot.i18n.get(type_key, default=str(ch.type).upper())
+            
+            indent = "  " if ch.category else ""
+            if isinstance(ch, discord.CategoryChannel):
+                indent = ""
+                
+            lines.append(f"{indent}[{type_label}] {ch.name} ({ch.id})")
+
+        filename = f"channels_{interaction.guild_id}.txt"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+            
+        await interaction.followup.send(
+            file=discord.File(filename),
+            ephemeral=True
+        )
+        
+        if os.path.exists(filename):
+            os.remove(filename)
+
     @commands.command(name=f"sync{Config.SUFFIX}", help=Messages.CMD_SYNC_DESC)
     @commands.guild_only()
     @is_admin()
