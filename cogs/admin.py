@@ -6,6 +6,7 @@ import os
 import math
 from config_loader import Config
 from core.messages import Messages
+from core.ui_translate import t
 from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 
@@ -410,15 +411,18 @@ class AdminCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        title = self.bot.i18n.get("LIST_CHANNELS_TITLE", guild=interaction.guild.name, now=now)
+        title = t("LIST_CHANNELS_TITLE", guild=interaction.guild.name, now=now)
         
         # Determine channel types and build the list
         lines = [title, "-" * 60]
         
         # Sort channels by their natural Discord position
-        # Discord sorts by categories first, then channels within categories by their position.
-        # guild.channels is usually pre-sorted this way if we use the default API order.
-        all_channels = sorted(interaction.guild.channels, key=lambda c: (c.category.position if c.category else -1, c.position if not isinstance(c, discord.CategoryChannel) else -1))
+        # Rules: Categories first, then channels within categories.
+        all_channels = sorted(interaction.guild.channels, key=lambda c: (
+            c.position if isinstance(c, discord.CategoryChannel) else (c.category.position if c.category else -1),
+            0 if isinstance(c, discord.CategoryChannel) else 1,
+            c.position
+        ))
         
         type_map = {
             discord.ChannelType.text: "CHAN_TYPE_TEXT",
@@ -431,7 +435,9 @@ class AdminCog(commands.Cog):
 
         for ch in all_channels:
             type_key = type_map.get(ch.type, "UNKNOWN")
-            type_label = self.bot.i18n.get(type_key, default=str(ch.type).upper())
+            type_label = t(type_key)
+            if not type_label or type_label == type_key:
+                type_label = str(ch.type).upper()
             
             indent = "  " if ch.category else ""
             if isinstance(ch, discord.CategoryChannel):
