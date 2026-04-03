@@ -176,7 +176,7 @@
     "WEEKLY_STANDINGS_FOOTER": "Ez egy élő előnézet. A végleges osztás hétfő hajnalban történik!",
     "WEEKLY_STANDINGS_YOUR_STAT": "Te itt tartasz: **{value}**",
     "WEEKLY_STANDINGS_KEEP_IT_UP": "Te vagy a főnök jelenleg, de ne dőlj hátra! 😉",
-    "WEEKLY_STANDINGS_GO_FOR_IT": "Már csak **{diff}** kell, hogy letaszítsd az elsőt... Mire vársz? 👂",
+    "WEEKLY_STANDINGS_GO_FOR_IT": "Már csak **{diff}** kell, hogy letaszítsd az elsőt... Mire vársz?",
     "LIST_CHANNELS_GEN": "Csatornalista generálása...",
     "LIST_CHANNELS_TITLE": "--- SZERVER CSATORNÁK: {guild} ---\nGenerálva: {now}\n",
     "CHAN_TYPE_TEXT": "SZÖVEGES",
