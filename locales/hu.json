@@ -177,5 +177,8 @@
     "CHAN_TYPE_CATEGORY": "KATEGÓRIA",
     "CHAN_TYPE_FORUM": "FÓRUM",
     "CHAN_TYPE_STAGE": "STAGE",
-    "CHAN_TYPE_NEWS": "HÍREK"
+    "CHAN_TYPE_NEWS": "HÍREK",
+    "CHAN_PERMS_PUBLIC": "Nyilvános",
+    "CHAN_PERMS_PRIVATE": "Privát",
+    "CHAN_PERMS_ROLES": "Rangok"
 }

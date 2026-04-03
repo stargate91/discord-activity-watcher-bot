@@ -177,5 +177,8 @@
     "CHAN_TYPE_CATEGORY": "CATEGORY",
     "CHAN_TYPE_FORUM": "FORUM",
     "CHAN_TYPE_STAGE": "STAGE",
-    "CHAN_TYPE_NEWS": "NEWS"
+    "CHAN_TYPE_NEWS": "NEWS",
+    "CHAN_PERMS_PUBLIC": "Public",
+    "CHAN_PERMS_PRIVATE": "Private",
+    "CHAN_PERMS_ROLES": "Roles"
 }

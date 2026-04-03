@@ -439,11 +439,30 @@ class AdminCog(commands.Cog):
             if not type_label or type_label == type_key:
                 type_label = str(ch.type).upper()
             
+            # --- Permission Analysis ---
+            # 1. Check if @everyone can see it (Public)
+            # We check the 'view_channel' permission for the default role
+            everyone_perms = ch.permissions_for(interaction.guild.default_role)
+            is_public = everyone_perms.view_channel
+            
+            # 2. Get explicit allowed roles (only if not public or for clarity)
+            allowed_roles = []
+            if not is_public:
+                for target, overwrite in ch.overwrites.items():
+                    if isinstance(target, discord.Role) and target != interaction.guild.default_role:
+                        if overwrite.view_channel is True:
+                            allowed_roles.append(target.name)
+            
+            vis_label = t("CHAN_PERMS_PUBLIC") if is_public else t("CHAN_PERMS_PRIVATE")
+            perm_info = f" | {vis_label}"
+            if allowed_roles:
+                perm_info += f" ({t('CHAN_PERMS_ROLES')}: {', '.join(allowed_roles)})"
+            
             indent = "  " if ch.category else ""
             if isinstance(ch, discord.CategoryChannel):
                 indent = ""
                 
-            lines.append(f"{indent}[{type_label}] {ch.name} ({ch.id})")
+            lines.append(f"{indent}[{type_label}] {ch.name} ({ch.id}){perm_info}")
 
         filename = f"channels_{interaction.guild_id}.txt"
         with open(filename, "w", encoding="utf-8") as f:
