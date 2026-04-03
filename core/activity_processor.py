@@ -89,3 +89,27 @@ class ActivityProcessor:
             
         # Regular voice activity
         return Config.POINTS_VOICE, False, "Voice"
+
+    @staticmethod
+    def get_best_tier(members):
+        """
+        Calculates the highest participation tier from a group of linked accounts.
+        Priority: Streaming > Video On > Voice > Inactive.
+        """
+        best_tier = 0
+        best_streaming = False
+        best_desc = "Inactive"
+
+        for m in members:
+            tier, streaming, desc = ActivityProcessor.get_participation_tier(m)
+            if tier > best_tier:
+                best_tier = tier
+                best_streaming = streaming
+                best_desc = desc
+            elif tier == best_tier and tier > 0:
+                # Tie-breaker: prioritize streaming if multipliers are identical
+                if streaming and not best_streaming:
+                    best_streaming = True
+                    best_desc = desc
+        
+        return best_tier, best_streaming, best_desc
