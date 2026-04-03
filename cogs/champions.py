@@ -262,5 +262,51 @@ class ChampionsCog(commands.Cog):
             traceback.print_exc()
             await interaction.followup.send(f"❌ Error during layout test: {e}", ephemeral=True)
 
+    @discord.app_commands.command(name="weekly_chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
+    async def weekly_chances(self, interaction: discord.Interaction):
+        """Shows current standings and compares them with the user's data."""
+        await interaction.response.defer(ephemeral=True)
+        
+        now = datetime.datetime.now(datetime.timezone.utc)
+        # This Monday 00:00
+        start_date = (now - datetime.timedelta(days=now.weekday())).date()
+        today = now.date()
+        
+        # 1. Guild leader stats
+        stats = self.db.get_weekly_champion_stats(interaction.guild_id, start_date, today)
+        
+        # 2. Caller's stats
+        caller_stats = self.db.get_user_weekly_champion_stats(interaction.user.id, interaction.guild_id, start_date, today)
+        
+        # Map categories to roles/messages
+        categories = {
+            "spotify": (stats.get("spotify"), Messages.CHAMPION_SPOTIFY),
+            "gamer_total": (stats.get("gamer_total"), Messages.CHAMPION_GAMER_TOTAL),
+            "gamer_variety": (stats.get("gamer_variety"), Messages.CHAMPION_GAMER_VARIETY),
+            "streamer": (stats.get("streamer"), Messages.CHAMPION_STREAMER),
+            "media": (stats.get("media"), Messages.CHAMPION_MEMELORD)
+        }
+        
+        champion_data = {}
+        for cat_id, (data, msg_template) in categories.items():
+            if not data: continue
+            uid, val = data
+            champion_data[cat_id] = (uid, val, msg_template)
+            
+        try:
+            view = ModernChampionsView(
+                interaction.guild, 
+                champion_data, 
+                title=Messages.WEEKLY_STANDINGS_TITLE,
+                footer=Messages.WEEKLY_STANDINGS_FOOTER,
+                caller_id=interaction.user.id,
+                caller_stats=caller_stats
+            )
+            
+            await interaction.followup.send(view=view)
+        except Exception as e:
+            log.error(f"Error in heti_eselyek: {e}")
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(ChampionsCog(bot))

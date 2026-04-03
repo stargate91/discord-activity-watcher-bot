@@ -280,21 +280,21 @@ class ModernChampionsView(discord.ui.LayoutView):
     A premium, high-impact view for announcing the Weekly Champions.
     Uses Sections with Thumbnails for each category to create a stunning layout.
     """
-    def __init__(self, guild, champion_data, hof_notices=None):
+    def __init__(self, guild, champion_data, hof_notices=None, title=None, footer=None, caller_id=None, caller_stats=None):
         super().__init__()
         self.guild = guild
         
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_ACCENT))
         
-        # 1. Header: Big announcement title with Server Icon
-        header_text = f"## {Messages.CHAMPIONS_TITLE}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
+        # 1. Header: Dynamic title
+        final_title = title if title else Messages.CHAMPIONS_TITLE
+        header_text = f"## {final_title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
         container.add_item(discord.ui.Section(
             header_text,
             accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
         ))
         
-        # 2. Winners Section with Space
-        # 2. Winners Section with Padding around the whole block
+        # 2. Winners Section
         winners_count = 0
         winners_list = list(champion_data.items())
         
@@ -302,19 +302,33 @@ class ModernChampionsView(discord.ui.LayoutView):
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.Separator(visible=False))
         
-        for i, (cat_id, (user_id, value, msg_template)) in enumerate(winners_list):
-            member = guild.get_member(user_id)
-            # No mentions, use display name
-            name = f"**{member.display_name}**" if member else f"**{user_id}**"
+        for i, (cat_id, (leader_id, value, msg_template)) in enumerate(winners_list):
+            member = guild.get_member(leader_id)
+            name = f"**{member.display_name}**" if member else f"**{leader_id}**"
             
-            # 3. Construct description from template
+            # Winner line
             try:
                 winner_line = f"### {msg_template.format(name=name, value=value)}"
-            except Exception as e:
-                # Fallback if formatting fails
+            except Exception:
                 winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Content without individual separators
+            # Comparison Logic (for /heti_eselyek)
+            if caller_id and caller_stats:
+                caller_val = caller_stats.get(cat_id, 0)
+                if caller_id == leader_id:
+                    # They are leading
+                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_KEEP_IT_UP}"
+                else:
+                    # They are behind
+                    # Format value based on category type
+                    unit = "p" if cat_id in ["spotify", "gamer_total", "streamer"] else "db"
+                    formatted_val = f"{caller_val:.0f}{unit}" if isinstance(caller_val, (int, float)) else f"{caller_val}"
+                    diff = value - caller_val
+                    formatted_diff = f"{diff:.0f}{unit}" if isinstance(diff, (int, float)) else f"{diff}"
+                    
+                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_YOUR_STAT.format(value=formatted_val)}"
+                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_GO_FOR_IT.format(diff=formatted_diff)}"
+
             container.add_item(discord.ui.TextDisplay(winner_line))
             winners_count += 1
             
@@ -322,21 +336,20 @@ class ModernChampionsView(discord.ui.LayoutView):
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
         else:
-            # Bottom spacing after all winners
             container.add_item(discord.ui.Separator(visible=False))
             
-        # 3. Special Awards (Hall of Fame) - Integrated into the view
+        # 3. Special Awards (Hall of Fame)
         if hof_notices:
             container.add_item(discord.ui.Separator())
             for notice in hof_notices:
-                # Add spacing for HOF items too
                 container.add_item(discord.ui.Separator(visible=False))
                 container.add_item(discord.ui.TextDisplay(notice))
                 container.add_item(discord.ui.Separator(visible=False))
         
-        # 4. Footer
+        # 4. Footer: Dynamic footer
+        final_footer = footer if footer else Messages.CHAMPIONS_FOOTER
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(f"\n*{Messages.CHAMPIONS_FOOTER}*\n"))
+        container.add_item(discord.ui.TextDisplay(f"\n*{final_footer}*\n"))
         
         self.add_item(container)
 
