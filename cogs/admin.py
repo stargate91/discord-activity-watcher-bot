@@ -136,17 +136,7 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="All-time", value="alltime")
     ])
     async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
-        # Accessible for everyone in Stats and Admin channel
-        allowed_channels = [Config.ADMIN_CHANNEL_ID, Config.STATS_CHANNEL_ID]
-        if 0 in allowed_channels: allowed_channels = [c for c in allowed_channels if c != 0]
-        
-        if interaction.channel_id not in allowed_channels:
-            await interaction.response.send_message(
-                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID), 
-                ephemeral=True
-            )
-            return
-
+        # Enhancement: Usable everywhere, but response is always ephemeral
         await interaction.response.defer(ephemeral=True)
         
         days = int(timeframe) if timeframe != "alltime" else None
@@ -565,21 +555,25 @@ class AdminCog(commands.Cog):
         await stats_channel.send(view=view)
 
     @app_commands.command(name="info", description=Messages.CMD_INFO_DESC)
+    @app_commands.describe(public=Messages.CMD_INFO_PUBLIC_DESC)
     @is_tester_slash()
-    async def info_elf_slash(self, interaction: discord.Interaction):
+    async def info_elf_slash(self, interaction: discord.Interaction, public: bool = False):
         # Matches !info specifications
-        # Matches !info specifications - Allowed in Stats or Admin channel
-        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(
-                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID), 
-                ephemeral=True
-            )
-            return
+        # Enhancement: Default ephemeral, optional public for admins, usable everywhere
         
-        await interaction.response.defer(ephemeral=False) # Info can be public once triggered in correct channel
+        if public:
+            # Check if user is admin
+            is_admin = interaction.user.guild_permissions.administrator
+            if not is_admin and Config.ADMIN_ROLE_ID != 0:
+                is_admin = discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
+            
+            if not is_admin:
+                public = False
+
+        await interaction.response.defer(ephemeral=not public)
 
         view = ModernInfoView(interaction.guild)
-        await interaction.followup.send(view=view)
+        await interaction.followup.send(view=view, ephemeral=not public)
 
     @commands.command(name=f"info_dev{Config.SUFFIX}", help=Messages.CMD_INFO_DEV_DESC)
     @is_tester()
