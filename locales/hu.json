@@ -168,5 +168,14 @@
     "CAT_GAMER_TOTAL": "Gamer (Hardcore)",
     "CAT_GAMER_VARIETY": "Gamer (Sokszínű)",
     "CAT_STREAMER": "Streamer",
-    "CAT_MEME": "MemeLord"
+    "CAT_MEME": "MemeLord",
+    "CMD_LIST_CHANNELS_DESC": "Szerver csatornáinak és típusainak exportálása TXT fájlba.",
+    "LIST_CHANNELS_GEN": "Csatornalista generálása...",
+    "LIST_CHANNELS_TITLE": "--- SZERVER CSATORNÁK: {guild} ---\nGenerálva: {now}\n",
+    "CHAN_TYPE_TEXT": "SZÖVEGES",
+    "CHAN_TYPE_VOICE": "HANG",
+    "CHAN_TYPE_CATEGORY": "KATEGÓRIA",
+    "CHAN_TYPE_FORUM": "FÓRUM",
+    "CHAN_TYPE_STAGE": "STAGE",
+    "CHAN_TYPE_NEWS": "HÍREK"
 }
