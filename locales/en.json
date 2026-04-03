@@ -176,7 +176,7 @@
     "WEEKLY_STANDINGS_FOOTER": "This is a live preview. The final distribution happens on Monday dawn!",
     "WEEKLY_STANDINGS_YOUR_STAT": "You're currently at: **{value}**",
     "WEEKLY_STANDINGS_KEEP_IT_UP": "You're the boss for now, but don't get too comfortable! 😉",
-    "WEEKLY_STANDINGS_GO_FOR_IT": "Only **{diff}** more to kick them off the throne... What are you waiting for? 👂",
+    "WEEKLY_STANDINGS_GO_FOR_IT": "Only **{diff}** more to kick them off the throne... What are you waiting for?",
     "LIST_CHANNELS_GEN": "Generating channel list...",
     "LIST_CHANNELS_TITLE": "--- SERVER CHANNELS: {guild} ---\nGenerated: {now}\n",
     "CHAN_TYPE_TEXT": "TEXT",
