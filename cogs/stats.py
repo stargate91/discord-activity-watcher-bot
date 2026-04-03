@@ -86,6 +86,24 @@ class StatsCog(commands.Cog):
         chart_file = None
         chart_url = None
         daily_activity = self.db.get_user_daily_activity(main_id, interaction.guild_id, days=7)
+        
+        # Inject live unsaved voice activity into today's graph entry
+        if daily_activity and main_id in self.bot.voice_start_times:
+            # Find the entry for today (the last one in the sorted list)
+            today_idx = -1
+            d_str, d_points, d_voice = daily_activity[today_idx]
+            
+            # Calculate live session stats
+            start = self.bot.voice_start_times[main_id]
+            multiplier, is_streaming, _ = self.bot.voice_multipliers.get(main_id, (Config.POINTS_VOICE, False, None))
+            
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            live_mins = (now_utc - start).total_seconds() / 60
+            live_points = live_mins * multiplier
+            
+            # Update the last entry (today) with live data
+            daily_activity[today_idx] = (d_str, d_points + live_points, d_voice + live_mins)
+
         if daily_activity:
             os.makedirs("temp", exist_ok=True)
             path = f"temp/profile_{main_id}.png"
