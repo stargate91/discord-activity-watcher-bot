@@ -475,7 +475,7 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(f"Synced {len(synced)} commands to this guild.")
 
     @commands.command(name=f"info{Config.SUFFIX}", help=Messages.CMD_INFO_DESC)
-    @is_admin()
+    @is_tester()
     async def info_elf_prefix(self, ctx: commands.Context):
         # Dual-channel check: Stats or Admin channel
         if Config.STATS_CHANNEL_ID != 0 and ctx.channel.id != Config.STATS_CHANNEL_ID and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
@@ -492,7 +492,7 @@ class AdminCog(commands.Cog):
         await stats_channel.send(view=view)
 
     @app_commands.command(name="info", description=Messages.CMD_INFO_DESC)
-    @is_admin_slash()
+    @is_tester_slash()
     async def info_elf_slash(self, interaction: discord.Interaction):
         # Matches !info specifications
         # Matches !info specifications - Allowed in Stats or Admin channel
