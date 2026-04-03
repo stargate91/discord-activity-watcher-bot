@@ -460,13 +460,13 @@ class DBManager:
                     FROM daily_stats WHERE guild_id = ? AND date >= ? 
                     GROUP BY user_id ORDER BY SUM(points) DESC{limit_clause}
                 """
-                cursor = conn.execute(query, (guild_id, cutoff_date))
+                cursor = conn.execute(query, (int(guild_id), cutoff_date))
             else:
                 query = f"""
                     SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes, media_count
                     FROM user_activity WHERE guild_id = ? ORDER BY points_total DESC{limit_clause}
                 """
-                cursor = conn.execute(query, (guild_id,))
+                cursor = conn.execute(query, (int(guild_id),))
             
             rows = cursor.fetchall()
             # Note: We now return 7 values per user to include streaming and media
@@ -484,7 +484,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
                 FROM user_activity WHERE user_id = ? AND guild_id = ?
-            """, (user_id, guild_id))
+            """, (int(user_id), int(guild_id)))
             row = cursor.fetchone()
             if row:
                 last_active = datetime.datetime.fromisoformat(row[0])
@@ -511,7 +511,7 @@ class DBManager:
                 FROM daily_stats 
                 WHERE user_id = ? AND guild_id = ? AND date >= ?
                 GROUP BY date ORDER BY date ASC
-            """, (user_id, guild_id, cutoff_date.isoformat()))
+            """, (int(user_id), int(guild_id), cutoff_date.isoformat()))
             
             rows = cursor.fetchall()
             
@@ -537,7 +537,7 @@ class DBManager:
                 FROM daily_stats 
                 WHERE user_id = ? AND guild_id = ? AND date >= ?
                 GROUP BY date ORDER BY date ASC
-            """, (user_id, guild_id, cutoff_date.isoformat()))
+            """, (int(user_id), int(guild_id), cutoff_date.isoformat()))
             
             rows = cursor.fetchall()
             
@@ -559,7 +559,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
                 FROM user_activity WHERE guild_id = ?
-            """, (guild_id,))
+            """, (int(guild_id),))
             rows = cursor.fetchall()
             data = {}
             for row in rows:
@@ -586,7 +586,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT user_id, last_active, returned_at FROM user_activity 
                 WHERE guild_id = ? AND (last_active < ? OR returned_at IS NOT NULL)
-            """, (guild_id, cutoff_str))
+            """, (int(guild_id), cutoff_str))
             
             rows = cursor.fetchall()
             return {row[0]: {
@@ -603,7 +603,7 @@ class DBManager:
                 cursor = conn.execute("""
                     SELECT SUM(points) FROM daily_stats 
                     WHERE user_id = ? AND guild_id = ? AND date >= ?
-                """, (user_id, guild_id, cutoff_date))
+                """, (int(user_id), int(guild_id), cutoff_date))
                 user_points = cursor.fetchone()[0] or 0
                 
                 # 2. Count users with more points
@@ -613,16 +613,16 @@ class DBManager:
                         WHERE guild_id = ? AND date >= ? 
                         GROUP BY user_id HAVING total_pts > ?
                     )
-                """, (guild_id, cutoff_date, user_points))
+                """, (int(guild_id), cutoff_date, user_points))
                 return cursor.fetchone()[0]
             else:
                 # 1. Get user's total points
-                cursor = conn.execute("SELECT points_total FROM user_activity WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+                cursor = conn.execute("SELECT points_total FROM user_activity WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
                 row = cursor.fetchone()
                 user_points = row[0] if row else 0
                 
                 # 2. Count users with more points
-                cursor = conn.execute("SELECT COUNT(*) + 1 FROM user_activity WHERE guild_id = ? AND points_total > ?", (guild_id, user_points))
+                cursor = conn.execute("SELECT COUNT(*) + 1 FROM user_activity WHERE guild_id = ? AND points_total > ?", (int(guild_id), user_points))
                 return cursor.fetchone()[0]
 
     def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
@@ -644,7 +644,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT user_id, role_name, action, timestamp FROM role_history 
                 WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?
-            """, (guild_id, limit))
+            """, (int(guild_id), limit))
             return cursor.fetchall()
 
     def update_game_activity(self, user_id, guild_id, game_name, bot_assigned=False):
@@ -675,9 +675,9 @@ class DBManager:
             
             if timeframe == "monthly":
                 cutoff = (datetime.datetime.now(datetime.timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)).isoformat()
-                cursor = conn.execute(query.format(time_filter="AND last_played >= ?"), (guild_id, cutoff))
+                cursor = conn.execute(query.format(time_filter="AND last_played >= ?"), (int(guild_id), cutoff))
             else:
-                cursor = conn.execute(query.format(time_filter=""), (guild_id,))
+                cursor = conn.execute(query.format(time_filter=""), (int(guild_id),))
             
             return cursor.fetchall()
 
@@ -687,12 +687,12 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT user_id, role_name FROM game_activity 
                 WHERE guild_id = ? AND last_played < ? AND bot_assigned = 1
-            """, (guild_id, cutoff))
+            """, (int(guild_id), cutoff))
             return cursor.fetchall()
 
     def remove_game_activity(self, user_id, guild_id, role_name):
         with self._get_connection() as conn:
-            conn.execute("DELETE FROM game_activity WHERE user_id = ? AND guild_id = ? AND role_name = ?", (user_id, guild_id, role_name))
+            conn.execute("DELETE FROM game_activity WHERE user_id = ? AND guild_id = ? AND role_name = ?", (int(user_id), int(guild_id), role_name))
             conn.commit()
 
     def get_user_recent_games(self, user_id, guild_id, limit=3):
@@ -701,7 +701,7 @@ class DBManager:
                 SELECT role_name FROM game_activity 
                 WHERE user_id = ? AND guild_id = ? 
                 ORDER BY last_played DESC LIMIT ?
-            """, (user_id, guild_id, limit))
+            """, (int(user_id), int(guild_id), limit))
             return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
 
     def get_user_top_games(self, user_id, guild_id, limit=3):
@@ -710,7 +710,7 @@ class DBManager:
                 SELECT role_name, total_minutes FROM game_activity 
                 WHERE user_id = ? AND guild_id = ? 
                 ORDER BY total_minutes DESC LIMIT ?
-            """, (user_id, guild_id, limit))
+            """, (int(user_id), int(guild_id), limit))
             return cursor.fetchall()
 
     # --- ADVANCED TRACKING ---
@@ -786,7 +786,7 @@ class DBManager:
                 GROUP BY partner_id
                 ORDER BY total_overlap DESC
                 LIMIT 5
-            """, (user_id, guild_id, cutoff_date, user_id, guild_id, cutoff_date))
+            """, (int(user_id), int(guild_id), cutoff_date, int(user_id), int(guild_id), cutoff_date))
             return cursor.fetchall()
 
     def get_user_social_stats(self, user_id, guild_id, days=30):
@@ -797,21 +797,21 @@ class DBManager:
                 SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions
                 WHERE user_id = ? AND guild_id = ? AND start_time >= ?
                 GROUP BY channel_id ORDER BY total DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
+            """, (int(user_id), int(guild_id), cutoff))
             row = cursor.fetchone(); stats["top_channel"] = row[0] if row else None
             
             cursor = conn.execute("""
                 SELECT emoji, COUNT(*) as count FROM reaction_history
                 WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
                 GROUP BY emoji ORDER BY count DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
+            """, (int(user_id), int(guild_id), cutoff))
             row = cursor.fetchone(); stats["top_emoji"] = row[0] if row else None
             
             cursor = conn.execute("""
                 SELECT target_user_id, COUNT(*) as count FROM reaction_history
                 WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
                 GROUP BY target_user_id ORDER BY count DESC LIMIT 1
-            """, (user_id, guild_id, cutoff))
+            """, (int(user_id), int(guild_id), cutoff))
             row = cursor.fetchone(); stats["top_target"] = row[0] if row else None
         return stats
 
@@ -849,10 +849,10 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT joined_at, multiplier, is_streaming, stream_name 
                 FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?
-            """, (user_id, guild_id))
+            """, (int(user_id), int(guild_id)))
             row = cursor.fetchone()
             if row:
-                conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+                conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
                 conn.commit()
                 joined_at = datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
                 return {
@@ -866,7 +866,7 @@ class DBManager:
     def get_active_voice_sessions(self, guild_id=None):
         with self._get_connection() as conn:
             if guild_id:
-                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions WHERE guild_id = ?", (guild_id,))
+                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions WHERE guild_id = ?", (int(guild_id),))
             else:
                 cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions")
             
@@ -891,10 +891,10 @@ class DBManager:
 
     def end_game_session(self, user_id, guild_id, game_name):
         with self._get_connection() as conn:
-            cursor = conn.execute("SELECT started_at FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (user_id, guild_id, game_name))
+            cursor = conn.execute("SELECT started_at FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (int(user_id), int(guild_id), game_name))
             row = cursor.fetchone()
             if row:
-                conn.execute("DELETE FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (user_id, guild_id, game_name))
+                conn.execute("DELETE FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (int(user_id), int(guild_id), game_name))
                 conn.commit()
                 return datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
             return None
@@ -911,21 +911,18 @@ class DBManager:
             conn.execute("""
                 UPDATE game_activity SET total_minutes = total_minutes + ? 
                 WHERE user_id = ? AND guild_id = ? AND role_name = ?
-            """, (minutes, user_id, guild_id, game_name))
+            """, (minutes, int(user_id), int(guild_id), game_name))
             
             # 2. Daily Summary
             conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, game_minutes) VALUES (?, ?, 0, ?, ?)
-                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
                     game_minutes = game_minutes + ?
-            """, (user_id, guild_id, today, minutes, minutes))
+            """, (int(user_id), int(guild_id), today, minutes, minutes))
             
             # 3. Daily Per-Game (for Variety)
             conn.execute("""
-                INSERT INTO daily_game_stats (user_id, guild_id, game_name, date, minutes) VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(user_id, guild_id, game_name, date) DO UPDATE SET 
                     minutes = minutes + ?
-            """, (user_id, guild_id, game_name, today, minutes, minutes))
+            """, (int(user_id), int(guild_id), game_name, today, minutes, minutes))
             
             conn.commit()
 
@@ -994,7 +991,7 @@ class DBManager:
                 SELECT category, COUNT(*) FROM champion_history 
                 WHERE user_id = ? AND guild_id = ?
                 GROUP BY category
-            """, (user_id, guild_id))
+            """, (int(user_id), int(guild_id)))
             return dict(cursor.fetchall())
 
     def get_last_champions(self, guild_id):
@@ -1003,7 +1000,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT category, user_id FROM champion_history 
                 WHERE guild_id = ? AND win_date = (SELECT MAX(win_date) FROM champion_history WHERE guild_id = ?)
-            """, (guild_id, guild_id))
+            """, (int(guild_id), int(guild_id)))
             return dict(cursor.fetchall())
 
     def reset_database(self):
@@ -1029,12 +1026,12 @@ class DBManager:
         with self._get_connection() as conn:
             conn.execute("""
                 UPDATE user_activity SET joined_at = ? WHERE user_id = ? AND guild_id = ?
-            """, (ts_str, user_id, guild_id))
+            """, (ts_str, int(user_id), int(guild_id)))
             conn.commit()
 
     def get_user_join_date(self, user_id, guild_id):
         with self._get_connection() as conn:
-            cursor = conn.execute("SELECT joined_at FROM user_activity WHERE user_id = ? AND guild_id = ?", (user_id, guild_id))
+            cursor = conn.execute("SELECT joined_at FROM user_activity WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
             row = cursor.fetchone()
             return datetime.datetime.fromisoformat(row[0]) if row and row[0] else None
 
@@ -1043,7 +1040,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT user_id, action, timestamp FROM membership_history 
                 WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?
-            """, (guild_id, limit))
+            """, (int(guild_id), limit))
             return cursor.fetchall()
 
     # --- VISUAL ANALYSIS QUERIES ---
@@ -1129,7 +1126,7 @@ class DBManager:
             alt_name = f"Player: {game_name}" if not game_name.startswith("Player: ") else game_name
             raw_name = game_name.replace("Player: ", "")
             
-            return conn.execute(query, (guild_id, raw_name, alt_name)).fetchall()
+            return conn.execute(query, (int(guild_id), raw_name, alt_name)).fetchall()
 
     def get_all_unique_games(self, guild_id):
         with self._get_connection() as conn:
@@ -1143,7 +1140,7 @@ class DBManager:
 
     def get_channel_activity_raw(self, guild_id, days=None):
         query = "SELECT channel_id, SUM(messages) as total FROM daily_stats WHERE guild_id = ? AND channel_id != 0"
-        params = [guild_id]
+        params = [int(guild_id)]
         if days:
             cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
             query += " AND date >= ?"
@@ -1151,6 +1148,7 @@ class DBManager:
         query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
         with self._get_connection() as conn:
             return conn.execute(query, params).fetchall()
+
     def get_stream_history(self, guild_id, days=7):
         # Get a list of recent voice sessions that included streaming
         cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
@@ -1160,7 +1158,7 @@ class DBManager:
                 FROM voice_sessions 
                 WHERE guild_id = ? AND stream_detail IS NOT NULL AND start_time >= ?
                 ORDER BY start_time DESC
-            """, (guild_id, cutoff))
+            """, (int(guild_id), cutoff))
             return cursor.fetchall()
 
     def get_user_average_voice_duration(self, user_id, guild_id):
@@ -1168,7 +1166,7 @@ class DBManager:
             cursor = conn.execute("""
                 SELECT AVG(duration_minutes) FROM voice_sessions 
                 WHERE user_id = ? AND guild_id = ?
-            """, (user_id, guild_id))
+            """, (int(user_id), int(guild_id)))
             row = cursor.fetchone()
             return row[0] if row and row[0] is not None else 0
 
