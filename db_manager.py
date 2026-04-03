@@ -977,6 +977,47 @@ class DBManager:
                 "media": media_top
             }
 
+    def get_user_weekly_champion_stats(self, user_id, guild_id, start_date, end_date):
+        # Fetches performance for a specific user in each category
+        with self._get_connection() as conn:
+            # 1. Spotify
+            spotify = conn.execute("""
+                SELECT SUM(spotify_minutes) FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
+            """, (user_id, guild_id, start_date, end_date)).fetchone()
+            
+            # 2. Hardcore Gamer
+            game = conn.execute("""
+                SELECT SUM(game_minutes) FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
+            """, (user_id, guild_id, start_date, end_date)).fetchone()
+
+            # 3. Variety Gamer
+            variety = conn.execute(f"""
+                SELECT COUNT(DISTINCT game_name) FROM daily_game_stats
+                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ? AND minutes >= {Config.VARIETY_MIN_MINUTES}
+            """, (user_id, guild_id, start_date, end_date)).fetchone()
+            
+            # 4. Streamer
+            stream = conn.execute("""
+                SELECT SUM(stream_minutes) FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
+            """, (user_id, guild_id, start_date, end_date)).fetchone()
+            
+            # 5. Media
+            media = conn.execute("""
+                SELECT SUM(media_count) FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
+            """, (user_id, guild_id, start_date, end_date)).fetchone()
+            
+            return {
+                "spotify": spotify[0] if spotify and spotify[0] is not None else 0,
+                "gamer_total": game[0] if game and game[0] is not None else 0,
+                "gamer_variety": variety[0] if variety and variety[0] is not None else 0,
+                "streamer": stream[0] if stream and stream[0] is not None else 0,
+                "media": media[0] if media and media[0] is not None else 0
+            }
+
     def log_champion_win(self, user_id, guild_id, category, win_date):
         with self._get_connection() as conn:
             conn.execute("""
