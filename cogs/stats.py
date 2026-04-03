@@ -31,14 +31,7 @@ class StatsCog(commands.Cog):
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # This command shows the Top 10 leaderboard (highest scores) for the server
-        # Restricted to Stats channel
-        if Config.STATS_CHANNEL_ID != 0 and interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(
-                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID), 
-                ephemeral=True
-            )
-            return
-
+        # Enhancement: Usable everywhere, but response is always ephemeral
         await interaction.response.defer(ephemeral=True)
 
         try:
