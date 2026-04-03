@@ -118,17 +118,24 @@ class EventsCog(commands.Cog):
                         # Continue existing session from DB
                         sess = db_sessions[main_id]
                         self.bot.voice_start_times[main_id] = sess["joined_at"]
-                        self.bot.voice_multipliers[main_id] = (sess["multiplier"], sess["is_streaming"], sess["stream_name"])
+                        
+                        # Use AGGREGATE state of all linked accounts
+                        linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+                        tier, is_streaming, stream_name = ActivityProcessor.get_best_tier(linked_accounts)
+                        self.bot.voice_multipliers[main_id] = (tier, is_streaming, stream_name)
                     else:
                         # New session
                         now = datetime.datetime.now(datetime.timezone.utc)
-                        tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(m)
+                        linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+                        tier, is_streaming, stream_name = ActivityProcessor.get_best_tier(linked_accounts)
                         
                         if tier > 0:
                             self.bot.voice_start_times[main_id] = now
                             self.bot.voice_multipliers[main_id] = (tier, is_streaming, stream_name)
-                            # Now with full metadata
-                            self.db.start_voice_session(main_id, guild.id, m.voice.channel.id, now, tier, is_streaming, stream_name)
+                            # Use any valid channel from linked accounts (or current member's)
+                            chan_id = m.voice.channel.id
+                            active_channel = next((acc.voice.channel for acc in linked_accounts if acc.voice and acc.voice.channel and acc.voice.channel.id != Config.AFK_CHANNEL_ID), m.voice.channel)
+                            self.db.start_voice_session(main_id, guild.id, active_channel.id, now, tier, is_streaming, stream_name)
                 
                 # Case B: In DB session but NOT in voice now
                 elif main_id in db_sessions:
@@ -215,14 +222,17 @@ class EventsCog(commands.Cog):
         main_id = Config.get_main_id(member.id)
         now = datetime.datetime.now(datetime.timezone.utc)
         
-        # Determine current and previous states
-        new_tier, is_streaming, stream_name = ActivityProcessor.get_participation_tier(member)
-        old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, None))
+        # Aggregate all linked accounts to find the best tier (Streaming > Video > Voice)
+        linked_accounts = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+        new_tier, is_streaming, stream_name = ActivityProcessor.get_best_tier(linked_accounts)
+        
+        old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, "Inactive"))
         old_tier, old_streaming, old_name = old_data
         is_tracking = main_id in self.bot.voice_start_times
         
-        # Step 1: Detect State Change (Channel move, Mute/Deaf toggle, or Stream toggle/app change)
+        # Detect State Change (Best tier changed or best stream name changed)
         state_changed = (new_tier != old_tier) or (stream_name != old_name)
+        # Note: channel_changed is still relevant if the *specific account* that triggered the event changed channels
         channel_changed = (before.channel != after.channel)
         
         if is_tracking and (state_changed or channel_changed):
@@ -249,13 +259,17 @@ class EventsCog(commands.Cog):
                 # Start new segment with new tier
                 self.bot.voice_start_times[main_id] = now
                 self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
-                chan_id = after.channel.id if after.channel else 0
+                # Pick a representative channel from any active linked account
+                active_channel = next((acc.voice.channel for acc in linked_accounts if acc.voice and acc.voice.channel and acc.voice.channel.id != Config.AFK_CHANNEL_ID), after.channel)
+                chan_id = active_channel.id if active_channel else 0
+                
                 # Record to DB with new multiplier/streaming state
                 self.db.start_voice_session(main_id, member.guild.id, chan_id, now, new_tier, is_streaming, stream_name)
 
         # Step 2: Handle NEW sessions (was not tracking, now active)
         elif not is_tracking and new_tier > 0:
-            self.db.start_voice_session(main_id, member.guild.id, after.channel.id, now, new_tier, is_streaming, stream_name)
+            active_channel = next((acc.voice.channel for acc in linked_accounts if acc.voice and acc.voice.channel and acc.voice.channel.id != Config.AFK_CHANNEL_ID), after.channel)
+            self.db.start_voice_session(main_id, member.guild.id, active_channel.id, now, new_tier, is_streaming, stream_name)
             self.bot.voice_start_times[main_id] = now
             self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
             await self.handle_member_activity(member)
