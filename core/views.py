@@ -286,9 +286,13 @@ class ModernChampionsView(discord.ui.LayoutView):
         
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_ACCENT))
         
-        # 1. Header: Dynamic title
-        final_title = title if title else Messages.CHAMPIONS_TITLE
-        header_text = f"## {final_title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
+        # 1. Header: Dynamic title from Messages (localized)
+        if not title:
+            title = Messages.CHAMPIONS_TITLE
+        if not footer:
+            footer = Messages.CHAMPIONS_FOOTER
+
+        header_text = f"## {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
         container.add_item(discord.ui.Section(
             header_text,
             accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
@@ -346,10 +350,9 @@ class ModernChampionsView(discord.ui.LayoutView):
                 container.add_item(discord.ui.TextDisplay(notice))
                 container.add_item(discord.ui.Separator(visible=False))
         
-        # 4. Footer: Dynamic footer
-        final_footer = footer if footer else Messages.CHAMPIONS_FOOTER
+        # 4. Footer: Already handled in init
         container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(f"\n*{final_footer}*\n"))
+        container.add_item(discord.ui.TextDisplay(f"\n*{footer}*\n"))
         
         self.add_item(container)
 

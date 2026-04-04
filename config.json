@@ -33,29 +33,30 @@
         "HELP": "🆘"
     },
     "champion_roles": {
-        "spotivibe_id": {
+        "spotify": {
+            "role_id": 0,
             "name": "SpotiViber",
             "color": "0x1DB954"
         },
-        "godgamer_total_id": {
-            "name": "GodGamer (Hardcore)",
+        "godgamer": {
+            "role_id": 0,
+            "name": "GodGamer",
             "color": "0xFFD700"
         },
-        "godgamer_variety_id": {
-            "name": "GodGamer (Sokszínű)",
-            "color": "0xFFD700"
-        },
-        "sharing_id": {
+        "streamer": {
+            "role_id": 0,
             "name": "Sharing is Caring",
             "color": "0x9146FF"
         },
-        "hall_of_famer_id": {
-            "name": "Hall of Famer",
-            "color": "0xB9F2FF"
-        },
-        "memelord_id": {
+        "media": {
+            "role_id": 0,
             "name": "MemeLord",
             "color": "0x9B59B6"
+        },
+        "hall_of_fame": {
+            "role_id": 0,
+            "name": "Hall of Famer",
+            "color": "0xB9F2FF"
         }
     },
     "roles": {
@@ -69,8 +70,7 @@
             1350866433252261979,
             1283594037802176546,
             1202557635266613288
-        ],
-        "memelord_id": 0
+        ]
     },
     "channels": {
         "guild_id": 1083433370815582240,
