@@ -24,6 +24,7 @@ class DBManager:
                     message_count INTEGER DEFAULT 0,
                     reaction_count INTEGER DEFAULT 0,
                     voice_minutes REAL DEFAULT 0,
+                    qualified_voice_minutes REAL DEFAULT 0,
                     points_total REAL DEFAULT 0,
                     stream_minutes REAL DEFAULT 0,
                     joined_at TIMESTAMP,
@@ -168,7 +169,8 @@ class DBManager:
             
             # Migrations for user_activity
             for col, ctype in [("returned_at", "TIMESTAMP DEFAULT NULL"), ("message_count", "INTEGER DEFAULT 0"), 
-                               ("reaction_count", "INTEGER DEFAULT 0"), ("voice_minutes", "REAL DEFAULT 0")]:
+                               ("reaction_count", "INTEGER DEFAULT 0"), ("voice_minutes", "REAL DEFAULT 0"),
+                               ("qualified_voice_minutes", "REAL DEFAULT 0")]:
                 try: conn.execute(f"ALTER TABLE user_activity ADD COLUMN {col} {ctype}")
                 except sqlite3.OperationalError: pass
             
@@ -422,23 +424,25 @@ class DBManager:
             """, (user_id, guild_id, today, minutes, minutes))
             conn.commit()
 
-    def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False):
+    def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False, is_qualified=False):
         # Add the minutes someone spent in voice to their stats
         today = datetime.date.today()
         # Use provided multiplier or fall back to config
         rate = multiplier if multiplier is not None else Config.POINTS_VOICE
         points = minutes * rate
         stream_inc = minutes if is_streaming else 0
+        qualified_inc = minutes if is_qualified else 0
         
         with self._get_connection() as conn:
             # Total
             conn.execute("""
                 UPDATE user_activity SET 
                     voice_minutes = voice_minutes + ?,
+                    qualified_voice_minutes = qualified_voice_minutes + ?,
                     points_total = points_total + ?,
                     stream_minutes = stream_minutes + ?
                 WHERE user_id = ? AND guild_id = ?
-            """, (minutes, points, stream_inc, user_id, guild_id))
+            """, (minutes, qualified_inc, points, stream_inc, user_id, guild_id))
             # Daily
             conn.execute("""
                 INSERT INTO daily_stats (user_id, guild_id, channel_id, date, voice_minutes, points, stream_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -482,7 +486,7 @@ class DBManager:
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
+                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes, qualified_voice_minutes
                 FROM user_activity WHERE user_id = ? AND guild_id = ?
             """, (int(user_id), int(guild_id)))
             row = cursor.fetchone()
@@ -499,6 +503,7 @@ class DBManager:
                     "spotify_minutes": row[6],
                     "points_total": row[7],
                     "stream_minutes": row[8],
+                    "qualified_voice_minutes": row[9]
                 }
             return None
 

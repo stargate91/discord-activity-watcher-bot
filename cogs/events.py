@@ -81,6 +81,10 @@ class EventsCog(commands.Cog):
         await self.bot.load_game_franchises()
         await self.bot.migrate_role_logs()
         
+        # Initialize qualified voice states
+        if not hasattr(self.bot, 'voice_qualified_states'):
+            self.bot.voice_qualified_states = {}
+        
         log.info(f"Cog Events: Bot ready as {self.bot.user}")
         
         # 1. Load active voice sessions from the database
@@ -132,6 +136,11 @@ class EventsCog(commands.Cog):
                         if tier > 0:
                             self.bot.voice_start_times[main_id] = now
                             self.bot.voice_multipliers[main_id] = (tier, is_streaming, stream_name)
+                            
+                            # Initial qualify check
+                            is_qual = ActivityProcessor.is_qualified(m)
+                            self.bot.voice_qualified_states[main_id] = is_qual
+                            
                             # Use any valid channel from linked accounts (or current member's)
                             chan_id = m.voice.channel.id
                             active_channel = next((acc.voice.channel for acc in linked_accounts if acc.voice and acc.voice.channel and acc.voice.channel.id != Config.AFK_CHANNEL_ID), m.voice.channel)
@@ -154,12 +163,13 @@ class EventsCog(commands.Cog):
                             start = sess_data["joined_at"]
                             mult = sess_data["multiplier"]
                             strm = sess_data["is_streaming"]
+                            is_qual = self.bot.voice_qualified_states.pop(main_id, False)
                             
                             now = datetime.datetime.now(datetime.timezone.utc)
                             mins = (now - start).total_seconds() / 60
                             if mins > 0:
-                                self.db.add_voice_minutes(main_id, guild.id, 0, mins, multiplier=mult, is_streaming=strm)
-                                log.info(f"Closed stale voice session for main user {main_id} ({int(mins)} mins credited at x{mult})")
+                                self.db.add_voice_minutes(main_id, guild.id, 0, mins, multiplier=mult, is_streaming=strm, is_qualified=is_qual)
+                                log.info(f"Closed stale voice session for main user {main_id} ({int(mins)} mins credited at x{mult}, qualified={is_qual})")
                         self.bot.voice_multipliers.pop(main_id, None)
 
     @commands.Cog.listener()
@@ -228,10 +238,14 @@ class EventsCog(commands.Cog):
         
         old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, "Inactive"))
         old_tier, old_streaming, old_name = old_data
+        old_qual = self.bot.voice_qualified_states.get(main_id, False)
         is_tracking = main_id in self.bot.voice_start_times
         
-        # Detect State Change (Best tier changed or best stream name changed)
-        state_changed = (new_tier != old_tier) or (stream_name != old_name)
+        # New qualification check
+        new_qual = ActivityProcessor.is_qualified(member)
+        
+        # Detect State Change (Best tier, stream name, OR qualification state changed)
+        state_changed = (new_tier != old_tier) or (stream_name != old_name) or (new_qual != old_qual)
         # Note: channel_changed is still relevant if the *specific account* that triggered the event changed channels
         channel_changed = (before.channel != after.channel)
         
@@ -246,19 +260,25 @@ class EventsCog(commands.Cog):
                     self.db.add_voice_minutes(
                         main_id, member.guild.id, 
                         (before.channel.id if before.channel else 0), 
-                        mins, multiplier=old_tier, is_streaming=old_streaming
+                        mins, multiplier=old_tier, is_streaming=old_streaming, is_qualified=old_qual
                     )
                     if before.channel:
                         self.db.log_voice_session(main_id, member.guild.id, before.channel.id, start, now, mins, stream_detail=old_name)
+                    
+                    # Check for role assignment after crediting qualified minutes
+                    if old_qual:
+                        await self.check_basic_member_award(member)
             
             # Clean up if they are no longer tracking
             if new_tier == 0:
                 self.bot.voice_start_times.pop(main_id, None)
                 self.bot.voice_multipliers.pop(main_id, None)
+                self.bot.voice_qualified_states.pop(main_id, None)
             else:
                 # Start new segment with new tier
                 self.bot.voice_start_times[main_id] = now
                 self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
+                self.bot.voice_qualified_states[main_id] = new_qual
                 # Pick a representative channel from any active linked account
                 active_channel = next((acc.voice.channel for acc in linked_accounts if acc.voice and acc.voice.channel and acc.voice.channel.id != Config.AFK_CHANNEL_ID), after.channel)
                 chan_id = active_channel.id if active_channel else 0
@@ -272,7 +292,77 @@ class EventsCog(commands.Cog):
             self.db.start_voice_session(main_id, member.guild.id, active_channel.id, now, new_tier, is_streaming, stream_name)
             self.bot.voice_start_times[main_id] = now
             self.bot.voice_multipliers[main_id] = (new_tier, is_streaming, stream_name)
+            self.bot.voice_qualified_states[main_id] = new_qual
             await self.handle_member_activity(member)
+        
+        # Step 3: Handle "Alone" status changes for OTHERS in the channel
+        # If someone joined or left, the 'is_alone' status of others might have changed.
+        # We manually trigger a segment refresh for them if they are tracking.
+        affected_channels = []
+        if before.channel: affected_channels.append(before.channel)
+        if after.channel and after.channel != before.channel: affected_channels.append(after.channel)
+
+        for channel in affected_channels:
+            for m in channel.members:
+                if m.id == member.id or m.bot: continue
+                m_main_id = Config.get_main_id(m.id)
+                if m_main_id in self.bot.voice_start_times:
+                    # Check if their qualification state changed just because of this move
+                    m_new_qual = ActivityProcessor.is_qualified(m)
+                    m_old_qual = self.bot.voice_qualified_states.get(m_main_id, False)
+                    if m_new_qual != m_old_qual:
+                        # Qualification changed! Refresh their session
+                        # We don't want to recurse infinitely, so we just do a direct update
+                        m_now = datetime.datetime.now(datetime.timezone.utc)
+                        m_sess_data = self.db.end_voice_session(m_main_id, m.guild.id)
+                        if m_sess_data:
+                            m_start = m_sess_data["joined_at"]
+                            m_mins = (m_now - m_start).total_seconds() / 60
+                            if m_mins > 0:
+                                m_old_data = self.bot.voice_multipliers.get(m_main_id, (0.0, False, "Inactive"))
+                                self.db.add_voice_minutes(
+                                    m_main_id, m.guild.id, channel.id, m_mins, 
+                                    multiplier=m_old_data[0], is_streaming=m_old_data[1], is_qualified=m_old_qual
+                                )
+                                self.db.log_voice_session(m_main_id, m.guild.id, channel.id, m_start, m_now, m_mins, stream_detail=m_old_data[2])
+                                if m_old_qual:
+                                    await self.check_basic_member_award(m)
+
+                        # Start new segment for them
+                        self.bot.voice_start_times[m_main_id] = m_now
+                        self.bot.voice_qualified_states[m_main_id] = m_new_qual
+                        self.db.start_voice_session(m_main_id, m.guild.id, channel.id, m_now, m_old_data[0], m_old_data[1], m_old_data[2])
+    
+    async def check_basic_member_award(self, member):
+        """Checks if a user qualifies for the Basic Member role and awards it to all linked accounts."""
+        if Config.BASIC_MEMBER_ROLE_ID == 0: return
+        
+        main_id = Config.get_main_id(member.id)
+        current_data = self.db.get_user_data(main_id, member.guild.id)
+        if not current_data: return
+        
+        qual_mins = current_data.get("qualified_voice_minutes", 0)
+        if qual_mins >= Config.BASIC_MEMBER_THRESHOLD_MINS:
+            role = member.guild.get_role(Config.BASIC_MEMBER_ROLE_ID)
+            if not role: return
+            
+            # Find all linked accounts in this guild
+            all_linked = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+            
+            for m in all_linked:
+                if role not in m.roles:
+                    # Check exclusions again (just in case they got an exclusion role recently)
+                    if any(er_id in [r.id for r in m.roles] for er_id in Config.BASIC_MEMBER_EXCLUDED_ROLES):
+                        continue
+                        
+                    try:
+                        await m.add_roles(role)
+                        log.info(f"Awarded Basic Member role to {m.display_name} ({m.id}) - Qualified: {int(qual_mins)} mins")
+                        self.db.log_role(main_id, member.guild.id, role.name, action="ADDED")
+                    except discord.Forbidden:
+                        log.warning(f"Forbidden: Could not add Basic Member role to {m.display_name}. Hierarchy issue?")
+                    except Exception as e:
+                        log.error(f"Error awarding Basic Member role: {e}")
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):

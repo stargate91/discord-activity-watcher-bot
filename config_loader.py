@@ -29,6 +29,8 @@ class Config:
     SHARING_ROLE_ID = _roles.get("sharing_id", 0)
     HALL_OF_FAMER_ROLE_ID = _roles.get("hall_of_famer_id", 0)
     MEMELORD_ROLE_ID = _roles.get("memelord_id", 0)
+    BASIC_MEMBER_ROLE_ID = _roles.get("basic_member_role_id", 0)
+    BASIC_MEMBER_EXCLUDED_ROLES = _roles.get("basic_member_excluded_roles", [])
     
     # These tell the bot where to post stats or look for admins
     _channels: dict = _data.get("channels", {})
@@ -48,6 +50,7 @@ class Config:
     CHECK_INTERVAL_HOURS = _thresholds.get("check_interval_hours", 12)
     CHAMPION_WIN_THRESHOLD = _thresholds.get("champions_win_threshold", 5)
     VARIETY_MIN_MINUTES = _thresholds.get("variety_min_minutes", 30)
+    BASIC_MEMBER_THRESHOLD_MINS = _thresholds.get("basic_member_time_threshold_minutes", 15)
 
     # Weekly Champion Role definitions (Names and Colors)
     CHAMPION_ROLES = _data.get("champion_roles", {})

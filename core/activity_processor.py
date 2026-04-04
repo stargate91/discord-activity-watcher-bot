@@ -113,3 +113,30 @@ class ActivityProcessor:
                     best_desc = desc
         
         return best_tier, best_streaming, best_desc
+    
+    @staticmethod
+    def is_qualified(member):
+        """
+        Checks if a member qualifies for 'Basic Member' status progression.
+        Criteria: Not a bot, no excluded roles, not muted/deafened, and not alone.
+        """
+        if not member or member.bot:
+            return False
+            
+        # 1. Role Exclusion Check
+        if any(role.id in Config.BASIC_MEMBER_EXCLUDED_ROLES for role in member.roles):
+            return False
+            
+        # 2. Voice State Check (Mute/Deaf)
+        if not member.voice or not member.voice.channel:
+            return False
+            
+        if member.voice.self_mute or member.voice.mute or member.voice.self_deaf or member.voice.deaf:
+            return False
+            
+        # 3. Not Alone Check (at least one other non-bot member in the same channel)
+        other_humans = [m for m in member.voice.channel.members if not m.bot and m.id != member.id]
+        if not other_humans:
+            return False
+            
+        return True
