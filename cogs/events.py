@@ -176,6 +176,7 @@ class EventsCog(commands.Cog):
     async def on_message(self, message):
         # This runs every time someone sends a message
         if message.author.bot or not message.guild: return
+        if message.channel.id in Config.EXCLUDED_CHANNELS: return
         
         try:
             # Calculate dynamic points: Base (1) + min(Length / 10, 100)
@@ -368,6 +369,8 @@ class EventsCog(commands.Cog):
     async def on_raw_reaction_add(self, payload):
         # This runs when someone adds a reaction (emoji) to a message
         if payload.guild_id:
+            if payload.channel_id in Config.EXCLUDED_CHANNELS: return
+            
             guild = self.bot.get_guild(payload.guild_id)
             if not guild: return
             member = payload.member or await guild.fetch_member(payload.user_id)
