@@ -561,6 +561,7 @@ class DBManager:
 
     def get_all_guild_data(self, guild_id):
         # [DEPRECATED] Use get_inactive_users or specific queries instead
+        with self._get_connection() as conn:
             cursor = conn.execute("""
                 SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
                 FROM user_activity WHERE guild_id = ?

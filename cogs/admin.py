@@ -70,54 +70,64 @@ class AdminCog(commands.Cog):
             return
 
         await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=True)
-        # Start building a text report with everyone's stats
-        now = datetime.datetime.now(datetime.timezone.utc)
-        guild_data = self.db.get_all_guild_data(interaction.guild_id)
-        r1, r2 = interaction.guild.get_role(Config.STAGE_1_ROLE_ID), interaction.guild.get_role(Config.STAGE_2_ROLE_ID)
-        lines = [Messages.REPORT_TITLE_HEADER.format(guild=interaction.guild.name, now=now)]
         
-        # Go through every person in the server and add their numbers to the list
-        for m in interaction.guild.members:
-            if m.bot: continue
+        try:
+            # Start building a text report with everyone's stats
+            now = datetime.datetime.now(datetime.timezone.utc)
+            guild_data = self.db.get_all_guild_data(interaction.guild_id)
+            r1, r2 = interaction.guild.get_role(Config.STAGE_1_ROLE_ID), interaction.guild.get_role(Config.STAGE_2_ROLE_ID)
+            lines = [Messages.REPORT_TITLE_HEADER.format(guild=interaction.guild.name, now=now)]
             
-            main_id = Config.get_main_id(m.id)
-            is_alt = main_id != m.id
-            d = guild_data.get(main_id)
-            if not d: continue
-
-            name_display = str(m)[:25]
-            if is_alt:
-                main_m = interaction.guild.get_member(main_id)
-                main_name = str(main_m)[:15] if main_m else f"{main_id} - left"
-                name_display = f"{name_display} (Main: {main_name})"
-            
-            voice_mins = d['voice_minutes']
-            if main_id in self.bot.voice_start_times:
-                voice_mins += (now - self.bot.voice_start_times[main_id]).total_seconds() / 60
+            # Go through every person in the server and add their numbers to the list
+            for m in interaction.guild.members:
+                if m.bot: continue
                 
-            s = Messages.REPORT_STAGE_NORMAL
-            if r1 in m.roles: s = Messages.REPORT_STAGE_1
-            elif r2 in m.roles: s = Messages.REPORT_STAGE_2
-            
-            if s == Messages.REPORT_STAGE_1:
-                det = Messages.REPORT_INACTIVE
-            elif s == Messages.REPORT_STAGE_2 and d["returned_at"]:
-                diff = (now - d['returned_at'].astimezone(datetime.timezone.utc)).total_seconds()
-                days_left = math.ceil((Config.STAGE_2_GRACE_DAYS * 86400 - diff) / 86400)
-                det = Messages.REPORT_S2_RETURN.format(days=max(0, days_left))
-            else:
-                diff = (now - d['last_active'].astimezone(datetime.timezone.utc)).total_seconds()
-                days_left = math.ceil((Config.STAGE_1_DAYS * 86400 - diff) / 86400)
-                det = Messages.REPORT_S1_LIMIT.format(days=max(0, days_left))
+                main_id = Config.get_main_id(m.id)
+                is_alt = main_id != m.id
+                d = guild_data.get(main_id)
+                if not d: continue
 
-            lines.append(f"{name_display:<35} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
-        
-        # Save everything into a .txt file and send it to the admin
-        filename = f"report_{interaction.guild_id}.txt"
-        with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
-        await interaction.followup.send(file=discord.File(filename), ephemeral=True)
-        # Delete the file from the computer after sending it
-        os.remove(filename)
+                name_display = str(m)[:25]
+                if is_alt:
+                    main_m = interaction.guild.get_member(main_id)
+                    main_name = str(main_m)[:15] if main_m else f"{main_id} - left"
+                    name_display = f"{name_display} (Main: {main_name})"
+                
+                voice_mins = d['voice_minutes']
+                if main_id in self.bot.voice_start_times:
+                    voice_mins += (now - self.bot.voice_start_times[main_id]).total_seconds() / 60
+                    
+                s = Messages.REPORT_STAGE_NORMAL
+                if r1 in m.roles: s = Messages.REPORT_STAGE_1
+                elif r2 in m.roles: s = Messages.REPORT_STAGE_2
+                
+                if s == Messages.REPORT_STAGE_1:
+                    det = Messages.REPORT_INACTIVE
+                elif s == Messages.REPORT_STAGE_2 and d["returned_at"]:
+                    diff = (now - d['returned_at'].astimezone(datetime.timezone.utc)).total_seconds()
+                    days_left = math.ceil((Config.STAGE_2_GRACE_DAYS * 86400 - diff) / 86400)
+                    det = Messages.REPORT_S2_RETURN.format(days=max(0, days_left))
+                else:
+                    last_active = d.get('last_active')
+                    if last_active:
+                        diff = (now - last_active.astimezone(datetime.timezone.utc)).total_seconds()
+                        days_left = math.ceil((Config.STAGE_1_DAYS * 86400 - diff) / 86400)
+                        det = Messages.REPORT_S1_LIMIT.format(days=max(0, days_left))
+                    else:
+                        det = "---"
+
+                lines.append(f"{name_display:<35} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
+            
+            # Save everything into a .txt file and send it to the admin
+            filename = f"report_{interaction.guild_id}.txt"
+            with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
+            await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+            # Delete the file from the computer after sending it
+            if os.path.exists(filename):
+                os.remove(filename)
+        except Exception as e:
+            await interaction.followup.send(f"❌ Hiba történt a riport generálása közben: `{e}`", ephemeral=True)
+
 
     @app_commands.command(name="server_analysis", description=Messages.CMD_SERVER_ANALYSIS_DESC)
     @is_tester_slash()
