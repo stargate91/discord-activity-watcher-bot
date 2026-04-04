@@ -31,6 +31,7 @@ class ChampionsCog(commands.Cog):
             config_data["roles"] = {}
 
         for key, data in role_configs.items():
+            if key in ["title", "footer"]: continue
             name = data.get("name", key)
             color_str = data.get("color", "0xFFFFFF")
             try:
@@ -38,7 +39,7 @@ class ChampionsCog(commands.Cog):
             except:
                 color_int = 0xFFFFFF
 
-            role_id = config_data["roles"].get(key, 0)
+            role_id = data.get("role_id", 0)
             role = guild.get_role(role_id) if role_id else None
             
             if role:
@@ -61,9 +62,9 @@ class ChampionsCog(commands.Cog):
                         log.error(f"Failed to create role {name}: Missing permissions.")
                         continue
                 
-                config_data["roles"][key] = role.id
+                config_data["champion_roles"][key]["role_id"] = role.id
                 # Update Config class attributes dynamically
-                setattr(Config, key.upper(), role.id)
+                setattr(Config, key.upper() + "_ROLE_ID", role.id)
                 updated = True
         
         if updated:
@@ -104,32 +105,49 @@ class ChampionsCog(commands.Cog):
             
             stats = self.db.get_weekly_champion_stats(guild.id, start_date, end_date)
             
-            # Fetch winners
-            categories = {
-                "spotify": (stats.get("spotify"), Config.SPOTIVIBE_ROLE_ID, Messages.CHAMPION_SPOTIFY),
-                "gamer_total": (stats.get("gamer_total"), Config.GODGAMER_TOTAL_ROLE_ID, Messages.CHAMPION_GAMER_TOTAL),
-                "gamer_variety": (stats.get("gamer_variety"), Config.GODGAMER_VARIETY_ROLE_ID, Messages.CHAMPION_GAMER_VARIETY),
-                "streamer": (stats.get("streamer"), Config.SHARING_ROLE_ID, Messages.CHAMPION_STREAMER),
-                "media": (stats.get("media"), Config.MEMELORD_ROLE_ID, Messages.CHAMPION_MEMELORD)
+            # Fetch winners (Map categories to consolidated config keys)
+            categories = {}
+            category_config_map = {
+                "spotify": "spotify",
+                "gamer_total": "godgamer",
+                "gamer_variety": "godgamer",
+                "streamer": "streamer",
+                "media": "media"
             }
             
-            # Manage old roles
+            for cat_id, cfg_key in category_config_map.items():
+                stat_val = stats.get(cat_id)
+                cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
+                role_id = cfg.get("role_id", 0)
+                
+                # Get template from Messages (localized)
+                msg_template = {
+                    "spotify": Messages.CHAMPION_SPOTIFY,
+                    "gamer_total": Messages.CHAMPION_GAMER_TOTAL,
+                    "gamer_variety": Messages.CHAMPION_GAMER_VARIETY,
+                    "streamer": Messages.CHAMPION_STREAMER,
+                    "media": Messages.CHAMPION_MEMELORD
+                }.get(cat_id, f"**{cfg.get('name', cat_id)}:** {{name}} ({{value}})")
+                
+                categories[cat_id] = (stat_val, role_id, msg_template)
+            
+            # Manage old roles (using a set to avoid removing/checking the same role multiple times)
             last_champs = self.db.get_last_champions(guild.id)
+            roles_to_remove = set()
+            
             for category, user_id in last_champs.items():
                 member = guild.get_member(user_id)
                 if member:
-                    # Map category to role ID
-                    role_id = 0
-                    if category == "spotify": role_id = Config.SPOTIVIBE_ROLE_ID
-                    elif category == "gamer_total": role_id = Config.GODGAMER_TOTAL_ROLE_ID
-                    elif category == "gamer_variety": role_id = Config.GODGAMER_VARIETY_ROLE_ID
-                    elif category == "streamer": role_id = Config.SHARING_ROLE_ID
-                    elif category == "media": role_id = Config.MEMELORD_ROLE_ID
-                    
-                    role = guild.get_role(role_id)
-                    if role and role in member.roles:
-                        try: await member.remove_roles(role)
-                        except discord.Forbidden: pass
+                    cfg_key = category_config_map.get(category)
+                    role_id = Config.CHAMPION_ROLES.get(cfg_key, {}).get("role_id", 0)
+                    if role_id:
+                        roles_to_remove.add((member, role_id))
+            
+            for m, rid in roles_to_remove:
+                role = guild.get_role(rid)
+                if role and role in m.roles:
+                    try: await m.remove_roles(role)
+                    except discord.Forbidden: pass
             
             # Award new ones & collect data for the view
             champion_announcement_data = {}
@@ -157,10 +175,12 @@ class ChampionsCog(commands.Cog):
                 wins = self.db.get_champion_wins(uid, guild.id)
                 total_wins = sum(wins.values())
                 if total_wins >= Config.CHAMPION_WIN_THRESHOLD:
-                    hof_role = guild.get_role(Config.HALL_OF_FAMER_ROLE_ID)
+                    hof_role_id = Config.CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
+                    hof_role = guild.get_role(hof_role_id)
                     if member and hof_role and hof_role not in member.roles:
                         try:
                             await member.add_roles(hof_role)
+                            # Use localized Hall of Fame message
                             hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{member.display_name}**"))
                         except discord.Forbidden: pass
 
@@ -278,14 +298,29 @@ class ChampionsCog(commands.Cog):
         # 2. Caller's stats
         caller_stats = self.db.get_user_weekly_champion_stats(interaction.user.id, interaction.guild_id, start_date, today)
         
-        # Map categories to roles/messages
-        categories = {
-            "spotify": (stats.get("spotify"), Messages.CHAMPION_SPOTIFY),
-            "gamer_total": (stats.get("gamer_total"), Messages.CHAMPION_GAMER_TOTAL),
-            "gamer_variety": (stats.get("gamer_variety"), Messages.CHAMPION_GAMER_VARIETY),
-            "streamer": (stats.get("streamer"), Messages.CHAMPION_STREAMER),
-            "media": (stats.get("media"), Messages.CHAMPION_MEMELORD)
+        # Map categories to roles/messages (Map categories to consolidated config keys)
+        categories = {}
+        category_config_map = {
+            "spotify": "spotify",
+            "gamer_total": "godgamer",
+            "gamer_variety": "godgamer",
+            "streamer": "streamer",
+            "media": "media"
         }
+        
+        for cat_id, cfg_key in category_config_map.items():
+            stat_val = stats.get(cat_id)
+            cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
+            
+            msg_template = {
+                "spotify": Messages.CHAMPION_SPOTIFY,
+                "gamer_total": Messages.CHAMPION_GAMER_TOTAL,
+                "gamer_variety": Messages.CHAMPION_GAMER_VARIETY,
+                "streamer": Messages.CHAMPION_STREAMER,
+                "media": Messages.CHAMPION_MEMELORD
+            }.get(cat_id, f"**{cfg.get('name', cat_id)}:** {{name}} ({{value}})")
+            
+            categories[cat_id] = (stat_val, msg_template)
         
         champion_data = {}
         for cat_id, (data, msg_template) in categories.items():

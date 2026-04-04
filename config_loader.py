@@ -23,14 +23,20 @@ class Config:
     STAGE_2_ROLE_ID = _roles.get("stage_2_id", 0)
     ADMIN_ROLE_ID = _roles.get("admin_role_id", 0)
     TESTER_ROLE_ID = _roles.get("tester_role_id", 0)
-    SPOTIVIBE_ROLE_ID = _roles.get("spotivibe_id", 0)
-    GODGAMER_TOTAL_ROLE_ID = _roles.get("godgamer_total_id", 0)
-    GODGAMER_VARIETY_ROLE_ID = _roles.get("godgamer_variety_id", 0)
-    SHARING_ROLE_ID = _roles.get("sharing_id", 0)
-    HALL_OF_FAMER_ROLE_ID = _roles.get("hall_of_famer_id", 0)
-    MEMELORD_ROLE_ID = _roles.get("memelord_id", 0)
+    MEMELORD_ROLE_ID = _roles.get("memelord_id", 0) # Legacy (to be removed if everything is updated)
     BASIC_MEMBER_ROLE_ID = _roles.get("basic_member_role_id", 0)
     BASIC_MEMBER_EXCLUDED_ROLES = _roles.get("basic_member_excluded_roles", [])
+    
+    # Advanced Champion Role definitions (Nested with IDs, Names, Colors and Announcements)
+    CHAMPION_ROLES = _data.get("champion_roles", {})
+    
+    # Helper properties for easy ID access (backward compatibility and core use)
+    SPOTIVIBE_ROLE_ID = CHAMPION_ROLES.get("spotify", {}).get("role_id", 0)
+    GODGAMER_TOTAL_ROLE_ID = CHAMPION_ROLES.get("gamer_total", {}).get("role_id", 0)
+    GODGAMER_VARIETY_ROLE_ID = CHAMPION_ROLES.get("gamer_variety", {}).get("role_id", 0)
+    SHARING_ROLE_ID = CHAMPION_ROLES.get("streamer", {}).get("role_id", 0)
+    MEMELORD_ROLE_ID = CHAMPION_ROLES.get("media", {}).get("role_id", 0)
+    HALL_OF_FAMER_ROLE_ID = CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
     
     # These tell the bot where to post stats or look for admins
     _channels: dict = _data.get("channels", {})
@@ -51,9 +57,6 @@ class Config:
     CHAMPION_WIN_THRESHOLD = _thresholds.get("champions_win_threshold", 5)
     VARIETY_MIN_MINUTES = _thresholds.get("variety_min_minutes", 30)
     BASIC_MEMBER_THRESHOLD_MINS = _thresholds.get("basic_member_time_threshold_minutes", 15)
-
-    # Weekly Champion Role definitions (Names and Colors)
-    CHAMPION_ROLES = _data.get("champion_roles", {})
 
     # How many points people get for messages and reactions
     _scoring = _data.get("scoring", {})
