@@ -139,7 +139,13 @@
         "default_stream_name": "Screen",
         "game_role_prefix": "Player: ",
         "presence_rotation_minutes": 5,
-        "presence_rotation": ["stats", "champions", "games", "sassy", "help"]
+        "presence_rotation": [
+            "stats",
+            "champions",
+            "games",
+            "sassy",
+            "help"
+        ]
     },
     "media": {
         "patterns": [
@@ -164,11 +170,11 @@
         {
             "identifier": "games_shooters",
             "enabled": true,
-            "channel_id": 0,
+            "channel_id": 1443383492091183235,
             "header": "🔫 Lövöldözős & Akció",
             "title": "A pörgős, kompetitív és FPS/TPS játékok",
             "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
-            "footer": "Watcher Bot System V2",
+            "footer": "{bot_name} • Mindig figyellek...",
             "thumbnail": "",
             "image": "",
             "color": "0xED4245",
@@ -203,11 +209,11 @@
         {
             "identifier": "games_rpg",
             "enabled": true,
-            "channel_id": 0,
+            "channel_id": 1443383492091183235,
             "header": "⚔️ Szerepjátékok & MOBA",
             "title": "A masszív online játékok és nagy arénák",
             "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
-            "footer": "Watcher Bot System V2",
+            "footer": "{bot_name} • Mindig figyellek...",
             "thumbnail": "",
             "image": "",
             "color": "0x9B59B6",
@@ -247,11 +253,11 @@
         {
             "identifier": "games_strategy",
             "enabled": true,
-            "channel_id": 0,
+            "channel_id": 1443383492091183235,
             "header": "🧠 Stratégia & Szimulátor",
             "title": "Azoknak akik építkezni, menedzselni szeretnek",
             "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
-            "footer": "Watcher Bot System V2",
+            "footer": "{bot_name} • Mindig figyellek...",
             "thumbnail": "",
             "image": "",
             "color": "0xF1C40F",
@@ -286,11 +292,11 @@
         {
             "identifier": "games_sandbox",
             "enabled": true,
-            "channel_id": 0,
+            "channel_id": 1443383492091183235,
             "header": "🏗️ Építős & Sandbox",
             "title": "Kreatív szabadság és túlélés",
             "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
-            "footer": "Watcher Bot System V2",
+            "footer": "{bot_name} • Mindig figyellek...",
             "thumbnail": "",
             "image": "",
             "color": "0x2ECC71",
