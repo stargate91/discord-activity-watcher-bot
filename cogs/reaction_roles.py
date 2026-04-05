@@ -12,10 +12,12 @@ class ReactionRolesCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         # When bot starts, verify and send reaction role messages if missing
+        log.info(f"ReactionRoles on_ready triggered. Config count: {len(Config.REACTION_ROLES)}")
         if not Config.REACTION_ROLES:
             return
 
         for idx, config_data in enumerate(Config.REACTION_ROLES):
+            log.info(f"Processing reaction role {idx}: {config_data.get('identifier')}")
             if config_data.get("enabled", True) is False:
                 continue
 
