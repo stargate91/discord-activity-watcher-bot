@@ -174,29 +174,29 @@
             "color": "0xED4245",
             "mappings": [
                 {
-                    "emoji": "<:emojigg_CS2:1234567890123>",
+                    "emoji_name": "emojigg_CS2",
                     "label": "CS2",
-                    "role_id": 0
+                    "role_name": "Player: CS2"
                 },
                 {
-                    "emoji": "<:Valorant:1234567890123>",
+                    "emoji_name": "Valorant",
                     "label": "Valorant",
-                    "role_id": 0
+                    "role_name": "Player: Valorant"
                 },
                 {
-                    "emoji": "<:Overwatch:1234567890123>",
+                    "emoji_name": "Overwatch",
                     "label": "Overwatch",
-                    "role_id": 0
+                    "role_name": "Player: Overwatch"
                 },
                 {
-                    "emoji": "<:ApexLegends:1234567890123>",
+                    "emoji_name": "ApexLegends",
                     "label": "Apex Legends",
-                    "role_id": 0
+                    "role_name": "Player: Apex Legends"
                 },
                 {
-                    "emoji": "<:82963fortnite:1234567890123>",
+                    "emoji_name": "82963fortnite",
                     "label": "Fortnite",
-                    "role_id": 0
+                    "role_name": "Player: Fortnite"
                 }
             ]
         },
@@ -213,34 +213,34 @@
             "color": "0x9B59B6",
             "mappings": [
                 {
-                    "emoji": "<:3220leagueoflegendlogo:1234567890123>",
+                    "emoji_name": "3220leagueoflegendlogo",
                     "label": "League of Legends",
-                    "role_id": 0
+                    "role_name": "Player: League of Legends"
                 },
                 {
-                    "emoji": "<:57749dota2emoji:1234567890123>",
+                    "emoji_name": "57749dota2emoji",
                     "label": "Dota 2",
-                    "role_id": 0
+                    "role_name": "Player: Dota 2"
                 },
                 {
-                    "emoji": "<:7081wow:1234567890123>",
+                    "emoji_name": "7081wow",
                     "label": "World of Warcraft",
-                    "role_id": 0
+                    "role_name": "Player: World of Warcraft"
                 },
                 {
-                    "emoji": "<:ff:1234567890123>",
+                    "emoji_name": "ff",
                     "label": "Final Fantasy",
-                    "role_id": 0
+                    "role_name": "Player: Final Fantasy"
                 },
                 {
-                    "emoji": "<:eveonline:1234567890123>",
+                    "emoji_name": "eveonline",
                     "label": "EVE Online",
-                    "role_id": 0
+                    "role_name": "Player: EVE Online"
                 },
                 {
-                    "emoji": "<:wherewindsmeet:1234567890123>",
+                    "emoji_name": "wherewindsmeet",
                     "label": "Where Winds Meet",
-                    "role_id": 0
+                    "role_name": "Player: Where Winds Meet"
                 }
             ]
         },
@@ -257,29 +257,29 @@
             "color": "0xF1C40F",
             "mappings": [
                 {
-                    "emoji": "<:busy:1234567890123>",
+                    "emoji_name": "busy",
                     "label": "Age of Empires",
-                    "role_id": 0
+                    "role_name": "Player: Age of Empires"
                 },
                 {
-                    "emoji": "<:stellaris:1234567890123>",
+                    "emoji_name": "stellaris",
                     "label": "Stellaris",
-                    "role_id": 0
+                    "role_name": "Player: Stellaris"
                 },
                 {
-                    "emoji": "<:jwe:1234567890123>",
+                    "emoji_name": "jwe",
                     "label": "Jurassic World Evolution",
-                    "role_id": 0
+                    "role_name": "Player: Jurassic World Evolution"
                 },
                 {
-                    "emoji": "<:sims4:1234567890123>",
+                    "emoji_name": "sims4",
                     "label": "Sims",
-                    "role_id": 0
+                    "role_name": "Player: Sims"
                 },
                 {
-                    "emoji": "<:TheBazaar:1234567890123>",
+                    "emoji_name": "TheBazaar",
                     "label": "The Bazaar",
-                    "role_id": 0
+                    "role_name": "Player: The Bazaar"
                 }
             ]
         },
@@ -296,14 +296,14 @@
             "color": "0x2ECC71",
             "mappings": [
                 {
-                    "emoji": "<:Minecraft:1234567890123>",
+                    "emoji_name": "Minecraft",
                     "label": "Minecraft",
-                    "role_id": 0
+                    "role_name": "Player: Minecraft"
                 },
                 {
-                    "emoji": "<:spaceengineers:1234567890123>",
+                    "emoji_name": "spaceengineers",
                     "label": "Space Engineers",
-                    "role_id": 0
+                    "role_name": "Player: Space Engineers"
                 }
             ]
         }
