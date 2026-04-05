@@ -255,12 +255,7 @@ class EventsCog(commands.Cog):
                                 style_config=Config.WELCOME
                             )
                             file = discord.File(fp=image_buffer, filename="welcome.png")
-                            
-                            # Invisible embed color to blend in
-                            embed = discord.Embed(color=0x2B2D31)
-                            embed.set_image(url="attachment://welcome.png")
-                            
-                            await welcome_channel.send(content=greeting, embed=embed, file=file)
+                            await welcome_channel.send(content=greeting, file=file)
                             
                         except Exception as e:
                             log.error(f"Image generation failed, falling back to text: {e}")
