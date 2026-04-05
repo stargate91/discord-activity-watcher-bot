@@ -1,0 +1,185 @@
+import discord
+from discord.ext import commands
+from core.logger import log
+from config_loader import Config
+import re
+
+class ReactionRolesCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.db = bot.db
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        # When bot starts, verify and send reaction role messages if missing
+        if not Config.REACTION_ROLES:
+            return
+
+        for idx, config_data in enumerate(Config.REACTION_ROLES):
+            identifier = config_data.get("identifier", f"rr_menu_{idx}")
+            channel_id = config_data.get("channel_id")
+            
+            if not channel_id:
+                log.error(f"Reaction role config {identifier} is missing channel_id")
+                continue
+
+            channel = self.bot.get_channel(channel_id)
+            if not channel:
+                log.error(f"Cannot find channel {channel_id} for reaction role {identifier}")
+                continue
+
+            # Check DB to see if we already sent this message
+            db_record = self.db.get_reaction_role_message(identifier)
+            message = None
+
+            if db_record:
+                saved_channel_id, saved_message_id = db_record
+                if saved_channel_id == channel_id:
+                    try:
+                        message = await channel.fetch_message(saved_message_id)
+                    except discord.NotFound:
+                        # Message was deleted from discord
+                        pass
+                    except discord.Forbidden:
+                        log.error(f"Cannot read message history in {channel.name}")
+
+            # If we don't have the message, we need to send a new one
+            if message is None:
+                log.info(f"Sending new reaction role message for {identifier}")
+                
+                from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, MediaGallery
+                import discord
+
+                view = LayoutView()
+                container = Container(accent_color=discord.Color.from_str(config_data.get("color", "0x5865F2")))
+                
+                header = config_data.get("header")
+                thumbnail = config_data.get("thumbnail")
+                
+                if header:
+                    if thumbnail:
+                        container.add_item(Section(f"# {header}", accessory=Thumbnail(thumbnail)))
+                    else:
+                        container.add_item(Section(f"# {header}"))
+                    container.add_item(Separator())
+                
+                title = config_data.get("title", "Szerepkörök")
+                desc = config_data.get("description", "Válaszd ki a szerepeidet!")
+                
+                content_text = f"## {title}\n{desc}"
+                container.add_item(TextDisplay(content_text))
+                
+                mappings = config_data.get("mappings", [])
+                
+                if mappings:
+                    container.add_item(Separator(visible=False))
+                    for mapping in mappings:
+                        emoji = mapping.get("emoji")
+                        label = mapping.get("label", "")
+                        if emoji:
+                            container.add_item(TextDisplay(f"{emoji} **{label}**"))
+                
+                image = config_data.get("image")
+                if image:
+                    container.add_item(Separator(visible=False))
+                    # Fallback to TextDisplay if MediaGallery doesn't accept url directly or we use discord.MediaGalleryItem
+                    container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(image)))
+
+                footer = config_data.get("footer")
+                if footer:
+                    container.add_item(Separator())
+                    container.add_item(TextDisplay(f"*{footer}*"))
+
+                view.add_item(container)
+                message = await channel.send(view=view)
+                
+                # Save to DB
+                self.db.save_reaction_role_message(identifier, channel.id, message.id)
+
+                # Add emojis
+                for mapping in mappings:
+                    emoji_str = mapping.get("emoji")
+                    if emoji_str:
+                        # Try to resolve custom emoji strings
+                        custom_match = re.search(r'<a?:[a-zA-Z0-9_]+:([0-9]+)>', emoji_str)
+                        if custom_match:
+                            emoji_obj = self.bot.get_emoji(int(custom_match.group(1)))
+                            if emoji_obj:
+                                await message.add_reaction(emoji_obj)
+                            else:
+                                await message.add_reaction(emoji_str) # Discord might still accept the string if it's external
+                        else:
+                            await message.add_reaction(emoji_str) # unicode
+
+    async def _handle_reaction(self, payload, add_role: bool):
+        # We only care about our configured guilds
+        if payload.guild_id != Config.GUILD_ID:
+            return
+
+        if payload.member and payload.member.bot:
+            return # Ignore bot reactions
+            
+        guild = self.bot.get_guild(payload.guild_id)
+        if not guild: return
+        
+        # We need member object. For remove, payload.member is None.
+        member = payload.member or guild.get_member(payload.user_id)
+        if not member or member.bot: return
+
+        # Is this message part of our reaction roles?
+        matched_mapping = None
+        for idx, config_data in enumerate(Config.REACTION_ROLES):
+            identifier = config_data.get("identifier", f"rr_menu_{idx}")
+            db_record = self.db.get_reaction_role_message(identifier)
+            if db_record and db_record[1] == payload.message_id:
+                # This is a reaction role message! Let's check the emoji
+                for mapping in config_data.get("mappings", []):
+                    map_emoji = mapping.get("emoji")
+                    if not map_emoji: continue
+                    
+                    # Check if string matches. Payload emoji can be unicode or partial custom string
+                    is_match = False
+                    if payload.emoji.is_custom_emoji():
+                        if str(payload.emoji.id) in map_emoji:
+                            is_match = True
+                    else:
+                        if payload.emoji.name == map_emoji:
+                            is_match = True
+                            
+                    if is_match:
+                        matched_mapping = mapping
+                        break
+            
+            if matched_mapping:
+                break
+                
+        if matched_mapping:
+            role_id = matched_mapping.get("role_id")
+            if not role_id: return
+            
+            role = guild.get_role(role_id)
+            if role:
+                try:
+                    if add_role:
+                        if role not in member.roles:
+                            await member.add_roles(role)
+                            log.info(f"ReactionRole: Added {role.name} to {member.display_name}")
+                    else:
+                        if role in member.roles:
+                            await member.remove_roles(role)
+                            log.info(f"ReactionRole: Removed {role.name} from {member.display_name}")
+                except discord.Forbidden:
+                    log.warning(f"Forbidden: Could not manage role {role.name} for {member.display_name}. Check bot position hierarchy.")
+                except Exception as e:
+                    log.error(f"Error managing reaction role: {e}")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        await self._handle_reaction(payload, add_role=True)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        await self._handle_reaction(payload, add_role=False)
+
+async def setup(bot):
+    await bot.add_cog(ReactionRolesCog(bot))

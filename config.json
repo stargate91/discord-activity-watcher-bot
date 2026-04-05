@@ -159,5 +159,35 @@
         "984751623261810699": 221253342083416067,
         "1367338073565696101": 295655509007138818,
         "1209225941239472291": 535611292346482708
-    }
+    },
+    "reaction_roles": [
+        {
+            "identifier": "example_menu_1",
+            "channel_id": 1486516075905417216,
+            "header": "🤖 Watcher Bot Értesítések",
+            "title": "🎮 Értesítési Szerepkörök",
+            "description": "Kattints a lenti emojikra, hogy felvedd (vagy ledobd) a hozzájuk tartozó rangot!\nÍgy csak arról kapsz értesítést, ami tényleg érdekel.",
+            "footer": "Watcher Bot System V2",
+            "thumbnail": "https://i.imgur.com/example_thumb.png",
+            "image": "https://i.imgur.com/example_header.png",
+            "color": "0x5865F2",
+            "mappings": [
+                {
+                    "emoji": "🎮",
+                    "label": "Gamer Rang",
+                    "role_id": 1275930800679948399
+                },
+                {
+                    "emoji": "🎬",
+                    "label": "Filmes Esték",
+                    "role_id": 123456789012345678
+                },
+                {
+                    "emoji": "<:SPOTIFY:1488659900149006346>",
+                    "label": "Zene Buzerátor",
+                    "role_id": 876543210987654321
+                }
+            ]
+        }
+    ]
 }

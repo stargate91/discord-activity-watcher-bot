@@ -166,6 +166,15 @@ class DBManager:
                     win_date DATE
                 )
             """)
+            # reaction_role_messages: Tracks which static reaction roles have been sent
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS reaction_role_messages (
+                    identifier TEXT PRIMARY KEY,
+                    channel_id INTEGER,
+                    message_id INTEGER
+                )
+            """)
+            
             
             # Migrations for user_activity
             for col, ctype in [("returned_at", "TIMESTAMP DEFAULT NULL"), ("message_count", "INTEGER DEFAULT 0"), 
@@ -794,6 +803,22 @@ class DBManager:
                 LIMIT 5
             """, (int(user_id), int(guild_id), cutoff_date, int(user_id), int(guild_id), cutoff_date))
             return cursor.fetchall()
+            
+    def get_reaction_role_message(self, identifier):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT channel_id, message_id FROM reaction_role_messages WHERE identifier = ?", (identifier,))
+            return cursor.fetchone()
+            
+    def save_reaction_role_message(self, identifier, channel_id, message_id):
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO reaction_role_messages (identifier, channel_id, message_id)
+                VALUES (?, ?, ?)
+                ON CONFLICT(identifier) DO UPDATE SET 
+                    channel_id = excluded.channel_id,
+                    message_id = excluded.message_id
+            """, (identifier, int(channel_id), int(message_id)))
+            conn.commit()
 
     def get_user_social_stats(self, user_id, guild_id, days=30):
         cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
