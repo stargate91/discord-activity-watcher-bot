@@ -391,5 +391,30 @@
                 }
             ]
         }
-    ]
+    ],
+    "welcome": {
+        "enabled": true,
+        "channel_id": 1443262674166222959,
+        "greeting": "Hello {user.mention}, üdv a {guild.name} csatornáján!",
+        "card_main_text": "{user.name} csatlakozott a szerverhez!",
+        "card_sub_text": "Ő a {member_count}. tag",
+        "card_main_color": "#ffffff",
+        "card_sub_color": "#c8c8c8",
+        "card_bg_color": "#17181E",
+        "avatar_ring_color": "#ffffff",
+        "card_width": 1100,
+        "card_height": 500,
+        "card_padding_x": 55,
+        "card_padding_y": 25,
+        "avatar_size": 256,
+        "font_size_main": 36,
+        "font_size_sub": 26,
+        "overlay_color": "#000000",
+        "overlay_opacity": 120,
+        "thumbnail": "{user.avatar}",
+        "images": [
+            "0c0d10"
+        ],
+        "color": "0x3498DB"
+    }
 }

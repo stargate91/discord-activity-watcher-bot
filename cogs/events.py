@@ -1,7 +1,9 @@
 import discord
 from discord.ext import tasks, commands
 import datetime
+import random
 from core.logger import log
+from core.image_generator import get_welcome_card
 from config_loader import Config
 from core.messages import Messages
 from core.activity_processor import ActivityProcessor
@@ -216,6 +218,59 @@ class EventsCog(commands.Cog):
         self.db.update_activity(main_id, member.guild.id)
         if member.joined_at:
             self.db.update_join_date(main_id, member.guild.id, member.joined_at)
+
+        # Welcome Message
+        if Config.WELCOME and Config.WELCOME.get("enabled", False):
+            try:
+                channel_id = Config.WELCOME.get("channel_id")
+                if channel_id:
+                    welcome_channel = member.guild.get_channel(channel_id)
+                    if welcome_channel:
+                        # 1. Format the greeting text
+                        greeting_template = Config.WELCOME.get("greeting", "Hello {user.mention}, üdv a {guild.name} csatornáján!")
+                        greeting = greeting_template.replace("{guild.name}", member.guild.name).replace("{user.name}", member.name).replace("{user.mention}", member.mention)
+
+                        # 2. Get backgrounds
+                        bg_urls = Config.WELCOME.get("images", [])
+                        if not bg_urls and Config.WELCOME.get("image"):
+                            bg_urls = [Config.WELCOME.get("image")]
+
+                        # 3. Format Card Texts
+                        main_text_template = Config.WELCOME.get("card_main_text", "{user.name} csatlakozott a szerverhez!")
+                        main_text = main_text_template.replace("{guild.name}", member.guild.name).replace("{user.name}", member.name)
+                        
+                        member_count = len([m for m in member.guild.members if not m.bot])
+                        sub_text_template = Config.WELCOME.get("card_sub_text", "Ő a {member_count}. tag")
+                        sub_text = sub_text_template.replace("{member_count}", str(member_count))
+                        
+                        # 4. Generate the Image
+                        avatar_url = member.display_avatar.url if member.display_avatar else None
+                        
+                        try:
+                            image_buffer = await get_welcome_card(
+                                avatar_url=avatar_url,
+                                main_text=main_text,
+                                sub_text=sub_text,
+                                bg_urls=bg_urls,
+                                style_config=Config.WELCOME
+                            )
+                            file = discord.File(fp=image_buffer, filename="welcome.png")
+                            
+                            # Invisible embed color to blend in
+                            embed = discord.Embed(color=0x2B2D31)
+                            embed.set_image(url="attachment://welcome.png")
+                            
+                            await welcome_channel.send(content=greeting, embed=embed, file=file)
+                            
+                        except Exception as e:
+                            log.error(f"Image generation failed, falling back to text: {e}")
+                            # Fallback ha esetleg mégis kell egy alap embed
+                            embed = discord.Embed(color=0x3498DB)
+                            if avatar_url: embed.set_thumbnail(url=avatar_url)
+                            await welcome_channel.send(content=member.mention, embed=embed)
+                            
+            except Exception as e:
+                log.error(f"Failed to send welcome message: {e}")
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
