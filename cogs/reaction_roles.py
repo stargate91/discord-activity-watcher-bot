@@ -80,57 +80,60 @@ class ReactionRolesCog(commands.Cog):
                 # If we don't have the message, we need to send a new one
                 if message is None:
                     log.info(f"Sending new reaction role message for {identifier}")
-                    
-                    from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, MediaGallery
-                    import discord
 
-                    view = LayoutView()
-                    container = Container(accent_color=discord.Color.from_str(config_data.get("color", "0x5865F2")))
-                    
-                    header = config_data.get("header")
-                    if header: header = header.replace("{bot_name}", bot_name)
-                    
-                    thumbnail = config_data.get("thumbnail")
-                    
-                    if header:
-                        if thumbnail:
-                            container.add_item(Section(f"# {header}", accessory=Thumbnail(thumbnail)))
-                        else:
-                            container.add_item(Section(f"# {header}"))
-                        container.add_item(Separator())
-                    
-                    title = config_data.get("title", "Szerepkörök")
-                    if title: title = title.replace("{bot_name}", bot_name)
+                    view = discord.ui.View() # Fallback for now if LayoutView not in main discord
+                    try:
+                        from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, MediaGallery
+                        view = LayoutView()
+                        container = Container(accent_color=discord.Color.from_str(config_data.get("color", "0x5865F2")))
+                        
+                        header = config_data.get("header")
+                        if header: header = header.replace("{bot_name}", bot_name)
+                        
+                        thumbnail = config_data.get("thumbnail")
+                        
+                        if header:
+                            if thumbnail:
+                                container.add_item(Section(f"# {header}", accessory=Thumbnail(thumbnail)))
+                            else:
+                                container.add_item(Section(f"# {header}"))
+                            container.add_item(Separator())
+                        
+                        title = config_data.get("title", "Szerepkörök")
+                        if title: title = title.replace("{bot_name}", bot_name)
 
-                    desc = config_data.get("description", "Válaszd ki a szerepeidet!")
-                    if desc: desc = desc.replace("{bot_name}", bot_name)
-                    
-                    content_text = f"## {title}\n{desc}"
-                    container.add_item(TextDisplay(content_text))
-                    
-                    mappings = config_data.get("mappings", [])
-                    
-                    if mappings:
-                        container.add_item(Separator(visible=False))
-                        for mapping in mappings:
-                            emoji = mapping.get("emoji")
-                            label = mapping.get("label", "")
-                            if emoji:
-                                container.add_item(TextDisplay(f"{emoji} **{label}**"))
-                    
-                    image = config_data.get("image")
-                    if image:
-                        container.add_item(Separator(visible=False))
-                        # Fallback to TextDisplay if MediaGallery doesn't accept url directly or we use discord.MediaGalleryItem
-                        container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(image)))
+                        desc = config_data.get("description", "Válaszd ki a szerepeidet!")
+                        if desc: desc = desc.replace("{bot_name}", bot_name)
+                        
+                        content_text = f"## {title}\n{desc}"
+                        container.add_item(TextDisplay(content_text))
+                        
+                        mappings = config_data.get("mappings", [])
+                        
+                        if mappings:
+                            container.add_item(Separator(visible=False))
+                            for mapping in mappings:
+                                emoji = mapping.get("emoji")
+                                label = mapping.get("label", "")
+                                if emoji:
+                                    container.add_item(TextDisplay(f"{emoji} **{label}**"))
+                        
+                        image = config_data.get("image")
+                        if image:
+                            container.add_item(Separator(visible=False))
+                            # Fallback to TextDisplay if MediaGallery doesn't accept url directly or we use discord.MediaGalleryItem
+                            container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(image)))
 
-                    footer = config_data.get("footer")
-                    if footer: 
-                        footer = footer.replace("{bot_name}", bot_name)
-                        container.add_item(Separator())
-                        container.add_item(TextDisplay(f"*{footer}*"))
+                        footer = config_data.get("footer")
+                        if footer: 
+                            footer = footer.replace("{bot_name}", bot_name)
+                            container.add_item(Separator())
+                            container.add_item(TextDisplay(f"*{footer}*"))
 
-                    view.add_item(container)
+                        view.add_item(container)
+                    except ImportError:
+                        pass # if discord.ui doesn't have LayoutView
+                        
                     message = await channel.send(view=view)
                     
                     # Save to DB
