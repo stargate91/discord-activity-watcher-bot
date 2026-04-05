@@ -16,6 +16,9 @@ class ReactionRolesCog(commands.Cog):
             return
 
         for idx, config_data in enumerate(Config.REACTION_ROLES):
+            if config_data.get("enabled", True) is False:
+                continue
+
             identifier = config_data.get("identifier", f"rr_menu_{idx}")
             channel_id = config_data.get("channel_id")
             
@@ -129,6 +132,9 @@ class ReactionRolesCog(commands.Cog):
         # Is this message part of our reaction roles?
         matched_mapping = None
         for idx, config_data in enumerate(Config.REACTION_ROLES):
+            if config_data.get("enabled", True) is False:
+                continue
+                
             identifier = config_data.get("identifier", f"rr_menu_{idx}")
             db_record = self.db.get_reaction_role_message(identifier)
             if db_record and db_record[1] == payload.message_id:

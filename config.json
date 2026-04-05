@@ -163,6 +163,7 @@
     "reaction_roles": [
         {
             "identifier": "example_menu_1",
+            "enabled": true,
             "channel_id": 1486516075905417216,
             "header": "🤖 Watcher Bot Értesítések",
             "title": "🎮 Értesítési Szerepkörök",
