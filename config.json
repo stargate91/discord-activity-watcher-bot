@@ -162,31 +162,148 @@
     },
     "reaction_roles": [
         {
-            "identifier": "example_menu_1",
+            "identifier": "games_shooters",
             "enabled": true,
-            "channel_id": 1486516075905417216,
-            "header": "🤖 Watcher Bot Értesítések",
-            "title": "🎮 Értesítési Szerepkörök",
-            "description": "Kattints a lenti emojikra, hogy felvedd (vagy ledobd) a hozzájuk tartozó rangot!\nÍgy csak arról kapsz értesítést, ami tényleg érdekel.",
+            "channel_id": 0,
+            "header": "🔫 Lövöldözős & Akció",
+            "title": "A pörgős, kompetitív és FPS/TPS játékok",
+            "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
             "footer": "Watcher Bot System V2",
-            "thumbnail": "https://i.imgur.com/example_thumb.png",
-            "image": "https://i.imgur.com/example_header.png",
-            "color": "0x5865F2",
+            "thumbnail": "",
+            "image": "",
+            "color": "0xED4245",
             "mappings": [
                 {
-                    "emoji": "🎮",
-                    "label": "Gamer Rang",
-                    "role_id": 1275930800679948399
+                    "emoji": "<:emojigg_CS2:1234567890123>",
+                    "label": "CS2",
+                    "role_id": 0
                 },
                 {
-                    "emoji": "🎬",
-                    "label": "Filmes Esték",
-                    "role_id": 123456789012345678
+                    "emoji": "<:Valorant:1234567890123>",
+                    "label": "Valorant",
+                    "role_id": 0
                 },
                 {
-                    "emoji": "<:SPOTIFY:1488659900149006346>",
-                    "label": "Zene Buzerátor",
-                    "role_id": 876543210987654321
+                    "emoji": "<:Overwatch:1234567890123>",
+                    "label": "Overwatch",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:ApexLegends:1234567890123>",
+                    "label": "Apex Legends",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:82963fortnite:1234567890123>",
+                    "label": "Fortnite",
+                    "role_id": 0
+                }
+            ]
+        },
+        {
+            "identifier": "games_rpg",
+            "enabled": true,
+            "channel_id": 0,
+            "header": "⚔️ Szerepjátékok & MOBA",
+            "title": "A masszív online játékok és nagy arénák",
+            "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
+            "footer": "Watcher Bot System V2",
+            "thumbnail": "",
+            "image": "",
+            "color": "0x9B59B6",
+            "mappings": [
+                {
+                    "emoji": "<:3220leagueoflegendlogo:1234567890123>",
+                    "label": "League of Legends",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:57749dota2emoji:1234567890123>",
+                    "label": "Dota 2",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:7081wow:1234567890123>",
+                    "label": "World of Warcraft",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:ff:1234567890123>",
+                    "label": "Final Fantasy",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:eveonline:1234567890123>",
+                    "label": "EVE Online",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:wherewindsmeet:1234567890123>",
+                    "label": "Where Winds Meet",
+                    "role_id": 0
+                }
+            ]
+        },
+        {
+            "identifier": "games_strategy",
+            "enabled": true,
+            "channel_id": 0,
+            "header": "🧠 Stratégia & Szimulátor",
+            "title": "Azoknak akik építkezni, menedzselni szeretnek",
+            "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
+            "footer": "Watcher Bot System V2",
+            "thumbnail": "",
+            "image": "",
+            "color": "0xF1C40F",
+            "mappings": [
+                {
+                    "emoji": "<:busy:1234567890123>",
+                    "label": "Age of Empires",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:stellaris:1234567890123>",
+                    "label": "Stellaris",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:jwe:1234567890123>",
+                    "label": "Jurassic World Evolution",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:sims4:1234567890123>",
+                    "label": "Sims",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:TheBazaar:1234567890123>",
+                    "label": "The Bazaar",
+                    "role_id": 0
+                }
+            ]
+        },
+        {
+            "identifier": "games_sandbox",
+            "enabled": true,
+            "channel_id": 0,
+            "header": "🏗️ Építős & Sandbox",
+            "title": "Kreatív szabadság és túlélés",
+            "description": "Kattints a(z) emojikra, hogy felvedd vagy levedd a hozzájuk tartozó rangot!",
+            "footer": "Watcher Bot System V2",
+            "thumbnail": "",
+            "image": "",
+            "color": "0x2ECC71",
+            "mappings": [
+                {
+                    "emoji": "<:Minecraft:1234567890123>",
+                    "label": "Minecraft",
+                    "role_id": 0
+                },
+                {
+                    "emoji": "<:spaceengineers:1234567890123>",
+                    "label": "Space Engineers",
+                    "role_id": 0
                 }
             ]
         }
