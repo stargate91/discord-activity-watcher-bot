@@ -45,6 +45,10 @@ class ReactionRolesCog(commands.Cog):
             if not channel:
                 log.error(f"Cannot find channel {channel_id} for reaction role {identifier}")
                 continue
+                
+            # Formatting variables
+            guild = self.bot.get_guild(Config.GUILD_ID)
+            bot_name = guild.me.display_name if guild else self.bot.user.name
 
             # Check DB to see if we already sent this message
             db_record = self.db.get_reaction_role_message(identifier)
@@ -72,6 +76,8 @@ class ReactionRolesCog(commands.Cog):
                 container = Container(accent_color=discord.Color.from_str(config_data.get("color", "0x5865F2")))
                 
                 header = config_data.get("header")
+                if header: header = header.replace("{bot_name}", bot_name)
+                
                 thumbnail = config_data.get("thumbnail")
                 
                 if header:
@@ -82,7 +88,10 @@ class ReactionRolesCog(commands.Cog):
                     container.add_item(Separator())
                 
                 title = config_data.get("title", "Szerepkörök")
+                if title: title = title.replace("{bot_name}", bot_name)
+
                 desc = config_data.get("description", "Válaszd ki a szerepeidet!")
+                if desc: desc = desc.replace("{bot_name}", bot_name)
                 
                 content_text = f"## {title}\n{desc}"
                 container.add_item(TextDisplay(content_text))
@@ -104,7 +113,8 @@ class ReactionRolesCog(commands.Cog):
                     container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(image)))
 
                 footer = config_data.get("footer")
-                if footer:
+                if footer: 
+                    footer = footer.replace("{bot_name}", bot_name)
                     container.add_item(Separator())
                     container.add_item(TextDisplay(f"*{footer}*"))
 
