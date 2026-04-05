@@ -87,18 +87,6 @@ class ReactionRolesCog(commands.Cog):
                         view = LayoutView()
                         container = Container(accent_color=discord.Color.from_str(config_data.get("color", "0x5865F2")))
                         
-                        header = config_data.get("header")
-                        if header: header = header.replace("{bot_name}", bot_name)
-                        
-                        thumbnail = config_data.get("thumbnail")
-                        
-                        if header:
-                            if thumbnail:
-                                container.add_item(Section(f"# {header}", accessory=Thumbnail(thumbnail)))
-                            else:
-                                container.add_item(TextDisplay(f"# {header}"))
-                            container.add_item(Separator())
-                        
                         title = config_data.get("title", "Szerepkörök")
                         if title: title = title.replace("{bot_name}", bot_name)
 
@@ -116,19 +104,13 @@ class ReactionRolesCog(commands.Cog):
                                 emoji = mapping.get("emoji")
                                 label = mapping.get("label", "")
                                 if emoji:
-                                    container.add_item(TextDisplay(f"{emoji} **{label}**"))
+                                    container.add_item(TextDisplay(f"• {emoji} **{label}**"))
                         
                         image = config_data.get("image")
                         if image:
                             container.add_item(Separator(visible=False))
                             # Fallback to TextDisplay if MediaGallery doesn't accept url directly or we use discord.MediaGalleryItem
                             container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(image)))
-
-                        footer = config_data.get("footer")
-                        if footer: 
-                            footer = footer.replace("{bot_name}", bot_name)
-                            container.add_item(Separator())
-                            container.add_item(TextDisplay(f"*{footer}*"))
 
                         view.add_item(container)
                     except ImportError:
