@@ -84,6 +84,7 @@ class Config:
     # New UI settings for color and emoji customization
     THEME = _ui.get("theme", {})
     EMOJIS = _data.get("emojis", {})
+    REACTION_ROLES = _data.get("reaction_roles", [])
     
     # Backward compatibility for these two specific colors
     COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
