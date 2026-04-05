@@ -9,10 +9,15 @@ class ReactionRolesCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
 
-    @commands.Cog.listener()
-    async def on_ready(self):
+    async def cog_load(self):
+        # Start the background initialization task
+        self.bot.loop.create_task(self.init_reaction_roles())
+
+    async def init_reaction_roles(self):
+        await self.bot.wait_until_ready()
+        
         # When bot starts, verify and send reaction role messages if missing
-        log.info(f"ReactionRoles on_ready triggered. Config count: {len(Config.REACTION_ROLES)}")
+        log.info(f"ReactionRoles initialization triggered. Config count: {len(Config.REACTION_ROLES)}")
         if not Config.REACTION_ROLES:
             return
 
