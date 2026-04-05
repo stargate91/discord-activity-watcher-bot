@@ -19,6 +19,21 @@ class ReactionRolesCog(commands.Cog):
             if config_data.get("enabled", True) is False:
                 continue
 
+            guild = self.bot.get_guild(Config.GUILD_ID)
+            if guild:
+                for mapping in config_data.get("mappings", []):
+                    # Auto-resolve missing role IDs via name
+                    if mapping.get("role_id", 0) == 0 and mapping.get("role_name"):
+                        role = discord.utils.get(guild.roles, name=mapping.get("role_name"))
+                        if role:
+                            mapping["role_id"] = role.id
+                            
+                    # Auto-resolve missing emojis via name
+                    if not mapping.get("emoji") and mapping.get("emoji_name"):
+                        emoji_obj = discord.utils.get(guild.emojis, name=mapping.get("emoji_name"))
+                        if emoji_obj:
+                            mapping["emoji"] = str(emoji_obj)
+
             identifier = config_data.get("identifier", f"rr_menu_{idx}")
             channel_id = config_data.get("channel_id")
             
