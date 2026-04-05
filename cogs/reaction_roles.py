@@ -100,13 +100,14 @@ class ReactionRolesCog(commands.Cog):
                         
                         if mappings:
                             container.add_item(Separator(visible=False))
-                            inner_container = Container(accent_color=discord.Color.dark_grey())
+                            lines = []
                             for mapping in mappings:
                                 emoji = mapping.get("emoji")
                                 label = mapping.get("label", "")
                                 if emoji:
-                                    inner_container.add_item(TextDisplay(f"{emoji} **{label}**"))
-                            container.add_item(inner_container)
+                                    lines.append(f"{emoji} **{label}**\\n")
+                            if lines:
+                                container.add_item(TextDisplay(">>> " + "".join(lines)))
                         
                         image = config_data.get("image")
                         if image:
