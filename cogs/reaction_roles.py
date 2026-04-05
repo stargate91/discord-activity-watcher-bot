@@ -104,7 +104,7 @@ class ReactionRolesCog(commands.Cog):
                                 emoji = mapping.get("emoji")
                                 label = mapping.get("label", "")
                                 if emoji:
-                                    container.add_item(TextDisplay(f"• {emoji} **{label}**"))
+                                    container.add_item(TextDisplay(f"> {emoji} **{label}**"))
                         
                         image = config_data.get("image")
                         if image:
