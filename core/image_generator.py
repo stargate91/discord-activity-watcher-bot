@@ -184,8 +184,8 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         sth = font_size_sub
         
     # Calculate total height of all elements to vertical center them
-    space1 = 20
-    space2 = 15
+    space1 = style_config.get("text_margin_top", 10)
+    space2 = style_config.get("text_spacing", 10)
     total_height = ring_size + space1 + th + space2 + sth
     
     # Paste ring+avatar to canvas
