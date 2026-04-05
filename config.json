@@ -312,6 +312,98 @@
                     "role_name": "Player: Space Engineers"
                 }
             ]
+        },
+        {
+            "identifier": "news_access",
+            "enabled": true,
+            "channel_id": 1443383492091183235,
+            "header": "📰 Hírcsatornák",
+            "title": "Hírek Csatornák Láthatósága",
+            "description": "Ezekkel a rangokkal hozzáférhetsz a hírek csatornákhoz - pinget nem kapsz róluk csak láthatod.",
+            "footer": "{bot_name} • Mindig figyellek...",
+            "thumbnail": "",
+            "image": "",
+            "color": "0x3498DB",
+            "mappings": [
+                {
+                    "emoji_name": "whyfiles",
+                    "label": "Why Files",
+                    "role_name": "News: Why Files"
+                },
+                {
+                    "emoji_name": "criticaldrinker",
+                    "label": "Critical Drinker",
+                    "role_name": "News: Critical Drinker"
+                },
+                {
+                    "emoji_name": "thevr",
+                    "label": "TheVR",
+                    "role_name": "News: TheVR"
+                },
+                {
+                    "emoji_name": "asmongold",
+                    "label": "Asmongold",
+                    "role_name": "News: Asmongold"
+                },
+                {
+                    "emoji_name": "HappyAlien",
+                    "label": "Csillagászat",
+                    "role_name": "Hírek: Csillagászat"
+                }
+            ]
+        },
+        {
+            "identifier": "news_pings",
+            "enabled": true,
+            "channel_id": 1443383492091183235,
+            "header": "🔔 Értesítések",
+            "title": "Hírek Pingek",
+            "description": "Ha szeretnél pinget kapni, pl ha felkerül 1 új Why Files vagy TheVR videó.",
+            "footer": "{bot_name} • Mindig figyellek...",
+            "thumbnail": "",
+            "image": "",
+            "color": "0xE67E22",
+            "mappings": [
+                {
+                    "emoji_name": "whyfiles",
+                    "label": "Ping: Why Files",
+                    "role_name": "Ping: Why Files"
+                },
+                {
+                    "emoji_name": "criticaldrinker",
+                    "label": "Ping: Critical Drinker",
+                    "role_name": "Ping: Critical Drinker"
+                },
+                {
+                    "emoji_name": "thevr",
+                    "label": "Ping: TheVR",
+                    "role_name": "Ping: TheVR"
+                },
+                {
+                    "emoji_name": "asmongold",
+                    "label": "Ping: Asmongold",
+                    "role_name": "Ping: Asmongold"
+                }
+            ]
+        },
+        {
+            "identifier": "dota_battlecup",
+            "enabled": true,
+            "channel_id": 1443383492091183235,
+            "header": "🏆 Versenyek",
+            "title": "Dota 2 Battle Cups",
+            "description": "Reagálj a zöld pipával ha szeretnél pinget kapni (heti 1x), a közelgő Battlecupról.",
+            "footer": "{bot_name} • Mindig figyellek...",
+            "thumbnail": "",
+            "image": "",
+            "color": "0x1ABC9C",
+            "mappings": [
+                {
+                    "emoji": "✅",
+                    "label": "Dota 2 Battle Cup Enjoyer",
+                    "role_name": "Dota 2 Battle Cup Enjoyer"
+                }
+            ]
         }
     ]
 }
