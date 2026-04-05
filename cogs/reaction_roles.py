@@ -96,7 +96,7 @@ class ReactionRolesCog(commands.Cog):
                             if thumbnail:
                                 container.add_item(Section(f"# {header}", accessory=Thumbnail(thumbnail)))
                             else:
-                                container.add_item(Section(f"# {header}"))
+                                container.add_item(TextDisplay(f"# {header}"))
                             container.add_item(Separator())
                         
                         title = config_data.get("title", "Szerepkörök")
