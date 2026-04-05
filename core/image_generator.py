@@ -145,7 +145,15 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     
     # Load fonts
     font_main = None
-    for fp in ['C:/Windows/Fonts/segoeuib.ttf', 'C:/Windows/Fonts/arialbd.ttf']:
+    main_font_paths = [
+        'core/fonts/Roboto-Bold.ttf',
+        'C:/Windows/Fonts/segoeuib.ttf',
+        'C:/Windows/Fonts/arialbd.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+        '/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf'
+    ]
+    for fp in main_font_paths:
         try:
             font_main = ImageFont.truetype(fp, font_size_main)
             break
@@ -155,7 +163,15 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         font_main = ImageFont.load_default()
         
     font_sub = None
-    for fp in ['C:/Windows/Fonts/segoeui.ttf', 'C:/Windows/Fonts/arial.ttf']:
+    sub_font_paths = [
+        'core/fonts/Roboto-Regular.ttf',
+        'C:/Windows/Fonts/segoeui.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+        '/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf'
+    ]
+    for fp in sub_font_paths:
         try:
             font_sub = ImageFont.truetype(fp, font_size_sub)
             break
