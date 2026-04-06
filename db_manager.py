@@ -964,35 +964,35 @@ class DBManager:
             spotify_top = conn.execute("""
                 SELECT user_id, SUM(spotify_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 10
+                GROUP BY user_id ORDER BY total DESC LIMIT 50
             """, (guild_id, start_date, end_date)).fetchall()
             
             # 2. Hardcore Gamer (Total Minutes)
             game_top = conn.execute("""
                 SELECT user_id, SUM(game_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 10
+                GROUP BY user_id ORDER BY total DESC LIMIT 50
             """, (guild_id, start_date, end_date)).fetchall()
 
             # 3. Variety Gamer (Most unique games played for >= X mins)
             variety_top = conn.execute(f"""
                 SELECT user_id, COUNT(DISTINCT game_name) as variety FROM daily_game_stats
                 WHERE guild_id = ? AND date >= ? AND date <= ? AND minutes >= {Config.VARIETY_MIN_MINUTES}
-                GROUP BY user_id ORDER BY variety DESC LIMIT 10
+                GROUP BY user_id ORDER BY variety DESC LIMIT 50
             """, (guild_id, start_date, end_date)).fetchall()
             
             # 4. Streamer
             stream_top = conn.execute("""
                 SELECT user_id, SUM(stream_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 10
+                GROUP BY user_id ORDER BY total DESC LIMIT 50
             """, (guild_id, start_date, end_date)).fetchall()
             
             # 5. Media (MemeLord)
             media_top = conn.execute("""
                 SELECT user_id, SUM(media_count) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 10
+                GROUP BY user_id ORDER BY total DESC LIMIT 50
             """, (guild_id, start_date, end_date)).fetchall()
             
             return {
