@@ -171,6 +171,7 @@
     "CAT_STREAMER": "Streamer",
     "CAT_MEME": "MemeLord",
     "CMD_LIST_CHANNELS_DESC": "Export all server channels with their types to a TXT file.",
+    "CMD_LIST_ROLES_DESC": "Export server roles and permissions to a TXT file.",
     "CMD_WEEKLY_STANDINGS_DESC": "Shows who is currently leading the weekly champion lists.",
     "WEEKLY_STANDINGS_TITLE": "WEEKLY CHANCES (Live Standings)",
     "WEEKLY_STANDINGS_FOOTER": "This is a live preview. The final distribution happens on Monday dawn!",

@@ -171,6 +171,7 @@
     "CAT_STREAMER": "Streamer",
     "CAT_MEME": "MemeLord",
     "CMD_LIST_CHANNELS_DESC": "Szerver csatornáinak és típusainak exportálása TXT fájlba.",
+    "CMD_LIST_ROLES_DESC": "Szerver rangok és engedélyek exportálása TXT fájlba.",
     "CMD_WEEKLY_STANDINGS_DESC": "Megmutatja, kik vezetik jelenleg a heti bajnoki listákat.",
     "WEEKLY_STANDINGS_TITLE": "HETI ESÉLYLATOLGATÁS (Élő Állás)",
     "WEEKLY_STANDINGS_FOOTER": "Ez egy élő előnézet. A végleges osztás hétfő hajnalban történik!",
