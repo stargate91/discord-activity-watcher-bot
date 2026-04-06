@@ -56,8 +56,15 @@ class Icons:
         
         for key in all_keys:
             val = provided_data.get(key) or defaults.get(key, "❓")
-            setattr(cls, key, discord.PartialEmoji.from_str(val))
+            try:
+                setattr(cls, key, discord.PartialEmoji.from_str(val))
+            except:
+                # Fallback to just the string or a basic emoji if PartialEmoji.from_str fails
+                setattr(cls, key, val)
 
-# Default initialization for safe-importing
+# Default initialization for safe-importing remains, but wrapped in try/except
 class DefaultConfig: EMOJIS = {}
-Icons.setup(DefaultConfig())
+try:
+    Icons.setup(DefaultConfig())
+except:
+    pass

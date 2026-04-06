@@ -24,3 +24,14 @@ def setup_logger(name="ActivityBot", log_file="activity_bot.log", level=logging.
 
 # Create the main logger that the rest of the bot will use
 log = setup_logger()
+
+def log_unhandled_exception(exc_type, exc_value, exc_traceback):
+    """Ensure even unhandled exceptions are logged."""
+    if issubclass(exc_type, KeyboardInterrupt):
+        import sys
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    log.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+import sys
+sys.excepthook = log_unhandled_exception

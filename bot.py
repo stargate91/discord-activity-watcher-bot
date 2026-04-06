@@ -9,13 +9,18 @@ from core.stats_engine import StatsEngine
 from core.messages import Messages
 from core.ui_icons import Icons
 from core.ui_theme import Theme
+import logging
+from logging.handlers import RotatingFileHandler
 
-# Set up the UI icons and theme before loading any messages
-Icons.setup(Config)
-Theme.init_theme(Config)
+# These tell the bot why it's starting and what it's doing
+import matplotlib
+try:
+    matplotlib.use('Agg') # Headless fix for Linux/Debian/Headless servers
+except:
+    pass
 
-# Pick the language from our settings so the bot knows how to talk (HU/EN)
-Messages.load_language(Config.LANGUAGE)
+# Pick the language from our settings so the bot knows hogy mit mondjon (HU/EN)
+# But wait, we'll do this in the initialization to be safe
 
 class CheekyBot(commands.Bot):
     def __init__(self):
@@ -70,10 +75,32 @@ class CheekyBot(commands.Bot):
     async def migrate_role_logs(self):
         await self.tracker.migrate_role_logs(self)
 
-bot = CheekyBot()
-
 if __name__ == "__main__":
-    if Config.validate() is None: 
+    try:
+        log.info("--- Iris Bot Starting ---")
+        
+        # 1. Initialize UI components and localization safely
+        log.info("Initializing UI & Locales...")
+        Icons.setup(Config)
+        Theme.init_theme(Config)
+        Messages.load_language(Config.LANGUAGE)
+        
+        # 2. Validate Config
+        val_error = Config.validate()
+        if val_error:
+            log.error(f"Config Error: {val_error}")
+            import sys
+            sys.exit(1)
+            
+        # 3. Start the bot
+        log.info("Connecting to Discord...")
+        bot = CheekyBot()
         bot.run(Config.TOKEN)
-    else: 
-        log.error(f"Config Error: {Config.validate()}")
+        
+    except Exception as e:
+        log.critical(f"Critical error during startup: {e}", exc_info=True)
+        # Fallback to stderr if logging also fails
+        import traceback
+        import sys
+        traceback.print_exc()
+        sys.exit(1)
