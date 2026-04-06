@@ -178,19 +178,26 @@ class EmojiManager(commands.Cog):
     @emoji_group.command(name="rename", description=Messages.CMD_RENAME_EMOJI_DESC)
     @app_commands.describe(old_emoji="Select the emoji to rename", new_name="The new name")
     @commands.has_permissions(manage_expressions=True)
-    async def rename_emoji(self, interaction: discord.Interaction, old_emoji: discord.Emoji, new_name: str):
+    async def rename_emoji(self, interaction: discord.Interaction, old_emoji: discord.PartialEmoji, new_name: str):
         try:
+            # For PartialEmoji, name is accessible directly
             old_name = old_emoji.name
+            
+            # Find the actual guild emoji object if we need to edit it (PartialEmoji doesn't have .edit)
+            actual_emoji = discord.utils.get(interaction.guild.emojis, id=old_emoji.id)
+            if not actual_emoji:
+                return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=old_name), ephemeral=True)
+                
             # Discord emojinames must be alphanumeric + underscores
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', new_name)
-            await old_emoji.edit(name=clean_name)
+            await actual_emoji.edit(name=clean_name)
             await interaction.response.send_message(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name), ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
     @emoji_group.command(name="large", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
-    async def large_emoji(self, interaction: discord.Interaction, emoji: discord.Emoji):
+    async def large_emoji(self, interaction: discord.Interaction, emoji: discord.PartialEmoji):
         embed = discord.Embed(title=f":{emoji.name}:")
         embed.set_image(url=emoji.url)
         await interaction.response.send_message(embed=embed)
