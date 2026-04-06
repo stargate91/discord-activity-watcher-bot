@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import datetime
+import asyncio
 from config_loader import Config
 from core.logger import log
 from core.messages import Messages
@@ -12,9 +13,11 @@ class LoggingCog(commands.Cog):
         self.bot = bot
         self.archive_db = MessageArchiveDB()
         self.prune_archive_loop.start()
+        self.historical_sync_loop.start()
 
     def cog_unload(self):
         self.prune_archive_loop.cancel()
+        self.historical_sync_loop.cancel()
 
     @tasks.loop(hours=24)
     async def prune_archive_loop(self):
@@ -31,6 +34,72 @@ class LoggingCog(commands.Cog):
 
     @prune_archive_loop.before_loop
     async def before_prune(self):
+        await self.bot.wait_until_ready()
+
+    @tasks.loop(seconds=1.0)
+    async def historical_sync_loop(self):
+        sync_cfg = Config.LOGGING.get("archive", {}).get("historical_sync", {})
+        if not sync_cfg.get("enabled", False) or not Config.LOGGING.get("archive", {}).get("enabled", False):
+            await asyncio.sleep(60)
+            return
+
+        delay = sync_cfg.get("delay_seconds", 10)
+        batch = sync_cfg.get("batch_size", 100)
+        batch = min(100, batch) if batch > 0 else None
+
+        channel_to_sync = None
+        for guild in self.bot.guilds:
+            for channel in guild.text_channels:
+                permissions = channel.permissions_for(guild.me)
+                if not permissions.read_message_history or not permissions.read_messages:
+                    continue
+
+                state = self.archive_db.get_sync_state(channel.id)
+                if not state["is_completed"]:
+                    channel_to_sync = channel
+                    break
+            if channel_to_sync:
+                break
+                
+        if not channel_to_sync:
+            await asyncio.sleep(60)
+            return
+
+        state = self.archive_db.get_sync_state(channel_to_sync.id)
+        before_obj = discord.Object(id=state["oldest_message_id"]) if state["oldest_message_id"] else None
+        
+        try:
+            messages = [m async for m in channel_to_sync.history(limit=batch, before=before_obj)]
+            if not messages:
+                self.archive_db.update_sync_state(channel_to_sync.id, state["oldest_message_id"], True)
+                log.info(f"Historical archive sync COMPLETED for #{channel_to_sync.name}")
+            else:
+                for message in messages:
+                    if self.should_log_user(message.author, message.guild):
+                        attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
+                        self.archive_db.insert_message(
+                            message.id,
+                            message.guild.id,
+                            message.channel.id,
+                            message.author.id,
+                            message.author.name,
+                            message.content,
+                            attachments,
+                            message.created_at
+                        )
+                # Messages are fetched newest to oldest
+                oldest_id = messages[-1].id
+                self.archive_db.update_sync_state(channel_to_sync.id, oldest_id, False)
+                log.info(f"Historical archive sync: Saved {len(messages)} messages from #{channel_to_sync.name}...")
+        except discord.Forbidden:
+            self.archive_db.update_sync_state(channel_to_sync.id, state["oldest_message_id"], True)
+        except Exception as e:
+            log.error(f"Error during historical sync for {channel_to_sync.name}: {e}")
+
+        await asyncio.sleep(delay)
+
+    @historical_sync_loop.before_loop
+    async def before_historical_sync(self):
         await self.bot.wait_until_ready()
 
     def get_log_channel(self, event_name):

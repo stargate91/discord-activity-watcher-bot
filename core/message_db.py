@@ -25,6 +25,33 @@ class MessageArchiveDB:
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
+            
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS channel_sync_state (
+                    channel_id INTEGER PRIMARY KEY,
+                    oldest_message_id INTEGER,
+                    is_completed BOOLEAN DEFAULT 0
+                )
+            """)
+            conn.commit()
+
+    def get_sync_state(self, channel_id):
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT oldest_message_id, is_completed FROM channel_sync_state WHERE channel_id = ?", (channel_id,))
+            row = cursor.fetchone()
+            if row:
+                return {"oldest_message_id": row[0], "is_completed": bool(row[1])}
+            return {"oldest_message_id": None, "is_completed": False}
+
+    def update_sync_state(self, channel_id, oldest_message_id, is_completed):
+        with self._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO channel_sync_state (channel_id, oldest_message_id, is_completed)
+                VALUES (?, ?, ?)
+                ON CONFLICT(channel_id) DO UPDATE SET 
+                oldest_message_id = excluded.oldest_message_id,
+                is_completed = excluded.is_completed
+            """, (channel_id, oldest_message_id, int(is_completed)))
             conn.commit()
 
     def insert_message(self, message_id, guild_id, channel_id, user_id, username, content, attachments, timestamp):

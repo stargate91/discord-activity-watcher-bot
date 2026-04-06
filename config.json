@@ -428,7 +428,12 @@
         "archive": {
             "enabled": true,
             "retention_days": 30,
-            "max_size_mb": 1000
+            "max_size_mb": 1000,
+            "historical_sync": {
+                "enabled": true,
+                "delay_seconds": 10,
+                "batch_size": 100
+            }
         },
         "events": {
             "message_delete": {
