@@ -1,5 +1,6 @@
 import os
 import json
+import discord
 from dotenv import load_dotenv
 
 # Override=True is critical on Windows/Manager setup to prevent inheriting parent’s token
