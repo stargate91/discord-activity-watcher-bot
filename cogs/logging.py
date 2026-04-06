@@ -114,9 +114,17 @@ class LoggingCog(commands.Cog):
             self.add_footer_info(embed, before_msg.author.id)
         else:
             # For uncached messages, we only know the new content (if provided)
-            # We don't have the "before" state
-            if after_content is None:
-                return # Can't log an edit if we have no new content
+            
+            # Check author from raw payload to filter out bots
+            author_data = payload.data.get("author", {})
+            if author_data.get("bot"):
+                if not Config.LOGGING.get("log_bots", False):
+                    if str(author_data.get("id")) != str(self.bot.user.id) or not Config.LOGGING.get("log_self", False):
+                        return
+
+            # Avoid logging "Empty" edits
+            if not after_content:
+                return 
             embed = discord.Embed(
                 description=title,
                 color=Config.COLOR_WARNING,
