@@ -964,41 +964,36 @@ class DBManager:
             spotify_top = conn.execute("""
                 SELECT user_id, SUM(spotify_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 1
-            """, (guild_id, start_date, end_date)).fetchone()
+                GROUP BY user_id ORDER BY total DESC LIMIT 10
+            """, (guild_id, start_date, end_date)).fetchall()
             
             # 2. Hardcore Gamer (Total Minutes)
-            # We need to query daily_stats for overall gaming minutes if we track them per-day...
-            # Wait, game_activity doesn't have a date per-session in a way that's easy to query for 'past week'
-            # without join. Let's look at how we track game minutes.
-            # actually we don't have per-day game minutes in daily_stats currently!
-            # I should have added that. Let's add 'game_minutes' to daily_stats migration too.
             game_top = conn.execute("""
                 SELECT user_id, SUM(game_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 1
-            """, (guild_id, start_date, end_date)).fetchone()
+                GROUP BY user_id ORDER BY total DESC LIMIT 10
+            """, (guild_id, start_date, end_date)).fetchall()
 
             # 3. Variety Gamer (Most unique games played for >= X mins)
             variety_top = conn.execute(f"""
                 SELECT user_id, COUNT(DISTINCT game_name) as variety FROM daily_game_stats
                 WHERE guild_id = ? AND date >= ? AND date <= ? AND minutes >= {Config.VARIETY_MIN_MINUTES}
-                GROUP BY user_id ORDER BY variety DESC LIMIT 1
-            """, (guild_id, start_date, end_date)).fetchone()
+                GROUP BY user_id ORDER BY variety DESC LIMIT 10
+            """, (guild_id, start_date, end_date)).fetchall()
             
             # 4. Streamer
             stream_top = conn.execute("""
                 SELECT user_id, SUM(stream_minutes) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 1
-            """, (guild_id, start_date, end_date)).fetchone()
+                GROUP BY user_id ORDER BY total DESC LIMIT 10
+            """, (guild_id, start_date, end_date)).fetchall()
             
             # 5. Media (MemeLord)
             media_top = conn.execute("""
                 SELECT user_id, SUM(media_count) as total FROM daily_stats 
                 WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 1
-            """, (guild_id, start_date, end_date)).fetchone()
+                GROUP BY user_id ORDER BY total DESC LIMIT 10
+            """, (guild_id, start_date, end_date)).fetchall()
             
             return {
                 "spotify": spotify_top,

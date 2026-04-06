@@ -118,7 +118,9 @@ class ChampionsCog(commands.Cog):
         }
         
         for cat_id, cfg_key in category_config_map.items():
-            stat_val = stats.get(cat_id)
+            candidates = stats.get(cat_id, [])
+            stat_val = self._get_eligible_champion(guild, candidates)
+            
             cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
             role_id = cfg.get("role_id", 0)
             
@@ -213,6 +215,28 @@ class ChampionsCog(commands.Cog):
             log.error(f"Error in force_calculate_champions: {e}")
             await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
 
+
+    def _get_eligible_champion(self, guild, candidates):
+        """Processes a list of candidates and returns the first one that doesn't have the exclude role."""
+        if not candidates:
+            return None
+            
+        exclude_role_id = Config.CHAMPION_EXCLUDE_ROLE_ID
+        
+        for uid, val in candidates:
+            member = guild.get_member(uid)
+            if not member:
+                continue
+                
+            # If exclusion role is set, check if user has it
+            if exclude_role_id != 0:
+                if discord.utils.get(member.roles, id=exclude_role_id):
+                    continue
+            
+            # Found the top eligible candidate!
+            return (uid, val)
+            
+        return None
 
     @discord.app_commands.command(name="champion_log", description=Messages.CMD_CHAMPION_LOG_DESC)
     @is_tester_slash()
@@ -328,7 +352,9 @@ class ChampionsCog(commands.Cog):
         }
         
         for cat_id, cfg_key in category_config_map.items():
-            stat_val = stats.get(cat_id)
+            candidates = stats.get(cat_id, [])
+            stat_val = self._get_eligible_champion(interaction.guild, candidates)
+            
             cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
             
             msg_template = {

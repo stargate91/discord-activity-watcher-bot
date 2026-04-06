@@ -26,6 +26,7 @@ class Config:
     MEMELORD_ROLE_ID = _roles.get("memelord_id", 0) # Legacy (to be removed if everything is updated)
     BASIC_MEMBER_ROLE_ID = _roles.get("basic_member_role_id", 0)
     BASIC_MEMBER_EXCLUDED_ROLES = _roles.get("basic_member_excluded_roles", [])
+    CHAMPION_EXCLUDE_ROLE_ID = _roles.get("champion_exclude_role_id", 0)
     
     # Advanced Champion Role definitions (Nested with IDs, Names, Colors and Announcements)
     CHAMPION_ROLES = _data.get("champion_roles", {})
@@ -123,6 +124,7 @@ class Config:
             cls.MEMELORD_ROLE_ID = cls._roles.get("memelord_id", 0)
             cls.BASIC_MEMBER_ROLE_ID = cls._roles.get("basic_member_role_id", 0)
             cls.BASIC_MEMBER_EXCLUDED_ROLES = cls._roles.get("basic_member_excluded_roles", [])
+            cls.CHAMPION_EXCLUDE_ROLE_ID = cls._roles.get("champion_exclude_role_id", 0)
             
             cls.CHAMPION_ROLES = cls._data.get("champion_roles", {})
             cls.SPOTIVIBE_ROLE_ID = cls.CHAMPION_ROLES.get("spotify", {}).get("role_id", 0)
