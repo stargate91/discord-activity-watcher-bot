@@ -17,15 +17,18 @@ class EmojiManager(commands.Cog):
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
                  cmd._raw_desc = cmd.description
-             from config_loader import Config
-             cmd.description = Config.format_desc(cmd._raw_desc)
+             
+             # Fallback name if bot is not yet logged in
+             bname = self.bot.user.name if self.bot.user else "Iris"
+             cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""
+        bname = self.bot.user.name if self.bot.user else "Iris"
         from config_loader import Config
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
-                 cmd.description = Config.format_desc(cmd._raw_desc, guild)
+                 cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
 
     emoji_group = app_commands.Group(name="emoji", description="Emoji management commands")
 

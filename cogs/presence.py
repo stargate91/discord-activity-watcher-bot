@@ -113,7 +113,8 @@ class PresenceCog(commands.Cog):
                     Messages.PRESENCE_WATCHING,
                     Messages.PRESENCE_SASSY_1,
                     Messages.PRESENCE_SASSY_2,
-                    Messages.PRESENCE_SASSY_3
+                    Messages.PRESENCE_SASSY_3,
+                    Messages.PRESENCE_SASSY_4
                 ]
                 msg = random.choice(sassy_msgs)
                 activity = discord.Activity(type=discord.ActivityType.watching, name=msg)
@@ -122,6 +123,10 @@ class PresenceCog(commands.Cog):
                 activity = discord.Activity(type=discord.ActivityType.playing, name=Messages.PRESENCE_HELP)
 
             if activity:
+                # Truncate to 35 chars for clean display if needed
+                if len(activity.name) > 35:
+                    activity.name = activity.name[:32] + "..."
+                    
                 await self.bot.change_presence(activity=activity)
                 log.debug(f"Presence updated to: {activity.name}")
 

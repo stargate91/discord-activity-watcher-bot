@@ -235,23 +235,21 @@ class Config:
         return None
 
     @classmethod
-    def format_desc(cls, text: str, guild=None) -> str:
+    def format_desc(cls, text: str, guild: discord.Guild = None, bot_name: str = "Iris"):
         """Fills placeholders in command descriptions with current config values or names."""
         if not text: return text
         
         admin_val = str(cls.ADMIN_CHANNEL_ID)
         stats_val = str(cls.STATS_CHANNEL_ID)
         role_val = str(cls.ADMIN_ROLE_ID)
-
+        
         if guild:
-            # Resolve channel names
-            admin_ch = guild.get_channel(cls.ADMIN_CHANNEL_ID)
-            if admin_ch: admin_val = admin_ch.name
+            admin_obj = guild.get_channel(cls.ADMIN_CHANNEL_ID)
+            if admin_obj: admin_val = admin_obj.name
             
-            stats_ch = guild.get_channel(cls.STATS_CHANNEL_ID)
-            if stats_ch: stats_val = stats_ch.name
-
-            # Resolve role name
+            stats_obj = guild.get_channel(cls.STATS_CHANNEL_ID)
+            if stats_obj: stats_val = stats_obj.name
+            
             role_obj = guild.get_role(cls.ADMIN_ROLE_ID)
             if role_obj: role_val = role_obj.name
 
@@ -261,5 +259,5 @@ class Config:
             role_id=role_val,
             prefix=cls.PREFIX,
             suffix=cls.SUFFIX,
-            bot_name="Activity Watcher"
+            bot_name=bot_name
         )

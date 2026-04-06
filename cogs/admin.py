@@ -59,7 +59,10 @@ class AdminCog(commands.Cog):
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
                  cmd._raw_desc = cmd.description
-             cmd.description = Config.format_desc(cmd._raw_desc)
+             
+             # Fallback name if bot is not yet logged in
+             bname = self.bot.user.name if self.bot.user else "Iris"
+             cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
     @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
     @is_admin_slash()
@@ -733,9 +736,10 @@ class AdminCog(commands.Cog):
 
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""
+        bname = self.bot.user.name if self.bot.user else "Iris"
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
-                 cmd.description = Config.format_desc(cmd._raw_desc, guild)
+                 cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
