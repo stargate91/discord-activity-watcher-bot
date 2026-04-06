@@ -87,6 +87,7 @@ class Config:
     EMOJIS = _data.get("emojis", {})
     REACTION_ROLES = _data.get("reaction_roles", [])
     WELCOME = _data.get("welcome", {})
+    LOGGING = _data.get("logging", {})
     
     # Backward compatibility for these two specific colors
     COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
@@ -177,6 +178,7 @@ class Config:
             cls.EMOJIS = cls._data.get("emojis", {})
             cls.REACTION_ROLES = cls._data.get("reaction_roles", [])
             cls.WELCOME = cls._data.get("welcome", {})
+            cls.LOGGING = cls._data.get("logging", {})
             
             cls.COLOR_PRIMARY = int(str(cls._ui.get("color_primary", "0x3498db")), 16)
             cls.COLOR_SUCCESS = int(str(cls._ui.get("color_success", "0x2ecc71")), 16)
