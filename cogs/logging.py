@@ -48,6 +48,18 @@ class LoggingCog(commands.Cog):
                 return Config.LOGGING.get("log_bots", False)
         return True
 
+    async def get_audit_log_user(self, guild, action_type, target_id=None):
+        """Fetches the user responsible for an action from the audit log."""
+        if not guild.me.guild_permissions.view_audit_log:
+            return None
+        try:
+            async for entry in guild.audit_logs(action=action_type, limit=5):
+                if target_id is None or entry.target.id == target_id:
+                    return entry.user
+        except discord.Forbidden:
+            pass
+        return None
+
     # Message Events
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
@@ -215,8 +227,15 @@ class LoggingCog(commands.Cog):
         channel = self.get_log_channel("role_create")
         if not channel: return
 
+        user = await self.get_audit_log_user(role.guild, discord.AuditLogAction.role_create, role.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_ROLE_CREATE.format(role=role.mention)
         embed = discord.Embed(description=title, color=Config.COLOR_SUCCESS, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
+        
         embed.add_field(name=Messages.FIELD_NAME, value=role.name, inline=True)
         embed.add_field(name="ID", value=role.id, inline=True)
         await channel.send(embed=embed)
@@ -226,8 +245,15 @@ class LoggingCog(commands.Cog):
         channel = self.get_log_channel("role_delete")
         if not channel: return
 
+        user = await self.get_audit_log_user(role.guild, discord.AuditLogAction.role_delete, role.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_ROLE_DELETE.format(role=role.name)
         embed = discord.Embed(description=title, color=Config.COLOR_DANGER, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
+
         embed.add_field(name="ID", value=role.id, inline=True)
         await channel.send(embed=embed)
 
@@ -239,8 +265,14 @@ class LoggingCog(commands.Cog):
         if before.name == after.name and before.color == after.color and before.hoist == after.hoist and before.mentionable == after.mentionable:
             return
 
+        user = await self.get_audit_log_user(after.guild, discord.AuditLogAction.role_update, after.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_ROLE_UPDATE.format(role=after.mention)
         embed = discord.Embed(description=title, color=Config.COLOR_WARNING, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
         if before.name != after.name:
             embed.add_field(name=Messages.FIELD_NAME, value=f"`{before.name}` → `{after.name}`", inline=False)
         if before.color != after.color:
@@ -259,8 +291,14 @@ class LoggingCog(commands.Cog):
         for emoji in after:
             if emoji not in before:
                 if channel_create:
+                    user = await self.get_audit_log_user(guild, discord.AuditLogAction.emoji_create, emoji.id)
+                    if user and not self.should_log_user(user): continue
+                    
                     title = Messages.LOG_EMOJI_CREATE.format(emoji=emoji)
                     embed = discord.Embed(description=title, color=Config.COLOR_SUCCESS, timestamp=datetime.datetime.now(datetime.timezone.utc))
+                    if user:
+                        embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+                        self.add_footer_info(embed, user.id)
                     embed.add_field(name=Messages.FIELD_NAME, value=emoji.name, inline=True)
                     embed.add_field(name="ID", value=emoji.id, inline=True)
                     await channel_create.send(embed=embed)
@@ -269,8 +307,14 @@ class LoggingCog(commands.Cog):
         for emoji in before:
             if emoji not in after:
                 if channel_delete:
+                    user = await self.get_audit_log_user(guild, discord.AuditLogAction.emoji_delete, emoji.id)
+                    if user and not self.should_log_user(user): continue
+
                     title = Messages.LOG_EMOJI_DELETE.format(emoji=f":{emoji.name}:")
                     embed = discord.Embed(description=title, color=Config.COLOR_DANGER, timestamp=datetime.datetime.now(datetime.timezone.utc))
+                    if user:
+                        embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+                        self.add_footer_info(embed, user.id)
                     embed.add_field(name="ID", value=emoji.id, inline=True)
                     await channel_delete.send(embed=embed)
 
@@ -279,8 +323,14 @@ class LoggingCog(commands.Cog):
             for b_emoji in before:
                 if a_emoji.id == b_emoji.id and a_emoji.name != b_emoji.name:
                     if channel_update:
+                        user = await self.get_audit_log_user(guild, discord.AuditLogAction.emoji_update, a_emoji.id)
+                        if user and not self.should_log_user(user): continue
+
                         title = Messages.LOG_EMOJI_UPDATE.format(emoji=a_emoji)
                         embed = discord.Embed(description=title, color=Config.COLOR_WARNING, timestamp=datetime.datetime.now(datetime.timezone.utc))
+                        if user:
+                            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+                            self.add_footer_info(embed, user.id)
                         embed.add_field(name="Name Change", value=f"`:{b_emoji.name}:` → `:{a_emoji.name}:`", inline=False)
                         await channel_update.send(embed=embed)
 
@@ -290,8 +340,15 @@ class LoggingCog(commands.Cog):
         log_channel = self.get_log_channel("channel_create")
         if not log_channel: return
 
+        user = await self.get_audit_log_user(channel.guild, discord.AuditLogAction.channel_create, channel.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_CHAN_CREATE.format(channel=channel.mention)
         embed = discord.Embed(description=title, color=Config.COLOR_SUCCESS, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
+
         embed.add_field(name=Messages.FIELD_NAME, value=channel.name, inline=True)
         embed.add_field(name=Messages.FIELD_TYPE, value=str(channel.type), inline=True)
         await log_channel.send(embed=embed)
@@ -301,8 +358,15 @@ class LoggingCog(commands.Cog):
         log_channel = self.get_log_channel("channel_delete")
         if not log_channel: return
 
+        user = await self.get_audit_log_user(channel.guild, discord.AuditLogAction.channel_delete, channel.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_CHAN_DELETE.format(channel=channel.name)
         embed = discord.Embed(description=title, color=Config.COLOR_DANGER, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
+
         embed.add_field(name=Messages.FIELD_TYPE, value=str(channel.type), inline=True)
         await log_channel.send(embed=embed)
 
@@ -314,8 +378,14 @@ class LoggingCog(commands.Cog):
         if before.name == after.name and before.category == after.category:
             return
 
+        user = await self.get_audit_log_user(after.guild, discord.AuditLogAction.channel_update, after.id)
+        if user and not self.should_log_user(user): return
+
         title = Messages.LOG_CHAN_UPDATE.format(channel=after.mention)
         embed = discord.Embed(description=title, color=Config.COLOR_WARNING, timestamp=datetime.datetime.now(datetime.timezone.utc))
+        if user:
+            embed.set_author(name=f"@{user.name}", icon_url=user.display_avatar.url)
+            self.add_footer_info(embed, user.id)
         if before.name != after.name:
             embed.add_field(name=Messages.FIELD_NAME, value=f"`{before.name}` → `{after.name}`", inline=False)
         if before.category != after.category:
