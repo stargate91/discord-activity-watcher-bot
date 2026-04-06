@@ -38,6 +38,16 @@ class LoggingCog(commands.Cog):
         """Adds User ID to the footer."""
         embed.set_footer(text=f"User ID: {user_id}")
 
+    def should_log_user(self, user, is_guild=True):
+        if not is_guild: 
+            return False
+        if user.bot:
+            if user == self.bot.user:
+                return Config.LOGGING.get("log_self", True)
+            else:
+                return Config.LOGGING.get("log_bots", False)
+        return True
+
     # Message Events
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
@@ -49,9 +59,8 @@ class LoggingCog(commands.Cog):
         channel_mention = channel_obj.mention if channel_obj else f"<#{payload.channel_id}>"
 
         if message:
-            if not message.guild or message.author.bot:
-                if not Config.LOGGING.get("log_self", True) or (message.author != self.bot.user):
-                    return
+            if not self.should_log_user(message.author, message.guild):
+                return
             title = Messages.LOG_MSG_DELETE.format(channel=channel_mention)
             embed = self.create_base_embed(message.author, title, Config.COLOR_DANGER)
             if message.content:
@@ -86,9 +95,8 @@ class LoggingCog(commands.Cog):
         title = Messages.LOG_MSG_EDIT.format(channel=channel_mention)
 
         if before_msg:
-            if not before_msg.guild or before_msg.author.bot:
-                if not Config.LOGGING.get("log_self", True) or (before_msg.author != self.bot.user):
-                    return
+            if not self.should_log_user(before_msg.author, before_msg.guild):
+                return
             
             # If the content didn't change (e.g. an embed was loaded), ignore
             if after_content is None or before_msg.content == after_content:
@@ -304,7 +312,7 @@ class LoggingCog(commands.Cog):
     # Voice Events
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if member.bot: return
+        if not self.should_log_user(member, is_guild=True): return
 
         if before.channel is None and after.channel is not None:
             # Join
