@@ -18,6 +18,9 @@ class LoggingCog(commands.Cog):
 
     @tasks.loop(hours=24)
     async def prune_archive_loop(self):
+        if not Config.LOGGING.get("archive", {}).get("enabled", False):
+            return
+            
         retention = Config.LOGGING.get("archive", {}).get("retention_days", 30)
         max_size = Config.LOGGING.get("archive", {}).get("max_size_mb", 1000)
         r = retention if retention > 0 else None
@@ -83,6 +86,7 @@ class LoggingCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        if not Config.LOGGING.get("archive", {}).get("enabled", False): return
         if not message.guild: return
         if not self.should_log_user(message.author, message.guild): return
         
@@ -129,7 +133,10 @@ class LoggingCog(commands.Cog):
             )
             embed.set_footer(text=f"Message ID: {payload.message_id}")
 
-            archive_msg = self.archive_db.get_message(payload.message_id)
+            archive_msg = None
+            if Config.LOGGING.get("archive", {}).get("enabled", False):
+                archive_msg = self.archive_db.get_message(payload.message_id)
+                
             if archive_msg:
                 embed.set_author(name=f"@{archive_msg['username']}")
                 embed.add_field(name="Content (Archived)", value=archive_msg['content'][:1024] or "*Empty*", inline=False)
@@ -185,7 +192,10 @@ class LoggingCog(commands.Cog):
             if not after_content:
                 return 
 
-            archive_msg = self.archive_db.get_message(payload.message_id)
+            archive_msg = None
+            if Config.LOGGING.get("archive", {}).get("enabled", False):
+                archive_msg = self.archive_db.get_message(payload.message_id)
+                
             if archive_msg:
                 before_content = archive_msg['content']
                 before_author = archive_msg['username']
