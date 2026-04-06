@@ -27,6 +27,7 @@ class CheekyBot(commands.Bot):
         intents.reactions = True
         intents.message_content = True
         intents.presences = True
+        intents.emojis_and_stickers = True
         
         super().__init__(command_prefix=Config.PREFIX, intents=intents, help_command=None)
         
