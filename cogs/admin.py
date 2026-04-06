@@ -404,6 +404,61 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
+    @app_commands.command(name="list_roles", description=Messages.CMD_LIST_ROLES_DESC)
+    @is_admin_slash()
+    async def list_roles(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        title = f"--- ROLE LIST: {interaction.guild.name} ---\nGenerated: {now}\n"
+        
+        lines = [title, "-" * 60]
+        
+        roles = sorted(interaction.guild.roles, key=lambda r: r.position, reverse=True)
+        
+        for role in roles:
+            if role.is_default(): continue
+            if role.permissions.administrator: continue
+            
+            lines.append(f"[{role.name}] (ID: {role.id})")
+            
+            # Check for generic elevated permissions
+            elev_perms = []
+            for perm, value in role.permissions:
+                if value and perm in ('manage_guild', 'manage_roles', 'manage_channels', 'kick_members', 'ban_members', 'manage_messages', 'mention_everyone', 'view_audit_log'):
+                    elev_perms.append(perm.replace('_', ' ').title())
+            
+            # Check for specific channel access
+            has_channel_access = False
+            chan_details = []
+            for channel in interaction.guild.channels:
+                overwrite = channel.overwrites_for(role)
+                # If they explicitly get to see/connect to a channel that the default role can't
+                default_can_see = channel.permissions_for(interaction.guild.default_role).view_channel
+                if (overwrite.view_channel is True) or (overwrite.connect is True and isinstance(channel, discord.VoiceChannel)):
+                    has_channel_access = True
+                    chan_details.append(f"#{channel.name}")
+            
+            if not elev_perms and not has_channel_access:
+                lines.append("  -> Standard role / No specific permissions or channel access.")
+            else:
+                if elev_perms:
+                    lines.append(f"  -> Elevated Permissions: {', '.join(elev_perms)}")
+                if chan_details:
+                    if len(chan_details) <= 3:
+                        lines.append(f"  -> Specific Channel Access: {', '.join(chan_details)}")
+                    else:
+                        lines.append(f"  -> Has specific access to {len(chan_details)} channels.")
+            lines.append("")
+            
+        filename = f"roles_{interaction.guild_id}.txt"
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+            
+        await interaction.followup.send(file=discord.File(filename), ephemeral=True)
+        if os.path.exists(filename):
+            os.remove(filename)
+
     @app_commands.command(name="list_channels", description=Messages.CMD_LIST_CHANNELS_DESC)
     @is_admin_slash()
     async def list_channels(self, interaction: discord.Interaction):
