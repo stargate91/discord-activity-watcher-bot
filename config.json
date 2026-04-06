@@ -427,12 +427,12 @@
         "log_bots": false,
         "archive": {
             "enabled": true,
-            "retention_days": 30,
+            "retention_days": 0,
             "max_size_mb": 1000,
             "historical_sync": {
                 "enabled": true,
                 "delay_seconds": 10,
-                "batch_size": 100
+                "batch_size": 0
             }
         },
         "events": {
