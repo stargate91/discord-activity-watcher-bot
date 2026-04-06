@@ -75,18 +75,18 @@ class LoggingCog(commands.Cog):
                 log.info(f"Historical archive sync COMPLETED for #{channel_to_sync.name}")
             else:
                 for message in messages:
-                    if self.should_log_user(message.author, message.guild):
-                        attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
-                        self.archive_db.insert_message(
-                            message.id,
-                            message.guild.id,
-                            message.channel.id,
-                            message.author.id,
-                            message.author.name,
-                            message.content,
-                            attachments,
-                            message.created_at
-                        )
+                    attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
+                    self.archive_db.insert_message(
+                        message.id,
+                        message.guild.id,
+                        message.channel.id,
+                        message.author.id,
+                        message.author.name,
+                        message.author.bot,
+                        message.content,
+                        attachments,
+                        message.created_at
+                    )
                 # Messages are fetched newest to oldest
                 oldest_id = messages[-1].id
                 self.archive_db.update_sync_state(channel_to_sync.id, oldest_id, False)
@@ -157,8 +157,6 @@ class LoggingCog(commands.Cog):
     async def on_message(self, message):
         if not Config.LOGGING.get("archive", {}).get("enabled", False): return
         if not message.guild: return
-        if not self.should_log_user(message.author, message.guild): return
-        
         attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
         self.archive_db.insert_message(
             message.id,
@@ -166,6 +164,7 @@ class LoggingCog(commands.Cog):
             message.channel.id,
             message.author.id,
             message.author.name,
+            message.author.bot,
             message.content,
             attachments,
             message.created_at
@@ -207,6 +206,12 @@ class LoggingCog(commands.Cog):
                 archive_msg = self.archive_db.get_message(payload.message_id)
                 
             if archive_msg:
+                if archive_msg['is_bot']:
+                    if str(archive_msg['user_id']) == str(self.bot.user.id):
+                        if not Config.LOGGING.get("log_self", True): return
+                    else:
+                        if not Config.LOGGING.get("log_bots", False): return
+
                 embed.set_author(name=f"@{archive_msg['username']}")
                 embed.add_field(name="Content (Archived)", value=archive_msg['content'][:1024] or "*Empty*", inline=False)
                 if archive_msg['attachments']:
@@ -266,6 +271,12 @@ class LoggingCog(commands.Cog):
                 archive_msg = self.archive_db.get_message(payload.message_id)
                 
             if archive_msg:
+                if archive_msg['is_bot']:
+                    if str(archive_msg['user_id']) == str(self.bot.user.id):
+                        if not Config.LOGGING.get("log_self", True): return
+                    else:
+                        if not Config.LOGGING.get("log_bots", False): return
+
                 before_content = archive_msg['content']
                 before_author = archive_msg['username']
                 before_user_id = archive_msg['user_id']

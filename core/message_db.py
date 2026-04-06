@@ -24,6 +24,10 @@ class MessageArchiveDB:
                     timestamp TIMESTAMP
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE messages ADD COLUMN is_bot BOOLEAN DEFAULT 0")
+            except sqlite3.OperationalError:
+                pass
             conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
             
             conn.execute("""
@@ -54,12 +58,12 @@ class MessageArchiveDB:
             """, (channel_id, oldest_message_id, int(is_completed)))
             conn.commit()
 
-    def insert_message(self, message_id, guild_id, channel_id, user_id, username, content, attachments, timestamp):
+    def insert_message(self, message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp):
         with self._get_connection() as conn:
             conn.execute("""
-                INSERT OR IGNORE INTO messages (message_id, guild_id, channel_id, user_id, username, content, attachments, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (message_id, guild_id, channel_id, user_id, username, content, attachments, timestamp.isoformat()))
+                INSERT OR IGNORE INTO messages (message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (message_id, guild_id, channel_id, user_id, username, int(is_bot), content, attachments, timestamp.isoformat()))
             conn.commit()
 
     def update_message_content(self, message_id, new_content):
@@ -69,15 +73,16 @@ class MessageArchiveDB:
 
     def get_message(self, message_id):
         with self._get_connection() as conn:
-            cursor = conn.execute("SELECT user_id, username, content, attachments, timestamp FROM messages WHERE message_id = ?", (message_id,))
+            cursor = conn.execute("SELECT user_id, username, is_bot, content, attachments, timestamp FROM messages WHERE message_id = ?", (message_id,))
             row = cursor.fetchone()
             if row:
                 return {
                     "user_id": row[0],
                     "username": row[1],
-                    "content": row[2],
-                    "attachments": row[3],
-                    "timestamp": datetime.datetime.fromisoformat(row[4])
+                    "is_bot": bool(row[2]),
+                    "content": row[3],
+                    "attachments": row[4],
+                    "timestamp": datetime.datetime.fromisoformat(row[5])
                 }
             return None
 
