@@ -17,7 +17,6 @@ class EmojiManager(commands.Cog):
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
                  cmd._raw_desc = cmd.description
-             # Note: We need the config to format, but we'll use a helper if available
              from config_loader import Config
              cmd.description = Config.format_desc(cmd._raw_desc)
 
@@ -27,6 +26,8 @@ class EmojiManager(commands.Cog):
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild)
+
+    emoji_group = app_commands.Group(name="emoji", description="Emoji management commands")
 
     async def fetch_emoji_gg_asset(self, asset_type, asset_id):
         """
@@ -76,7 +77,7 @@ class EmojiManager(commands.Cog):
                 log.error(f"EmojiManager: Failed to download from URL {url}: {e}")
         return None, None
 
-    @app_commands.command(name="add", description="Add emoji/sticker from emoji.gg or URL")
+    @emoji_group.command(name="add", description=Messages.CMD_ADD_EMOJI_DESC)
     @app_commands.describe(
         type="Emoji or Sticker", 
         asset_id="The ID/Slug from emoji.gg (e.g. 315542-eyes)",
@@ -149,7 +150,7 @@ class EmojiManager(commands.Cog):
         ]
         return filtered[:25]
 
-    @app_commands.command(name="delete", description="Delete an emoji or sticker")
+    @emoji_group.command(name="delete", description=Messages.CMD_DELETE_EMOJI_DESC)
     @app_commands.describe(name="The name of the emoji/sticker to delete")
     @app_commands.autocomplete(name=asset_autocomplete)
     @commands.has_permissions(manage_expressions=True)
@@ -174,7 +175,7 @@ class EmojiManager(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
-    @app_commands.command(name="rename", description="Rename an emoji")
+    @emoji_group.command(name="rename", description=Messages.CMD_RENAME_EMOJI_DESC)
     @app_commands.describe(old_emoji="Select the emoji to rename", new_name="The new name")
     @commands.has_permissions(manage_expressions=True)
     async def rename_emoji(self, interaction: discord.Interaction, old_emoji: discord.Emoji, new_name: str):
@@ -187,16 +188,14 @@ class EmojiManager(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
-    @app_commands.command(name="large", description="Show a large version of an emoji")
+    @emoji_group.command(name="large", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
     async def large_emoji(self, interaction: discord.Interaction, emoji: discord.Emoji):
         embed = discord.Embed(title=f":{emoji.name}:")
         embed.set_image(url=emoji.url)
         await interaction.response.send_message(embed=embed)
 
-    list_group = app_commands.Group(name="list", description="List server assets")
-
-    @list_group.command(name="emoji", description="List all server emojis and stickers")
+    @emoji_group.command(name="list", description=Messages.CMD_LIST_EMOJIS_DESC)
     async def list_emojis(self, interaction: discord.Interaction):
         guild = interaction.guild
         
