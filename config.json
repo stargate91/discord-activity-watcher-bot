@@ -422,29 +422,89 @@
     },
     "logging": {
         "enabled": true,
-        "global_channel_id": 1486516075905417216,
+        "global_channel_id": 1282557598754930729,
         "log_self": true,
         "events": {
-            "message_delete": {"enabled": true, "channel_id": null},
-            "message_edit": {"enabled": true, "channel_id": null},
-            "member_join": {"enabled": true, "channel_id": null},
-            "member_leave": {"enabled": true, "channel_id": null},
-            "member_ban": {"enabled": true, "channel_id": null},
-            "member_unban": {"enabled": true, "channel_id": null},
-            "member_update": {"enabled": true, "channel_id": null},
-            "role_create": {"enabled": true, "channel_id": null},
-            "role_delete": {"enabled": true, "channel_id": null},
-            "role_update": {"enabled": true, "channel_id": null},
-            "emoji_create": {"enabled": true, "channel_id": null},
-            "emoji_delete": {"enabled": true, "channel_id": null},
-            "emoji_update": {"enabled": true, "channel_id": null},
-            "channel_create": {"enabled": true, "channel_id": null},
-            "channel_delete": {"enabled": true, "channel_id": null},
-            "channel_update": {"enabled": true, "channel_id": null},
-            "voice_join": {"enabled": true, "channel_id": null},
-            "voice_leave": {"enabled": true, "channel_id": null},
-            "voice_switch": {"enabled": true, "channel_id": null},
-            "command_logs": {"enabled": true, "channel_id": null}
+            "message_delete": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "message_edit": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "member_join": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "member_leave": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "member_ban": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "member_unban": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "member_update": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "role_create": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "role_delete": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "role_update": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "emoji_create": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "emoji_delete": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "emoji_update": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "channel_create": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "channel_delete": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "channel_update": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "voice_join": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "voice_leave": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "voice_switch": {
+                "enabled": true,
+                "channel_id": null
+            },
+            "command_logs": {
+                "enabled": true,
+                "channel_id": null
+            }
         }
     }
 }
