@@ -212,7 +212,7 @@ class ModernInfoView(discord.ui.LayoutView):
         container.add_item(discord.ui.Separator())
         
         # A short description of what the bot does
-        container.add_item(discord.ui.TextDisplay(Messages.INFO_DESC))
+        container.add_item(discord.ui.TextDisplay(Messages.INFO_DESC.format(bot_name=bot_name)))
         
         container.add_item(discord.ui.Separator())
         
