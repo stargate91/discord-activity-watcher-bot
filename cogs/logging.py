@@ -45,7 +45,9 @@ class LoggingCog(commands.Cog):
 
         delay = sync_cfg.get("delay_seconds", 10)
         batch = sync_cfg.get("batch_size", 100)
-        batch = min(100, batch) if batch > 0 else None
+        # Always cap at 100 (Discord API max per request) to prevent event loop blocking.
+        # batch_size=0 means "keep going until done" but still fetches 100 at a time.
+        fetch_limit = min(100, batch) if batch > 0 else 100
 
         channel_to_sync = None
         for guild in self.bot.guilds:
@@ -69,24 +71,27 @@ class LoggingCog(commands.Cog):
         before_obj = discord.Object(id=state["oldest_message_id"]) if state["oldest_message_id"] else None
         
         try:
-            messages = [m async for m in channel_to_sync.history(limit=batch, before=before_obj)]
+            messages = [m async for m in channel_to_sync.history(limit=fetch_limit, before=before_obj)]
             if not messages:
                 self.archive_db.update_sync_state(channel_to_sync.id, state["oldest_message_id"], True)
                 log.info(f"Historical archive sync COMPLETED for #{channel_to_sync.name}")
             else:
+                # Run DB inserts in a thread to avoid blocking the event loop
+                def _bulk_insert(msgs_data):
+                    for m in msgs_data:
+                        self.archive_db.insert_message(*m)
+
+                msgs_data = []
                 for message in messages:
                     attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
-                    self.archive_db.insert_message(
-                        message.id,
-                        message.guild.id,
-                        message.channel.id,
-                        message.author.id,
-                        message.author.name,
-                        message.author.bot,
-                        message.content,
-                        attachments,
-                        message.created_at
-                    )
+                    msgs_data.append((
+                        message.id, message.guild.id, message.channel.id,
+                        message.author.id, message.author.name, message.author.bot,
+                        message.content, attachments, message.created_at
+                    ))
+                
+                await asyncio.to_thread(_bulk_insert, msgs_data)
+                
                 # Messages are fetched newest to oldest
                 oldest_id = messages[-1].id
                 self.archive_db.update_sync_state(channel_to_sync.id, oldest_id, False)
