@@ -445,10 +445,7 @@ class AdminCog(commands.Cog):
                 if elev_perms:
                     lines.append(f"  -> Elevated Permissions: {', '.join(elev_perms)}")
                 if chan_details:
-                    if len(chan_details) <= 3:
-                        lines.append(f"  -> Specific Channel Access: {', '.join(chan_details)}")
-                    else:
-                        lines.append(f"  -> Has specific access to {len(chan_details)} channels.")
+                    lines.append(f"  -> Specific Channel Access: {', '.join(chan_details)}")
             lines.append("")
             
         filename = f"roles_{interaction.guild_id}.txt"
