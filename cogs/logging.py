@@ -212,7 +212,12 @@ class LoggingCog(commands.Cog):
                     else:
                         if not Config.LOGGING.get("log_bots", False): return
 
-                embed.set_author(name=f"@{archive_msg['username']}")
+                user_obj = self.bot.get_user(archive_msg['user_id'])
+                if user_obj:
+                    embed.set_author(name=f"@{user_obj.name}", icon_url=user_obj.display_avatar.url)
+                else:
+                    embed.set_author(name=f"@{archive_msg['username']}")
+                    
                 embed.add_field(name="Content (Archived)", value=archive_msg['content'][:1024] or "*Empty*", inline=False)
                 if archive_msg['attachments']:
                     embed.add_field(name="Attachments", value=archive_msg['attachments'][:1024], inline=False)
@@ -298,7 +303,12 @@ class LoggingCog(commands.Cog):
             )
             embed.set_footer(text=f"Message ID: {payload.message_id}")
             if before_author:
-                embed.set_author(name=f"@{before_author}")
+                user_obj = self.bot.get_user(before_user_id)
+                if user_obj:
+                    embed.set_author(name=f"@{user_obj.name}", icon_url=user_obj.display_avatar.url)
+                else:
+                    embed.set_author(name=f"@{before_author}")
+                    
                 self.add_footer_info(embed, before_user_id)
 
             embed.add_field(name=Messages.FIELD_BEFORE, value=before_content[:1024] or "*Empty*", inline=False)
