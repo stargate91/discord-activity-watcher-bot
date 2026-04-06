@@ -223,7 +223,8 @@ class LoggingCog(commands.Cog):
                     embed.add_field(name="Attachments", value=archive_msg['attachments'][:1024], inline=False)
                 self.add_footer_info(embed, archive_msg['user_id'])
             else:
-                embed.add_field(name="Content", value="*Message content unknown (not cached & not in archive)*", inline=False)
+                # Archive is on but message not found — no useful info to log, skip silently
+                return
 
         await channel.send(embed=embed)
 
@@ -292,9 +293,8 @@ class LoggingCog(commands.Cog):
                 # Update archive with new content
                 self.archive_db.update_message_content(payload.message_id, after_content)
             else:
-                before_content = "*Unknown (not cached & not in archive)*"
-                before_author = None
-                before_user_id = None
+                # Archive is on but message not found — skip silently
+                return
 
             embed = discord.Embed(
                 description=title,
