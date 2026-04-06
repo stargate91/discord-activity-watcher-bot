@@ -239,6 +239,10 @@ class Messages:
     STICKER_LIST_TITLE = ""
     FIELD_EMOJI_ID = ""
     FIELD_STICKER_ID = ""
+    CMD_ADD_EMOJI_URL_DESC = ""
+    ERR_INVALID_URL = ""
+    ERR_LIMIT_REACHED = ""
+    ERR_ADD_MISSING_ARGS = ""
 
     @classmethod
     def load_language(cls, lang_code):
@@ -310,7 +314,8 @@ class Messages:
             "CMD_LIST_EMOJIS_DESC", "EMOJI_ADDED_SUCCESS", "STICKER_ADDED_SUCCESS",
             "EMOJI_DELETED_SUCCESS", "EMOJI_RENAMED_SUCCESS", "ERR_EMOJI_NOT_FOUND",
             "ERR_FETCH_EMOJI_GG", "EMOJI_LIST_TITLE", "STICKER_LIST_TITLE",
-            "FIELD_EMOJI_ID", "FIELD_STICKER_ID"
+            "FIELD_EMOJI_ID", "FIELD_STICKER_ID",
+            "CMD_ADD_EMOJI_URL_DESC", "ERR_INVALID_URL", "ERR_LIMIT_REACHED", "ERR_ADD_MISSING_ARGS"
         )
         
         for key in keys:

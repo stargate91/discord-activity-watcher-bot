@@ -242,5 +242,9 @@
     "EMOJI_LIST_TITLE": "SERVER EMOJIS ({count}/{limit})",
     "STICKER_LIST_TITLE": "SERVER STICKERS ({count}/{limit})",
     "FIELD_EMOJI_ID": "Sticker ID",
-    "FIELD_STICKER_ID": "Sticker ID"
+    "FIELD_STICKER_ID": "Sticker ID",
+    "CMD_ADD_EMOJI_URL_DESC": "Direct URL to the image (optional)",
+    "ERR_INVALID_URL": "The provided URL is invalid or the image could not be downloaded.",
+    "ERR_LIMIT_REACHED": "Maximum number of emojis/stickers reached for this server!",
+    "ERR_ADD_MISSING_ARGS": "Please provide either an emoji.gg ID OR a direct URL!"
 }

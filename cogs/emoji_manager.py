@@ -4,6 +4,7 @@ from discord import app_commands
 import aiohttp
 import re
 import io
+import os
 from core.messages import Messages
 from core.ui_translate import t
 from core.logger import log
@@ -41,13 +42,11 @@ class EmojiManager(commands.Cog):
                 html = await response.text()
                 
                 # Regex to find CDN image URL (emojis or stickers)
-                # Usually: https://cdn3.emoji.gg/emojis/1234_name.png or stickers/1234_name.png
                 match = re.search(r'(https://cdn3\.emoji\.gg/(?:emojis|stickers)/[^"\s>]+)', html)
                 
                 if match:
                     asset_url = match.group(1)
-                    # Extract name from title tag: <title>name - Discord Emoji</title>
-                    # or from the URL itself if title fails
+                    # Extract name from title tag
                     name_match = re.search(r'<title>(.*?) - Discord (?:Emoji|Sticker)</title>', html)
                     name = name_match.group(1).strip().replace(" ", "_") if name_match else asset_id.split("-")[-1]
                     
@@ -61,19 +60,48 @@ class EmojiManager(commands.Cog):
                             return await img_resp.read(), name, asset_url
         return None, None, None
 
-    @app_commands.command(name="add", description="Add emoji/sticker from emoji.gg")
-    @app_commands.describe(type="Emoji or Sticker", asset_id="The ID/Slug from emoji.gg (e.g. 315542-eyes)")
+    async def fetch_asset_from_url(self, url):
+        """Downloads an asset from a direct URL."""
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        data = await resp.read()
+                        # Try to guess name from URL
+                        name = url.split("/")[-1].split("?")[0].split(".")[0]
+                        name = re.sub(r'[^a-zA-Z0-9_]', '', name)
+                        if not name: name = "custom_url_asset"
+                        return data, name
+            except Exception as e:
+                log.error(f"EmojiManager: Failed to download from URL {url}: {e}")
+        return None, None
+
+    @app_commands.command(name="add", description="Add emoji/sticker from emoji.gg or URL")
+    @app_commands.describe(
+        type="Emoji or Sticker", 
+        asset_id="The ID/Slug from emoji.gg (e.g. 315542-eyes)",
+        url="Direct link to the image/gif"
+    )
     @app_commands.choices(type=[
         app_commands.Choice(name="Emoji", value="emoji"),
         app_commands.Choice(name="Sticker", value="sticker")
     ])
     @commands.has_permissions(manage_expressions=True)
-    async def add_emoji(self, interaction: discord.Interaction, type: str, asset_id: str):
+    async def add_emoji(self, interaction: discord.Interaction, type: str, asset_id: str = None, url: str = None):
+        if not asset_id and not url:
+            return await interaction.response.send_message(t("ERR_ADD_MISSING_ARGS"), ephemeral=True)
+            
         await interaction.response.defer(ephemeral=True)
         
-        data, name, asset_url = await self.fetch_emoji_gg_asset(type, asset_id)
-        if not data:
-            return await interaction.followup.send(t("ERR_FETCH_EMOJI_GG"))
+        data, name = None, None
+        if url:
+            data, name = await self.fetch_asset_from_url(url)
+            if not data:
+                return await interaction.followup.send(t("ERR_INVALID_URL"))
+        else:
+            data, name, _ = await self.fetch_emoji_gg_asset(type, asset_id)
+            if not data:
+                return await interaction.followup.send(t("ERR_FETCH_EMOJI_GG"))
         
         try:
             if type == "emoji":
@@ -84,7 +112,7 @@ class EmojiManager(commands.Cog):
                 file = discord.File(io.BytesIO(data), filename=f"{name}.png")
                 sticker = await interaction.guild.create_sticker(
                     name=name,
-                    description=f"Added from emoji.gg ({asset_id})",
+                    description=f"Added via Watcher Bot",
                     emoji="✨", # Representation emoji/tag
                     file=file
                 )
@@ -92,23 +120,51 @@ class EmojiManager(commands.Cog):
             
             await interaction.followup.send(msg)
             log.info(f"EmojiManager: Added {type} '{name}' to guild {interaction.guild.name}")
+            
         except discord.Forbidden:
             await interaction.followup.send("❌ I don't have permission to manage emojis/stickers.")
+        except discord.HTTPException as e:
+            # Check for specific error codes: 30008 (Emoji limit), 30039 (Sticker limit)
+            if e.code in [30008, 30039]:
+                await interaction.followup.send(f"❌ {t('ERR_LIMIT_REACHED')}")
+            else:
+                await interaction.followup.send(f"❌ Error: {e.message}")
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {e}")
 
+    async def asset_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for both emojis and stickers."""
+        choices = []
+        # Combine emojis and stickers for the search
+        all_assets = []
+        for e in interaction.guild.emojis:
+            all_assets.append(app_commands.Choice(name=f" Emoji: {e.name}", value=e.name))
+        for s in interaction.guild.stickers:
+            all_assets.append(app_commands.Choice(name=f" Sticker: {s.name}", value=s.name))
+            
+        # Filter based on current input
+        filtered = [
+            choice for choice in all_assets 
+            if current.lower() in choice.name.lower()
+        ]
+        return filtered[:25]
+
     @app_commands.command(name="delete", description="Delete an emoji or sticker")
-    @app_commands.describe(name="The name or specific ID of the emoji/sticker to delete")
+    @app_commands.describe(name="The name of the emoji/sticker to delete")
+    @app_commands.autocomplete(name=asset_autocomplete)
     @commands.has_permissions(manage_expressions=True)
     async def delete_emoji(self, interaction: discord.Interaction, name: str):
+        # The name might come with "Emoji: " or "Sticker: " prefix from autocomplete
+        clean_name = name.split(": ")[-1] if ": " in name else name
+        
         # Try to find emoji first
-        target = discord.utils.get(interaction.guild.emojis, name=name)
+        target = discord.utils.get(interaction.guild.emojis, name=clean_name)
         if not target:
             # Try stickers
-            target = discord.utils.get(interaction.guild.stickers, name=name)
+            target = discord.utils.get(interaction.guild.stickers, name=clean_name)
             
         if not target:
-            return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=name), ephemeral=True)
+            return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=clean_name), ephemeral=True)
         
         try:
             old_name = target.name
