@@ -40,38 +40,78 @@ class LoggingCog(commands.Cog):
 
     # Message Events
     @commands.Cog.listener()
-    async def on_message_delete(self, message):
-        if not message.guild or message.author.bot:
-            if not Config.LOGGING.get("log_self", True) or (message.author != self.bot.user):
-                return
-
+    async def on_raw_message_delete(self, payload):
         channel = self.get_log_channel("message_delete")
         if not channel: return
 
-        title = Messages.LOG_MSG_DELETE.format(channel=message.channel.mention)
-        embed = self.create_base_embed(message.author, title, Config.COLOR_DANGER)
-        if message.content:
-            embed.add_field(name="Content", value=message.content[:1024], inline=False)
-        
-        self.add_footer_info(embed, message.author.id)
+        message = payload.cached_message
+        channel_obj = self.bot.get_channel(payload.channel_id)
+        channel_mention = channel_obj.mention if channel_obj else f"<#{payload.channel_id}>"
+
+        if message:
+            if not message.guild or message.author.bot:
+                if not Config.LOGGING.get("log_self", True) or (message.author != self.bot.user):
+                    return
+            title = Messages.LOG_MSG_DELETE.format(channel=channel_mention)
+            embed = self.create_base_embed(message.author, title, Config.COLOR_DANGER)
+            if message.content:
+                embed.add_field(name="Content", value=message.content[:1024], inline=False)
+            self.add_footer_info(embed, message.author.id)
+        else:
+            # Uncached message
+            title = Messages.LOG_MSG_DELETE.format(channel=channel_mention)
+            embed = discord.Embed(
+                description=title,
+                color=Config.COLOR_DANGER,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            embed.set_footer(text=f"Message ID: {payload.message_id}")
+            embed.add_field(name="Content", value="*Message content unknown (not cached)*", inline=False)
+
         await channel.send(embed=embed)
 
     @commands.Cog.listener()
-    async def on_message_edit(self, before, after):
-        if not after.guild or after.author.bot:
-            if not Config.LOGGING.get("log_self", True) or (after.author != self.bot.user):
-                return
-        if before.content == after.content: return
-
+    async def on_raw_message_edit(self, payload):
         channel = self.get_log_channel("message_edit")
         if not channel: return
 
-        title = Messages.LOG_MSG_EDIT.format(channel=after.channel.mention)
-        embed = self.create_base_embed(after.author, title, Config.COLOR_WARNING)
-        embed.add_field(name=Messages.FIELD_BEFORE, value=before.content[:1024] or "*Empty*", inline=False)
-        embed.add_field(name=Messages.FIELD_AFTER, value=after.content[:1024] or "*Empty*", inline=False)
+        # Raw payload might not have 'content' if it wasn't modified or if it's not cached
+        before_msg = payload.cached_message
         
-        self.add_footer_info(embed, after.author.id)
+        # 'payload.data' contains the new state of the message
+        after_content = payload.data.get("content")
+        channel_obj = self.bot.get_channel(payload.channel_id)
+        channel_mention = channel_obj.mention if channel_obj else f"<#{payload.channel_id}>"
+
+        title = Messages.LOG_MSG_EDIT.format(channel=channel_mention)
+
+        if before_msg:
+            if not before_msg.guild or before_msg.author.bot:
+                if not Config.LOGGING.get("log_self", True) or (before_msg.author != self.bot.user):
+                    return
+            
+            # If the content didn't change (e.g. an embed was loaded), ignore
+            if after_content is None or before_msg.content == after_content:
+                return
+
+            embed = self.create_base_embed(before_msg.author, title, Config.COLOR_WARNING)
+            embed.add_field(name=Messages.FIELD_BEFORE, value=before_msg.content[:1024] or "*Empty*", inline=False)
+            embed.add_field(name=Messages.FIELD_AFTER, value=after_content[:1024] or "*Empty*", inline=False)
+            self.add_footer_info(embed, before_msg.author.id)
+        else:
+            # For uncached messages, we only know the new content (if provided)
+            # We don't have the "before" state
+            if after_content is None:
+                return # Can't log an edit if we have no new content
+            embed = discord.Embed(
+                description=title,
+                color=Config.COLOR_WARNING,
+                timestamp=datetime.datetime.now(datetime.timezone.utc)
+            )
+            embed.set_footer(text=f"Message ID: {payload.message_id}")
+            embed.add_field(name=Messages.FIELD_BEFORE, value="*Unknown (not cached)*", inline=False)
+            embed.add_field(name=Messages.FIELD_AFTER, value=after_content[:1024] or "*Empty*", inline=False)
+
         await channel.send(embed=embed)
 
     # Member Events
