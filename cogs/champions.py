@@ -63,136 +63,155 @@ class ChampionsCog(commands.Cog):
                         continue
                 
                 config_data["champion_roles"][key]["role_id"] = role.id
-                # Update Config class attributes dynamically
-                setattr(Config, key.upper() + "_ROLE_ID", role.id)
                 updated = True
         
         if updated:
             with open("config.json", "w", encoding="utf-8") as f:
                 json.dump(config_data, f, indent=4)
             log.info("Updated config.json with new role IDs.")
+            Config.reload()
 
     @tasks.loop(minutes=30)
     async def weekly_champions_task(self):
-        """Runs the champion logic every Monday at 00:01."""
+        """Runs the champion logic every Monday at 00:01 (handled by _run_champion_logic checks)."""
+        for guild in self.bot.guilds:
+            if guild.id == Config.GUILD_ID:
+                await self._run_champion_logic(guild)
+
+    async def _run_champion_logic(self, guild, force=False):
+        """Internal logic for calculating and awarding weekly champions."""
         now = datetime.datetime.now(datetime.timezone.utc)
-        
-        # We only care about Monday morning
-        if now.weekday() != 0: # Monday is 0
-            return
-            
-        # Ensure we only run once per Monday
-        # We'll check the db for the last win_date
-        with self.db._get_connection() as conn:
-            row = conn.execute("SELECT MAX(win_date) FROM champion_history").fetchone()
-            last_run = datetime.date.fromisoformat(row[0]) if row and row[0] else None
-        
         today = now.date()
-        if last_run == today:
-            return
+        
+        # 1. Validation for automatic task (skip if not Monday or already run)
+        if not force:
+            if now.weekday() != 0: # Monday is 0
+                return
+                
+            # Ensure we only run once per Monday
+            with self.db._get_connection() as conn:
+                row = conn.execute("SELECT MAX(win_date) FROM champion_history WHERE guild_id = ?", (guild.id,)).fetchone()
+                last_run = datetime.date.fromisoformat(row[0]) if row and row[0] else None
+            
+            if last_run == today:
+                return
 
         # Start the process!
-        log.info("Starting Weekly Champion calculation...")
+        log.info(f"Starting Weekly Champion calculation (Force={force})...")
         
-        for guild in self.bot.guilds:
-            if guild.id != Config.GUILD_ID: continue
+        await self._setup_roles(guild)
+        
+        # Period: Last Monday 00:00 to Sunday 23:59
+        start_date = today - datetime.timedelta(days=7)
+        end_date = today - datetime.timedelta(days=1)
+        
+        stats = self.db.get_weekly_champion_stats(guild.id, start_date, end_date)
+        
+        # Fetch winners (Map categories to consolidated config keys)
+        categories = {}
+        category_config_map = {
+            "spotify": "spotify",
+            "gamer_total": "godgamer",
+            "gamer_variety": "godgamer",
+            "streamer": "streamer",
+            "media": "media"
+        }
+        
+        for cat_id, cfg_key in category_config_map.items():
+            stat_val = stats.get(cat_id)
+            cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
+            role_id = cfg.get("role_id", 0)
             
-            await self._setup_roles(guild)
+            # Get template from Messages (localized)
+            msg_template = {
+                "spotify": Messages.CHAMPION_SPOTIFY,
+                "gamer_total": Messages.CHAMPION_GAMER_TOTAL,
+                "gamer_variety": Messages.CHAMPION_GAMER_VARIETY,
+                "streamer": Messages.CHAMPION_STREAMER,
+                "media": Messages.CHAMPION_MEMELORD
+            }.get(cat_id, f"**{cfg.get('name', cat_id)}:** {{name}} ({{value}})")
             
-            # Period: Last Monday 00:00 to Sunday 23:59
-            start_date = today - datetime.timedelta(days=7)
-            end_date = today - datetime.timedelta(days=1)
+            categories[cat_id] = (stat_val, role_id, msg_template)
+        
+        # Manage old roles (using a set to avoid removing/checking the same role multiple times)
+        last_champs = self.db.get_last_champions(guild.id)
+        roles_to_remove = set()
+        
+        for category, user_id in last_champs.items():
+            member = guild.get_member(user_id)
+            if member:
+                cfg_key = category_config_map.get(category)
+                role_id = Config.CHAMPION_ROLES.get(cfg_key, {}).get("role_id", 0)
+                if role_id:
+                    roles_to_remove.add((member, role_id))
+        
+        for m, rid in roles_to_remove:
+            role = guild.get_role(rid)
+            if role and role in m.roles:
+                try: await m.remove_roles(role)
+                except discord.Forbidden: pass
+        
+        # Award new ones & collect data for the view
+        champion_announcement_data = {}
+        hof_notices = []
+        
+        for cat_id, (data, role_id, msg_template) in categories.items():
+            if not data: continue
             
-            stats = self.db.get_weekly_champion_stats(guild.id, start_date, end_date)
+            uid, val = data
+            member = guild.get_member(uid)
             
-            # Fetch winners (Map categories to consolidated config keys)
-            categories = {}
-            category_config_map = {
-                "spotify": "spotify",
-                "gamer_total": "godgamer",
-                "gamer_variety": "godgamer",
-                "streamer": "streamer",
-                "media": "media"
-            }
+            # 1. Log win
+            self.db.log_champion_win(uid, guild.id, cat_id, today)
             
-            for cat_id, cfg_key in category_config_map.items():
-                stat_val = stats.get(cat_id)
-                cfg = Config.CHAMPION_ROLES.get(cfg_key, {})
-                role_id = cfg.get("role_id", 0)
-                
-                # Get template from Messages (localized)
-                msg_template = {
-                    "spotify": Messages.CHAMPION_SPOTIFY,
-                    "gamer_total": Messages.CHAMPION_GAMER_TOTAL,
-                    "gamer_variety": Messages.CHAMPION_GAMER_VARIETY,
-                    "streamer": Messages.CHAMPION_STREAMER,
-                    "media": Messages.CHAMPION_MEMELORD
-                }.get(cat_id, f"**{cfg.get('name', cat_id)}:** {{name}} ({{value}})")
-                
-                categories[cat_id] = (stat_val, role_id, msg_template)
+            # 2. Add role
+            role = guild.get_role(role_id)
+            if member and role:
+                try: await member.add_roles(role)
+                except discord.Forbidden: pass
             
-            # Manage old roles (using a set to avoid removing/checking the same role multiple times)
-            last_champs = self.db.get_last_champions(guild.id)
-            roles_to_remove = set()
+            # 3. Collect for view (using name/mention as appropriate in view)
+            champion_announcement_data[cat_id] = (uid, val, msg_template)
             
-            for category, user_id in last_champs.items():
-                member = guild.get_member(user_id)
-                if member:
-                    cfg_key = category_config_map.get(category)
-                    role_id = Config.CHAMPION_ROLES.get(cfg_key, {}).get("role_id", 0)
-                    if role_id:
-                        roles_to_remove.add((member, role_id))
-            
-            for m, rid in roles_to_remove:
-                role = guild.get_role(rid)
-                if role and role in m.roles:
-                    try: await m.remove_roles(role)
+            # 4. Check Hall of Fame
+            wins = self.db.get_champion_wins(uid, guild.id)
+            total_wins = sum(wins.values())
+            if total_wins >= Config.CHAMPION_WIN_THRESHOLD:
+                hof_role_id = Config.CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
+                hof_role = guild.get_role(hof_role_id)
+                if member and hof_role and hof_role not in member.roles:
+                    try:
+                        await member.add_roles(hof_role)
+                        # Use localized Hall of Fame message
+                        hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{member.display_name}**"))
                     except discord.Forbidden: pass
-            
-            # Award new ones & collect data for the view
-            champion_announcement_data = {}
-            hof_notices = []
-            
-            for cat_id, (data, role_id, msg_template) in categories.items():
-                if not data: continue
-                
-                uid, val = data
-                member = guild.get_member(uid)
-                
-                # 1. Log win
-                self.db.log_champion_win(uid, guild.id, cat_id, today)
-                
-                # 2. Add role
-                role = guild.get_role(role_id)
-                if member and role:
-                    try: await member.add_roles(role)
-                    except discord.Forbidden: pass
-                
-                # 3. Collect for view (using name/mention as appropriate in view)
-                champion_announcement_data[cat_id] = (uid, val, msg_template)
-                
-                # 4. Check Hall of Fame
-                wins = self.db.get_champion_wins(uid, guild.id)
-                total_wins = sum(wins.values())
-                if total_wins >= Config.CHAMPION_WIN_THRESHOLD:
-                    hof_role_id = Config.CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
-                    hof_role = guild.get_role(hof_role_id)
-                    if member and hof_role and hof_role not in member.roles:
-                        try:
-                            await member.add_roles(hof_role)
-                            # Use localized Hall of Fame message
-                            hof_notices.append(Messages.CHAMPION_HALL_OF_FAME.format(name=f"**{member.display_name}**"))
-                        except discord.Forbidden: pass
 
-            # Send to stats channel using ModernChampionsView
-            stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
-            if stats_channel:
-                view = ModernChampionsView(guild, champion_announcement_data, hof_notices=hof_notices)
+        # Send to stats channel using ModernChampionsView
+        stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
+        if stats_channel:
+            view = ModernChampionsView(guild, champion_announcement_data, hof_notices=hof_notices)
+            
+            # The view now handles HOF integration in a premium layout
+            await stats_channel.send(view=view)
+            
+            log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
+
+    @discord.app_commands.command(name="force_calculate_champions", description="Manuális heti rangosztás (csak Admin / Bárhol használható)")
+    @is_admin_slash()
+    async def force_calculate_champions(self, interaction: discord.Interaction):
+        """Forces the weekly champion calculation logic immediately."""
+        await interaction.response.defer(ephemeral=True)
+        try:
+            guild = interaction.guild
+            if guild.id != Config.GUILD_ID:
+                await interaction.followup.send(f"❌ Ez a parancs csak a kijelölt szerveren ({Config.GUILD_ID}) használható.", ephemeral=True)
+                return
                 
-                # The view now handles HOF integration in a premium layout
-                await stats_channel.send(view=view)
-                
-                log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
+            await self._run_champion_logic(guild, force=True)
+            await interaction.followup.send("✅ Sikerült! A heti rangok kiszámítása és kiosztása megtörtént.", ephemeral=True)
+        except Exception as e:
+            log.error(f"Error in force_calculate_champions: {e}")
+            await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
 
 
     @discord.app_commands.command(name="champion_log", description=Messages.CMD_CHAMPION_LOG_DESC)
