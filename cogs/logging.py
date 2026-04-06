@@ -54,6 +54,9 @@ class LoggingCog(commands.Cog):
         channel = self.get_log_channel("message_delete")
         if not channel: return
 
+        if payload.channel_id == channel.id:
+            return
+
         message = payload.cached_message
         channel_obj = self.bot.get_channel(payload.channel_id)
         channel_mention = channel_obj.mention if channel_obj else f"<#{payload.channel_id}>"
@@ -83,6 +86,9 @@ class LoggingCog(commands.Cog):
     async def on_raw_message_edit(self, payload):
         channel = self.get_log_channel("message_edit")
         if not channel: return
+
+        if payload.channel_id == channel.id:
+            return
 
         # Raw payload might not have 'content' if it wasn't modified or if it's not cached
         before_msg = payload.cached_message
