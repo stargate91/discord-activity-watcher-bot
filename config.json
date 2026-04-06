@@ -65,6 +65,7 @@
         "admin_role_id": 1486685311919460402,
         "tester_role_id": 1486516144687812750,
         "basic_member_role_id": 1275930800679948399,
+        "champion_exclude_role_id": 1485292108410781768,
         "basic_member_excluded_roles": [
             1276092006996643943,
             1350866433252261979,
