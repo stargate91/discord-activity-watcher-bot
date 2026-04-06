@@ -22,7 +22,7 @@ except:
 # Pick the language from our settings so the bot knows hogy mit mondjon (HU/EN)
 # But wait, we'll do this in the initialization to be safe
 
-class CheekyBot(commands.Bot):
+class IrisBot(commands.Bot):
     def __init__(self):
         # Tell Discord what things the bot is allowed to see (messages, voice, who is online etc.)
         intents = discord.Intents.default()
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             
         # 3. Start the bot
         log.info("Connecting to Discord...")
-        bot = CheekyBot()
+        bot = IrisBot()
         bot.run(Config.TOKEN)
         
     except Exception as e:

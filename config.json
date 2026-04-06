@@ -28,9 +28,7 @@
         "CHAN_ADMIN": "<:TOOLS:1488659903785468064>",
         "CHAN_STATS": "<:CHAN_STATS:1488680604005564466>",
         "CHAN_ANY": "<:CHAN_ANY:1488680602843746384>",
-        "CHAMPION_LOG": "<:TROPHY:1488659904611745793>",
-        "CHEEKY": "🤫",
-        "HELP": "🆘"
+        "CHAMPION_LOG": "<:TROPHY:1488659904611745793>"
     },
     "champion_roles": {
         "spotify": {
@@ -107,7 +105,7 @@
     },
     "ui": {
         "prefix": "!",
-        "suffix": "_elf",
+        "suffix": "_iris",
         "leaderboard_limit": 10,
         "report_log_limit": 300,
         "default_games": {
