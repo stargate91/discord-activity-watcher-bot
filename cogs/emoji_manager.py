@@ -175,19 +175,27 @@ class EmojiManager(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
+    async def emoji_only_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for only emojis (for rename and large)."""
+        choices = [
+            app_commands.Choice(name=e.name, value=e.name)
+            for e in interaction.guild.emojis
+            if current.lower() in e.name.lower()
+        ]
+        return choices[:25]
+
     @emoji_group.command(name="rename", description=Messages.CMD_RENAME_EMOJI_DESC)
     @app_commands.describe(old_emoji="Select the emoji to rename", new_name="The new name")
+    @app_commands.autocomplete(old_emoji=emoji_only_autocomplete)
     @commands.has_permissions(manage_expressions=True)
-    async def rename_emoji(self, interaction: discord.Interaction, old_emoji: discord.PartialEmoji, new_name: str):
+    async def rename_emoji(self, interaction: discord.Interaction, old_emoji: str, new_name: str):
         try:
-            # For PartialEmoji, name is accessible directly
-            old_name = old_emoji.name
-            
-            # Find the actual guild emoji object if we need to edit it (PartialEmoji doesn't have .edit)
-            actual_emoji = discord.utils.get(interaction.guild.emojis, id=old_emoji.id)
+            # Find the actual guild emoji object
+            actual_emoji = discord.utils.get(interaction.guild.emojis, name=old_emoji)
             if not actual_emoji:
-                return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=old_name), ephemeral=True)
+                return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=old_emoji), ephemeral=True)
                 
+            old_name = actual_emoji.name
             # Discord emojinames must be alphanumeric + underscores
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', new_name)
             await actual_emoji.edit(name=clean_name)
@@ -197,9 +205,15 @@ class EmojiManager(commands.Cog):
 
     @emoji_group.command(name="large", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
-    async def large_emoji(self, interaction: discord.Interaction, emoji: discord.PartialEmoji):
-        embed = discord.Embed(title=f":{emoji.name}:")
-        embed.set_image(url=emoji.url)
+    @app_commands.autocomplete(emoji=emoji_only_autocomplete)
+    async def large_emoji(self, interaction: discord.Interaction, emoji: str):
+        # Find emoji by name
+        target = discord.utils.get(interaction.guild.emojis, name=emoji)
+        if not target:
+            return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=emoji), ephemeral=True)
+            
+        embed = discord.Embed(title=f":{target.name}:")
+        embed.set_image(url=target.url)
         await interaction.response.send_message(embed=embed)
 
     @emoji_group.command(name="list", description=Messages.CMD_LIST_EMOJIS_DESC)
