@@ -4,10 +4,31 @@ import datetime
 from config_loader import Config
 from core.logger import log
 from core.messages import Messages
+from core.message_db import MessageArchiveDB
+from discord.ext import tasks
 
 class LoggingCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.archive_db = MessageArchiveDB()
+        self.prune_archive_loop.start()
+
+    def cog_unload(self):
+        self.prune_archive_loop.cancel()
+
+    @tasks.loop(hours=24)
+    async def prune_archive_loop(self):
+        retention = Config.LOGGING.get("archive", {}).get("retention_days", 30)
+        max_size = Config.LOGGING.get("archive", {}).get("max_size_mb", 1000)
+        r = retention if retention > 0 else None
+        m = max_size if max_size > 0 else None
+        count = self.archive_db.prune_database(r, m)
+        if count > 0:
+            log.info(f"Message archive pruned {count} old messages.")
+
+    @prune_archive_loop.before_loop
+    async def before_prune(self):
+        await self.bot.wait_until_ready()
 
     def get_log_channel(self, event_name):
         """Helper to get the appropriate channel for an event."""
@@ -60,6 +81,23 @@ class LoggingCog(commands.Cog):
             pass
         return None
 
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if not message.guild: return
+        if not self.should_log_user(message.author, message.guild): return
+        
+        attachments = "\n".join([a.url for a in message.attachments]) if message.attachments else ""
+        self.archive_db.insert_message(
+            message.id,
+            message.guild.id,
+            message.channel.id,
+            message.author.id,
+            message.author.name,
+            message.content,
+            attachments,
+            message.created_at
+        )
+
     # Message Events
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
@@ -90,7 +128,16 @@ class LoggingCog(commands.Cog):
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             embed.set_footer(text=f"Message ID: {payload.message_id}")
-            embed.add_field(name="Content", value="*Message content unknown (not cached)*", inline=False)
+
+            archive_msg = self.archive_db.get_message(payload.message_id)
+            if archive_msg:
+                embed.set_author(name=f"@{archive_msg['username']}")
+                embed.add_field(name="Content (Archived)", value=archive_msg['content'][:1024] or "*Empty*", inline=False)
+                if archive_msg['attachments']:
+                    embed.add_field(name="Attachments", value=archive_msg['attachments'][:1024], inline=False)
+                self.add_footer_info(embed, archive_msg['user_id'])
+            else:
+                embed.add_field(name="Content", value="*Message content unknown (not cached & not in archive)*", inline=False)
 
         await channel.send(embed=embed)
 
@@ -137,13 +184,34 @@ class LoggingCog(commands.Cog):
             # Avoid logging "Empty" edits
             if not after_content:
                 return 
+
+            archive_msg = self.archive_db.get_message(payload.message_id)
+            if archive_msg:
+                before_content = archive_msg['content']
+                before_author = archive_msg['username']
+                before_user_id = archive_msg['user_id']
+                
+                # Check if content actually changed based on archive
+                if before_content == after_content:
+                    return
+                # Update archive with new content
+                self.archive_db.update_message_content(payload.message_id, after_content)
+            else:
+                before_content = "*Unknown (not cached & not in archive)*"
+                before_author = None
+                before_user_id = None
+
             embed = discord.Embed(
                 description=title,
                 color=Config.COLOR_WARNING,
                 timestamp=datetime.datetime.now(datetime.timezone.utc)
             )
             embed.set_footer(text=f"Message ID: {payload.message_id}")
-            embed.add_field(name=Messages.FIELD_BEFORE, value="*Unknown (not cached)*", inline=False)
+            if before_author:
+                embed.set_author(name=f"@{before_author}")
+                self.add_footer_info(embed, before_user_id)
+
+            embed.add_field(name=Messages.FIELD_BEFORE, value=before_content[:1024] or "*Empty*", inline=False)
             embed.add_field(name=Messages.FIELD_AFTER, value=after_content[:1024] or "*Empty*", inline=False)
 
         await channel.send(embed=embed)

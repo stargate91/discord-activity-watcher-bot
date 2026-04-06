@@ -425,6 +425,10 @@
         "global_channel_id": 1282557598754930729,
         "log_self": false,
         "log_bots": false,
+        "archive": {
+            "retention_days": 30,
+            "max_size_mb": 1000
+        },
         "events": {
             "message_delete": {
                 "enabled": true,
