@@ -25,9 +25,11 @@ class StatsEngine:
                 if main_id in data:
                     curr_mins = (now_utc - start).total_seconds() / 60
                     data[main_id]["voice"] += curr_mins
-                    member = guild.get_member(main_id)
-                    # We check their role to see if they get extra points for being active
-                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(member)
+                    
+                    # We find all the active accounts for this person on the server to get the best tier
+                    linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+                    tier, is_streaming, _ = ActivityProcessor.get_best_tier(linked_accounts)
+                    
                     data[main_id]["points"] += (curr_mins * tier)
                     if is_streaming:
                         data[main_id]["stream"] += curr_mins
@@ -84,8 +86,11 @@ class StatsEngine:
                 if live_voice_times and user_id in live_voice_times:
                     start = live_voice_times[user_id]
                     curr_mins = (now_utc - start).total_seconds() / 60
-                    member = guild.get_member(user_id)
-                    tier, is_streaming, _ = ActivityProcessor.get_participation_tier(member)
+                    
+                    # Find all linked accounts to get the best tier
+                    linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == user_id and not m.bot]
+                    tier, is_streaming, _ = ActivityProcessor.get_best_tier(linked_accounts)
+                    
                     live_points = curr_mins * tier
                     u_stats["voice"] += curr_mins
                     u_stats["stream"] += curr_mins if is_streaming else 0
