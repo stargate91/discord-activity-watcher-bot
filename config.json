@@ -90,7 +90,7 @@
         "stage_1_days": 14,
         "stage_2_days": 21,
         "stage_2_grace_days": 7,
-        "inactive_game_days": 30,
+        "inactive_game_days": 60,
         "social_stats_days": 30,
         "check_interval_hours": 12,
         "elites_win_threshold": 5,
@@ -111,7 +111,13 @@
         "suffix": "_iris",
         "leaderboard_limit": 10,
         "report_log_limit": 300,
-        "default_games": {},
+        "default_games": {
+            "Dota": "Dota2",
+            "World of Warcraft": "WoW",
+            "Stellaris": "Stellaris",
+            "The Bazaar": "The Bazaar",
+            "Where Winds Meet": "Where Winds Meet"
+        },
         "color_primary": "0x3498db",
         "color_success": "0x2ecc71",
         "color_warning": "0xFEE75C",
@@ -120,7 +126,7 @@
         "recent_games_limit": 3,
         "language": "hu",
         "default_stream_name": "Screen",
-        "game_role_prefix": "Player: ",
+        "game_role_prefix": "",
         "presence_rotation_minutes": 5,
         "presence_rotation": [
             "stats",
