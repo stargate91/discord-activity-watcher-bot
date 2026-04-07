@@ -400,6 +400,36 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
+    @app_commands.command(name="reset-games", description=Messages.CMD_RESET_GAMES_DESC)
+    @is_admin_slash()
+    async def reset_games(self, interaction: discord.Interaction):
+        # DANGER: This clears all tracked games and play stats!
+        try:
+            self.db.reset_tracked_games()
+            await interaction.response.send_message(Messages.RESET_GAMES_SUCCESS, ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(Messages.ERR_GENERIC.format(e=e), ephemeral=True)
+
+    @app_commands.command(name="reset-elites", description=Messages.CMD_RESET_ELITES_DESC)
+    @is_admin_slash()
+    async def reset_elites(self, interaction: discord.Interaction):
+        # DANGER: This clears elite history!
+        try:
+            self.db.reset_elite_history_data()
+            await interaction.response.send_message(Messages.RESET_ELITES_SUCCESS, ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(Messages.ERR_GENERIC.format(e=e), ephemeral=True)
+
+    @app_commands.command(name="reset-reaction-roles", description=Messages.CMD_RESET_RR_DESC)
+    @is_admin_slash()
+    async def reset_reaction_roles(self, interaction: discord.Interaction):
+        # DANGER: This forgets sent messages!
+        try:
+            self.db.reset_reaction_role_messages()
+            await interaction.response.send_message(Messages.RESET_RR_SUCCESS, ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(Messages.ERR_GENERIC.format(e=e), ephemeral=True)
+
     @app_commands.command(name="list-roles", description=Messages.CMD_LIST_ROLES_DESC)
     @is_admin_slash()
     async def list_roles(self, interaction: discord.Interaction):
@@ -689,7 +719,7 @@ class AdminCog(commands.Cog):
         from core.ui_icons import Icons
         
         # Role Requirements
-        admin_cmds = ["membership-logs", "game-role-report", "reset-database", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "champ-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
+        admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
         tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
         
         icon_role = Icons.ROLE_USER
@@ -704,7 +734,7 @@ class AdminCog(commands.Cog):
         
         # Channel Requirements
         stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
-        any_ch_cmds = admin_cmds + tester_cmds + ["champion-log", "weekly-chances", "me", "top", "emoji list"]
+        any_ch_cmds = admin_cmds + tester_cmds + ["elite-log", "weekly-chances", "me", "top", "emoji list"]
         # Remove those that are specifically restricted to stats channel from the "Any" list if they were added via concatenation
         any_ch_cmds = [c for c in any_ch_cmds if c not in stats_ch_cmds]
         

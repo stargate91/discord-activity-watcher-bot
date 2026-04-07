@@ -71,15 +71,15 @@ class PresenceCog(commands.Cog):
                         name=Messages.PRESENCE_TRACKING_GAMES.replace("{count}", str(count))
                     )
 
-            elif category == "champions":
-                # We show off who the most active 'Champions' are on the server!
-                champs = {}
+            elif category == "elites":
+                # We show off who the most active 'Elites' are on the server!
+                elites = {}
                 for guild in self.bot.guilds:
-                    guild_champs = self.db.get_last_champions(guild.id)
-                    champs.update(guild_champs)
+                    guild_elites = self.db.get_last_elites(guild.id)
+                    elites.update(guild_elites)
                 
-                if champs:
-                    cat, uid = random.choice(list(champs.items()))
+                if elites:
+                    cat, uid = random.choice(list(elites.items()))
                     user = self.bot.get_user(uid)
                     name = user.display_name if user else f"User {uid}"
                     # We match the category name with the right word in our language file.
@@ -93,7 +93,7 @@ class PresenceCog(commands.Cog):
                     cat_name = cat_map.get(cat, cat)
                     activity = discord.Activity(
                         type=discord.ActivityType.watching,
-                        name=Messages.PRESENCE_PRAISING_CHAMPION.replace("{user}", name).replace("{category}", cat_name)
+                        name=Messages.PRESENCE_PRAISING_ELITE.replace("{user}", name).replace("{category}", cat_name)
                     )
                 else:
                     category = "sassy" # Fallback

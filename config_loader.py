@@ -27,18 +27,18 @@ class Config:
     MEMELORD_ROLE_ID = _roles.get("memelord_id", 0) # Legacy (to be removed if everything is updated)
     BASIC_MEMBER_ROLE_ID = _roles.get("basic_member_role_id", 0)
     BASIC_MEMBER_EXCLUDED_ROLES = _roles.get("basic_member_excluded_roles", [])
-    CHAMPION_EXCLUDE_ROLE_ID = _roles.get("champion_exclude_role_id", 0)
+    ELITE_EXCLUDE_ROLE_ID = _roles.get("elite_exclude_role_id", 0)
     
-    # Here are all the special settings for the champion roles, like their colors and names.
-    CHAMPION_ROLES = _data.get("champion_roles", {})
+    # Here are all the special settings for the elite roles, like their colors and names.
+    ELITE_ROLES = _data.get("elite_roles", {})
     
-    # These are shortcuts so we can quickly find the ID for each champion role.
-    SPOTIVIBE_ROLE_ID = CHAMPION_ROLES.get("spotify", {}).get("role_id", 0)
-    GODGAMER_TOTAL_ROLE_ID = CHAMPION_ROLES.get("gamer_total", {}).get("role_id", 0)
-    GODGAMER_VARIETY_ROLE_ID = CHAMPION_ROLES.get("gamer_variety", {}).get("role_id", 0)
-    SHARING_ROLE_ID = CHAMPION_ROLES.get("streamer", {}).get("role_id", 0)
-    MEMELORD_ROLE_ID = CHAMPION_ROLES.get("media", {}).get("role_id", 0)
-    HALL_OF_FAMER_ROLE_ID = CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
+    # These are shortcuts so we can quickly find the ID for each elite role.
+    SPOTIVIBE_ROLE_ID = ELITE_ROLES.get("spotify", {}).get("role_id", 0)
+    GODGAMER_TOTAL_ROLE_ID = ELITE_ROLES.get("gamer_total", {}).get("role_id", 0)
+    GODGAMER_VARIETY_ROLE_ID = ELITE_ROLES.get("gamer_variety", {}).get("role_id", 0)
+    SHARING_ROLE_ID = ELITE_ROLES.get("streamer", {}).get("role_id", 0)
+    MEMELORD_ROLE_ID = ELITE_ROLES.get("media", {}).get("role_id", 0)
+    HALL_OF_FAMER_ROLE_ID = ELITE_ROLES.get("hall_of_fame", {}).get("role_id", 0)
     
     # These tell the bot where to post stats or look for admins
     _channels: dict = _data.get("channels", {})
@@ -57,7 +57,7 @@ class Config:
     INACTIVE_GAME_DAYS = _thresholds.get("inactive_game_days", 30)
     SOCIAL_STATS_DAYS = _thresholds.get("social_stats_days", 30)
     CHECK_INTERVAL_HOURS = _thresholds.get("check_interval_hours", 12)
-    CHAMPION_WIN_THRESHOLD = _thresholds.get("champions_win_threshold", 5)
+    ELITE_WIN_THRESHOLD = _thresholds.get("elites_win_threshold", 5)
     VARIETY_MIN_MINUTES = _thresholds.get("variety_min_minutes", 30)
     BASIC_MEMBER_THRESHOLD_MINS = _thresholds.get("basic_member_time_threshold_minutes", 15)
 
@@ -127,15 +127,15 @@ class Config:
             cls.MEMELORD_ROLE_ID = cls._roles.get("memelord_id", 0)
             cls.BASIC_MEMBER_ROLE_ID = cls._roles.get("basic_member_role_id", 0)
             cls.BASIC_MEMBER_EXCLUDED_ROLES = cls._roles.get("basic_member_excluded_roles", [])
-            cls.CHAMPION_EXCLUDE_ROLE_ID = cls._roles.get("champion_exclude_role_id", 0)
+            cls.ELITE_EXCLUDE_ROLE_ID = cls._roles.get("elite_exclude_role_id", 0)
             
-            cls.CHAMPION_ROLES = cls._data.get("champion_roles", {})
-            cls.SPOTIVIBE_ROLE_ID = cls.CHAMPION_ROLES.get("spotify", {}).get("role_id", 0)
-            cls.GODGAMER_TOTAL_ROLE_ID = cls.CHAMPION_ROLES.get("gamer_total", {}).get("role_id", 0)
-            cls.GODGAMER_VARIETY_ROLE_ID = cls.CHAMPION_ROLES.get("gamer_variety", {}).get("role_id", 0)
-            cls.SHARING_ROLE_ID = cls.CHAMPION_ROLES.get("streamer", {}).get("role_id", 0)
-            cls.MEMELORD_ROLE_ID = cls.CHAMPION_ROLES.get("media", {}).get("role_id", 0)
-            cls.HALL_OF_FAMER_ROLE_ID = cls.CHAMPION_ROLES.get("hall_of_fame", {}).get("role_id", 0)
+            cls.ELITE_ROLES = cls._data.get("elite_roles", {})
+            cls.SPOTIVIBE_ROLE_ID = cls.ELITE_ROLES.get("spotify", {}).get("role_id", 0)
+            cls.GODGAMER_TOTAL_ROLE_ID = cls.ELITE_ROLES.get("gamer_total", {}).get("role_id", 0)
+            cls.GODGAMER_VARIETY_ROLE_ID = cls.ELITE_ROLES.get("gamer_variety", {}).get("role_id", 0)
+            cls.SHARING_ROLE_ID = cls.ELITE_ROLES.get("streamer", {}).get("role_id", 0)
+            cls.MEMELORD_ROLE_ID = cls.ELITE_ROLES.get("media", {}).get("role_id", 0)
+            cls.HALL_OF_FAMER_ROLE_ID = cls.ELITE_ROLES.get("hall_of_fame", {}).get("role_id", 0)
             
             cls._channels = cls._data.get("channels", {})
             cls.GUILD_ID = cls._channels.get("guild_id", 0)
@@ -152,7 +152,7 @@ class Config:
             cls.INACTIVE_GAME_DAYS = cls._thresholds.get("inactive_game_days", 30)
             cls.SOCIAL_STATS_DAYS = cls._thresholds.get("social_stats_days", 30)
             cls.CHECK_INTERVAL_HOURS = cls._thresholds.get("check_interval_hours", 12)
-            cls.CHAMPION_WIN_THRESHOLD = cls._thresholds.get("champions_win_threshold", 5)
+            cls.ELITE_WIN_THRESHOLD = cls._thresholds.get("elites_win_threshold", 5)
             cls.VARIETY_MIN_MINUTES = cls._thresholds.get("variety_min_minutes", 30)
             cls.BASIC_MEMBER_THRESHOLD_MINS = cls._thresholds.get("basic_member_time_threshold_minutes", 15)
 

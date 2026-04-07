@@ -12,8 +12,8 @@ The bot is like a very organized secretary. It watches when people send messages
 ### Games and Roles
 Iris loves games! It can automatically give you a role on Discord based on the game you are playing right now. We also have a system called Franchises where we group similar games together.
 
-### Weekly Champions
-Every Monday, the bot looks at its notebook (the database) and finds out who was the most active during the week. It gives out special awards for things like:
+### Weekly Elites
+Every Monday, the bot looks at its notebook (the database) and finds out who was the most active during the week. It gives out special awards (Elites) for things like:
 - Playing the most games
 - Playing many different types of games
 - Listening to the most music on Spotify
@@ -36,8 +36,7 @@ This part of the bot helps you set up those cool messages where people can click
 ### Localization
 We made sure the bot can speak different languages! Right now it knows English and Hungarian. Everything the bot says is saved in simple JSON files, so it is very easy to add more languages later.
 
-### Admin and Logs
-For the people running the server, the bot keeps a very detailed log of everything that happens, like when someone joins, leaves, deletes a message, or changes their nickname. It also has a safety net to catch any errors and write them down so we can fix them.
+For the people running the server, the bot keeps a very detailed log of everything that happens, like when someone joins, leaves, deletes a message, or changes their nickname. It also provides maintenance tools like `/reset-games`, `/reset-elites`, and `/reset-reaction-roles` for data management.
 
 ## How to set it up
 

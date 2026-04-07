@@ -153,9 +153,9 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id, game_name)
                 )
             """)
-            # champion_history: Logs weekly champions for role management and log display
+            # elite_history: Logs weekly elites for role management and log display
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS champion_history (
+                CREATE TABLE IF NOT EXISTS elite_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,
                     guild_id INTEGER,
@@ -163,6 +163,16 @@ class DBManager:
                     win_date DATE
                 )
             """)
+            
+            # Migration: Rename champion_history to elite_history if it exists
+            try:
+                cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='champion_history'")
+                if cursor.fetchone():
+                    conn.execute("INSERT INTO elite_history (user_id, guild_id, category, win_date) SELECT user_id, guild_id, category, win_date FROM champion_history")
+                    conn.execute("DROP TABLE champion_history")
+                    # Also update index if needed, but CREATE TABLE IF NOT EXISTS elite_history already handled it
+            except Exception as e:
+                pass # Already migrated or table doesn't exist
             # reaction_role_messages: Tracks which static reaction roles have been sent
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS reaction_role_messages (
@@ -844,7 +854,8 @@ class DBManager:
             
             conn.commit()
 
-    def get_weekly_champion_stats(self, guild_id, start_date, end_date):
+    def get_weekly_elite_stats(self, guild_id, start_date, end_date):
+        # Fetches top performers for each category in the given timeframe
         # Fetches top performers for each category in the given timeframe
         with self._get_connection() as conn:
             # 1. Spotify
@@ -890,7 +901,8 @@ class DBManager:
                 "media": media_top
             }
 
-    def get_user_weekly_champion_stats(self, user_id, guild_id, start_date, end_date):
+    def get_user_weekly_elite_stats(self, user_id, guild_id, start_date, end_date):
+        # Fetches performance for a specific user in each category
         # Fetches performance for a specific user in each category
         with self._get_connection() as conn:
             # 1. Spotify
@@ -931,37 +943,76 @@ class DBManager:
                 "media": media[0] if media and media[0] is not None else 0
             }
 
-    def log_champion_win(self, user_id, guild_id, category, win_date):
+    def log_elite_win(self, user_id, guild_id, category, win_date):
         with self._get_connection() as conn:
             conn.execute("""
-                INSERT INTO champion_history (user_id, guild_id, category, win_date)
+                INSERT INTO elite_history (user_id, guild_id, category, win_date)
                 VALUES (?, ?, ?, ?)
             """, (user_id, guild_id, category, win_date))
             conn.commit()
 
-    def get_champion_wins(self, user_id, guild_id):
+    def get_elite_wins(self, user_id, guild_id):
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT category, COUNT(*) FROM champion_history 
+                SELECT category, COUNT(*) FROM elite_history 
                 WHERE user_id = ? AND guild_id = ?
                 GROUP BY category
             """, (int(user_id), int(guild_id)))
             return dict(cursor.fetchall())
 
-    def get_last_champions(self, guild_id):
+    def get_last_elites_run_date(self, guild_id):
+        # Finds the most recent run date for the elite system
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT MAX(win_date) FROM elite_history WHERE guild_id = ?", (int(guild_id),))
+            row = cursor.fetchone()
+            if row and row[0]:
+                return datetime.datetime.strptime(row[0], "%Y-%m-%d").date()
+            return None
+
+    def get_last_elites(self, guild_id):
         # Finds the winners from the most recent win_date in the history
         with self._get_connection() as conn:
             cursor = conn.execute("""
-                SELECT category, user_id FROM champion_history 
-                WHERE guild_id = ? AND win_date = (SELECT MAX(win_date) FROM champion_history WHERE guild_id = ?)
+                SELECT category, user_id FROM elite_history 
+                WHERE guild_id = ? AND win_date = (SELECT MAX(win_date) FROM elite_history WHERE guild_id = ?)
             """, (int(guild_id), int(guild_id)))
             return dict(cursor.fetchall())
 
     def reset_database(self):
         # DANGER: This wipes everything clean! All stats will be gone.
-        tables = ["user_activity", "daily_stats", "role_history", "game_activity", "voice_sessions", "reaction_history", "active_voice_sessions", "active_game_sessions", "membership_history"]
+        tables = [
+            "user_activity", "daily_stats", "role_history", "game_activity", 
+            "voice_sessions", "reaction_history", "active_voice_sessions", 
+            "active_game_sessions", "membership_history", "elite_history", 
+            "tracked_games", "daily_game_stats", "reaction_role_messages"
+        ]
         with self._get_connection() as conn:
-            for table in tables: conn.execute(f"DELETE FROM {table}")
+            for table in tables:
+                try:
+                    conn.execute(f"DELETE FROM {table}")
+                except:
+                    pass # Table might not exist yet
+            conn.commit()
+
+    def reset_tracked_games(self):
+        # Clears all tracked games from the automated system
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM tracked_games")
+            conn.execute("DELETE FROM game_activity")
+            conn.execute("DELETE FROM daily_game_stats")
+            conn.execute("DELETE FROM active_game_sessions")
+            conn.commit()
+
+    def reset_elite_history_data(self):
+        # Clears the history of weekly elites
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM elite_history")
+            conn.commit()
+
+    def reset_reaction_role_messages(self):
+        # Forgets sent reaction roll messages so they can be re-sent
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM reaction_role_messages")
             conn.commit()
 
     def log_membership_event(self, user_id, guild_id, action, timestamp=None):

@@ -29,7 +29,7 @@ class Icons:
     CHAN_ADMIN: discord.PartialEmoji = None
     CHAN_STATS: discord.PartialEmoji = None
     CHAN_ANY: discord.PartialEmoji = None
-    CHAMPION_LOG: discord.PartialEmoji = None
+    ELITE_LOG: discord.PartialEmoji = None
     PREV_PAGE: discord.PartialEmoji = None
     NEXT_PAGE: discord.PartialEmoji = None
 
@@ -48,7 +48,7 @@ class Icons:
             "LIGHTNING": "⚡", "COOLDOWN": "⏳", "MEME": "🖼️",
             "ROLE_ADMIN": "👑", "ROLE_TESTER": "🧪", "ROLE_USER": "👤",
             "CHAN_ADMIN": "🛠️", "CHAN_STATS": "📊", "CHAN_ANY": "🌐", 
-            "CHAMPION_LOG": "🏆", "PREV_PAGE": "⬅️", "NEXT_PAGE": "➡️"
+            "ELITE_LOG": "🏆", "PREV_PAGE": "⬅️", "NEXT_PAGE": "➡️"
         }
 
         # We check if you have added your own custom emojis in the 'EMOJIS' part of the config!

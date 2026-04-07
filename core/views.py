@@ -278,11 +278,11 @@ class ModernDevInfoView(discord.ui.LayoutView):
         
         self.add_item(container)
 
-class ModernChampionsView(discord.ui.LayoutView):
+class ModernElitesView(discord.ui.LayoutView):
     """
-    This is the big show! We use this to announce our weekly champions in a really cool way!
+    This is the big show! We use this to announce our weekly elites in a really cool way!
     """
-    def __init__(self, guild, champion_data, hof_notices=None, title=None, footer=None, caller_id=None, caller_stats=None):
+    def __init__(self, guild, elite_data, hof_notices=None, title=None, footer=None, caller_id=None, caller_stats=None):
         super().__init__()
         self.guild = guild
         
@@ -290,9 +290,9 @@ class ModernChampionsView(discord.ui.LayoutView):
         
         # 1. Header: Dynamic title from Messages (localized)
         if not title:
-            title = Messages.CHAMPIONS_TITLE
+            title = Messages.ELITES_TITLE
         if not footer:
-            footer = Messages.CHAMPIONS_FOOTER
+            footer = Messages.ELITES_FOOTER
 
         header_text = f"## {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
         container.add_item(discord.ui.Section(
@@ -302,7 +302,7 @@ class ModernChampionsView(discord.ui.LayoutView):
         
         # 2. Winners Section
         winners_count = 0
-        winners_list = list(champion_data.items())
+        winners_list = list(elite_data.items())
         
         if winners_list:
             container.add_item(discord.ui.Separator())
