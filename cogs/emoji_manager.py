@@ -323,8 +323,12 @@ class EmojiManager(commands.Cog):
             pages.append(container)
 
         # Build the paginator and send it!
-        view = ModernPaginatorView(pages, user=interaction.user)
-        await interaction.followup.send(view=view, ephemeral=True)
+        try:
+            view = ModernPaginatorView(pages, user=interaction.user)
+            await interaction.followup.send(view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"Error in list_emojis: {e}", exc_info=True)
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))

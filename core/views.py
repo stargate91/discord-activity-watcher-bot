@@ -3,6 +3,7 @@ import datetime
 from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, ActionRow, Button, Modal, TextInput
 from config_loader import Config
 from core.messages import Messages
+from core.logger import log
 from core.ui_translate import t
 from core.ui_icons import Icons
 from core.ui_utils import get_feedback
@@ -409,11 +410,14 @@ class ModernPaginatorView(discord.ui.LayoutView):
         self.setup_page()
 
     def setup_page(self):
-        # We clear the old buttons and add the new ones for the current page
+        # In LayoutView, we should clear and rebuild to avoid item conflicts
         self.clear_items()
         
         # Get the content for the current page
         content = self.pages[self.current_page]
+        
+        # If it's a container, we add it. If it's an embed, we'll need to handle it differently 
+        # (though for this bot they are expected to be Containers)
         self.add_item(content)
         
         # If there's only one page, we don't need buttons!
@@ -421,6 +425,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
             return
 
         # Add the navigation buttons in a neat row
+        # In V2, we can add buttons to an ActionRow or directly to the Layout
         row = discord.ui.ActionRow()
         
         # Back button
@@ -453,15 +458,25 @@ class ModernPaginatorView(discord.ui.LayoutView):
         self.add_item(row)
 
     async def prev_page(self, interaction: discord.Interaction):
-        # Go back one page!
+        if self.user and interaction.user.id != self.user.id:
+            return await interaction.response.send_message(t("ERR_NOT_YOUR_BUTTON"), ephemeral=True)
+            
         if self.current_page > 0:
             self.current_page -= 1
             self.setup_page()
-            await interaction.response.edit_message(view=self)
+            try:
+                await interaction.response.edit_message(view=self)
+            except Exception as e:
+                log.error(f"Paginator Error (Prev): {e}")
 
     async def next_page(self, interaction: discord.Interaction):
-        # Go forward one page!
+        if self.user and interaction.user.id != self.user.id:
+            return await interaction.response.send_message(t("ERR_NOT_YOUR_BUTTON"), ephemeral=True)
+            
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
             self.setup_page()
-            await interaction.response.edit_message(view=self)
+            try:
+                await interaction.response.edit_message(view=self)
+            except Exception as e:
+                log.error(f"Paginator Error (Next): {e}")

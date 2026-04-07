@@ -277,6 +277,7 @@ class ElitesCog(commands.Cog):
             view = ModernElitesView(interaction.guild, dummy_data, hof_notices=dummy_hof)
             await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
+            log.error(f"Error in test_weekly_layout: {e}", exc_info=True)
             await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
 
     @discord.app_commands.command(name="weekly-chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
