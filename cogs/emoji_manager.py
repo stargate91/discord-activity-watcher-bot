@@ -254,76 +254,81 @@ class EmojiManager(commands.Cog):
         embed.set_image(url=target.url)
         await interaction.response.send_message(embed=embed)
 
+    async def _generate_emoji_pages(self, guild):
+        """Helper to generate the emoji inventory pages with 10-per-row formatting."""
+        # We get all the emojis and stickers
+        emojis = sorted(guild.emojis, key=lambda x: x.name)
+        stickers = sorted(guild.stickers, key=lambda x: x.name)
+        
+        # Mapping them to strings
+        emoji_strs = [str(e) for e in emojis]
+        sticker_names = [s.name for s in stickers]
+        
+        # How many should we show on one page?
+        EMOJIS_PER_PAGE = 30
+        STICKERS_PER_PAGE = 15
+        
+        # Calculate total pages needed
+        total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
+        total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
+        total_pages = max(total_emoji_pages, total_sticker_pages, 1)
+        
+        page_items = []
+        
+        for i in range(total_pages):
+            items = [
+                discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                discord.ui.Separator()
+            ]
+            
+            # 1. Emojis Section
+            start_e = i * EMOJIS_PER_PAGE
+            end_e = start_e + EMOJIS_PER_PAGE
+            page_emojis = emoji_strs[start_e:end_e]
+            
+            if page_emojis:
+                title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
+                # FIX: 10 per row layout
+                rows = [page_emojis[j:j+10] for j in range(0, len(page_emojis), 10)]
+                emoji_lines = "\n".join([" ".join(row) for row in rows])
+                items.append(discord.ui.TextDisplay(f"### {title}\n{emoji_lines}"))
+            
+            # 2. Stickers Section
+            start_s = i * STICKERS_PER_PAGE
+            end_s = start_s + STICKERS_PER_PAGE
+            page_stickers = sticker_names[start_s:end_s]
+            
+            if page_stickers:
+                if page_emojis:
+                    items.append(discord.ui.Separator())
+                
+                title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
+                items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
+            
+            page_items.append(items)
+
+        if not page_items:
+            empty_items = [
+                discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(t("LB_EMPTY"))
+            ]
+            page_items.append(empty_items)
+            
+        return page_items
+
     @emoji_group.command(name="list", description=Messages.CMD_LIST_EMOJIS_DESC)
     async def list_emojis(self, interaction: discord.Interaction):
-        # We start by telling Discord to wait a bit because the list might be long
         await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         
         log.info(f"EmojiManager: Generating items for /emoji list in {guild.name}...")
         
         try:
-            # We get all the emojis and stickers
-            emojis = sorted(guild.emojis, key=lambda x: x.name)
-            stickers = sorted(guild.stickers, key=lambda x: x.name)
-            
-            # Mapping them to strings
-            emoji_strs = [str(e) for e in emojis]
-            sticker_names = [s.name for s in stickers]
-            
-            # How many should we show on one page?
-            EMOJIS_PER_PAGE = 30
-            STICKERS_PER_PAGE = 15
-            
-            # Calculate total pages needed
-            total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
-            total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
-            total_pages = max(total_emoji_pages, total_sticker_pages, 1)
-            
-            page_items = []
-            
-            for i in range(total_pages):
-                # FIXED: Using TextDisplay instead of Section for consistency with /top
-                items = [
-                    discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
-                    discord.ui.Separator()
-                ]
-                
-                # 1. Emojis Section
-                start_e = i * EMOJIS_PER_PAGE
-                end_e = start_e + EMOJIS_PER_PAGE
-                page_emojis = emoji_strs[start_e:end_e]
-                
-                if page_emojis:
-                    title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
-                    items.append(discord.ui.TextDisplay(f"### {title}\n{' '.join(page_emojis)}"))
-                
-                # 2. Stickers Section
-                start_s = i * STICKERS_PER_PAGE
-                end_s = start_s + STICKERS_PER_PAGE
-                page_stickers = sticker_names[start_s:end_s]
-                
-                if page_stickers:
-                    if page_emojis:
-                        items.append(discord.ui.Separator())
-                    
-                    title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
-                    items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
-                
-                page_items.append(items)
+            page_items = await self._generate_emoji_pages(guild)
 
-            if not page_items:
-                # If for some reason there's nothing to show
-                empty_items = [
-                    discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
-                    discord.ui.Separator(),
-                    discord.ui.TextDisplay(t("LB_EMPTY"))
-                ]
-                page_items.append(empty_items)
-
-            # Build the paginator and send it!
-            log.info(f"EmojiManager: Building ModernPaginatorView with {len(page_items)} pages...")
-            view = ModernPaginatorView(page_items, user=interaction.user)
+            # Build the custom paginator and send it!
+            view = EmojiPaginatorView(page_items, user=interaction.user, cog=self)
             
             log.info(f"EmojiManager: Sending followup for {interaction.user.name}...")
             await interaction.followup.send(view=view, ephemeral=True)
@@ -336,6 +341,61 @@ class EmojiManager(commands.Cog):
                 await interaction.followup.send(error_msg, ephemeral=True)
             else:
                 await interaction.response.send_message(error_msg, ephemeral=True)
+
+class EmojiPaginatorView(ModernPaginatorView):
+    """Specialized paginator for emojis that includes a Refresh button."""
+    def __init__(self, page_items, user=None, cog=None):
+        super().__init__(page_items, user=user)
+        self.cog = cog
+
+    def setup_page(self, is_initial=False):
+        if not is_initial:
+            self.clear_items()
+        
+        total = len(self.page_items)
+        container_items = list(self.page_items[self.current_page])
+
+        # 1. Navigation / Action Row
+        row = discord.ui.ActionRow()
+        
+        # Navigation
+        if total > 1:
+            prev_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="⬅️", disabled=(self.current_page == 0))
+            prev_btn.callback = self.prev_page
+            row.add_item(prev_btn)
+            
+            indicator = discord.ui.Button(style=discord.ButtonStyle.secondary, label=f"{self.current_page + 1}/{total}", disabled=True)
+            row.add_item(indicator)
+            
+            next_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="➡️", disabled=(self.current_page == total - 1))
+            next_btn.callback = self.next_page
+            row.add_item(next_btn)
+        
+        # Refresh Button (Always present for dynamic updates!)
+        refresh_btn = discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🔄")
+        refresh_btn.callback = self.refresh_data
+        row.add_item(refresh_btn)
+        
+        container_items.append(row)
+
+        # 2. Build Container
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
+        self.add_item(container)
+
+    async def refresh_data(self, interaction: discord.Interaction):
+        if self.user and interaction.user.id != self.user.id:
+            return await interaction.response.send_message(t("ERR_NOT_YOUR_BUTTON"), ephemeral=True)
+            
+        try:
+            # Re-generate pages with fresh counts
+            self.page_items = await self.cog._generate_emoji_pages(interaction.guild)
+            self.current_page = min(self.current_page, len(self.page_items) - 1)
+            self.setup_page()
+            await interaction.response.edit_message(view=self)
+            log.info(f"EmojiManager: Manual refresh successful for {interaction.user.name}")
+        except Exception as e:
+            log.error(f"Error in EmojiPaginator refresh: {e}")
+            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))
