@@ -100,6 +100,7 @@ class EventsCog(commands.Cog):
                 if not self.db.get_user_data(Config.get_main_id(m.id), guild.id):
                     self.db.update_activity(Config.get_main_id(m.id), guild.id)
                 
+                main_id = Config.get_main_id(m.id)
                 if not self.db.get_user_join_date(main_id, guild.id):
                     if m.joined_at:
                         self.db.update_join_date(main_id, guild.id, m.joined_at)
