@@ -163,7 +163,7 @@ class ModernProfileView(discord.ui.LayoutView):
             container_items.append(discord.ui.Separator())
             
             # Header
-            container_items.append(discord.ui.TextDisplay(f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"))
+            container_items.append(discord.ui.TextDisplay(f"{Messages.SECTION_ACTIVITY} (7D)"))
             
             mg = discord.ui.MediaGallery()
             mg.add_item(media=chart_url)
