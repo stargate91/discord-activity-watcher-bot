@@ -273,7 +273,6 @@ class ModernElitesView(discord.ui.LayoutView):
         winners_list = list(elite_data.items())
         if winners_list:
             container_items.append(discord.ui.Separator())
-            container_items.append(discord.ui.Separator(visible=False))
         
         for i, (cat_id, (leader_id, value, msg_template)) in enumerate(winners_list):
             member = guild.get_member(leader_id)
@@ -301,16 +300,12 @@ class ModernElitesView(discord.ui.LayoutView):
         if not winners_list:
             container_items.append(discord.ui.Separator())
             container_items.append(discord.ui.TextDisplay(Messages.LB_EMPTY))
-        else:
-            container_items.append(discord.ui.Separator(visible=False))
             
         # 3. Special Awards (Hall of Fame)
         if hof_notices:
             container_items.append(discord.ui.Separator())
             for notice in hof_notices:
-                container_items.append(discord.ui.Separator(visible=False))
                 container_items.append(discord.ui.TextDisplay(notice))
-                container_items.append(discord.ui.Separator(visible=False))
         
         # 4. Footer
         container_items.append(discord.ui.Separator())
@@ -362,60 +357,56 @@ class AltAccountModal(discord.ui.Modal):
 
 class ModernPaginatorView(discord.ui.LayoutView):
     # This is a cool helper class that lets us flip through many pages of information!
-    def __init__(self, pages, user=None):
+    def __init__(self, page_items, user=None):
         super().__init__()
-        self.pages = pages # This is a list of pre-built Container or Embed objects
+        self.page_items = page_items # List of lists of items per page
         self.current_page = 0
         self.user = user
         self.setup_page()
 
     def setup_page(self):
-        # In LayoutView, we should clear and rebuild to avoid item conflicts
+        # In LayoutView, we should clear and rebuild for complete state refresh
         self.clear_items()
         
-        # Get the content for the current page
-        content = self.pages[self.current_page]
+        # Build components for the current page
+        container_items = list(self.page_items[self.current_page])
         
-        # If it's a container, we add it. If it's an embed, we'll need to handle it differently 
-        # (though for this bot they are expected to be Containers)
-        self.add_item(content)
-        
-        # If there's only one page, we don't need buttons!
-        if len(self.pages) <= 1:
-            return
+        # If there's more than one page, add navigation buttons INSIDE the container
+        if len(self.page_items) > 1:
+            container_items.append(discord.ui.Separator())
+            row = discord.ui.ActionRow()
+            
+            # Back button
+            prev_btn = discord.ui.Button(
+                emoji=Icons.PREV_PAGE, 
+                style=discord.ButtonStyle.secondary, 
+                disabled=(self.current_page == 0)
+            )
+            prev_btn.callback = self.prev_page
+            row.add_item(prev_btn)
+            
+            # Page indicator
+            total = len(self.page_items)
+            indicator = discord.ui.Button(
+                label=t("EMOJI_PAGINATION_FOOTER", current=self.current_page + 1, total=total),
+                style=discord.ButtonStyle.secondary,
+                disabled=True
+            )
+            row.add_item(indicator)
+            
+            # Next button
+            next_btn = discord.ui.Button(
+                emoji=Icons.NEXT_PAGE, 
+                style=discord.ButtonStyle.secondary, 
+                disabled=(self.current_page == len(self.page_items) - 1)
+            )
+            next_btn.callback = self.next_page
+            row.add_item(next_btn)
+            
+            container_items.append(row)
 
-        # Add the navigation buttons in a neat row
-        # In V2, we can add buttons to an ActionRow or directly to the Layout
-        row = discord.ui.ActionRow()
-        
-        # Back button
-        prev_btn = discord.ui.Button(
-            emoji=Icons.PREV_PAGE, 
-            style=discord.ButtonStyle.secondary, 
-            disabled=(self.current_page == 0)
-        )
-        prev_btn.callback = self.prev_page
-        row.add_item(prev_btn)
-        
-        # Page indicator
-        total = len(self.pages)
-        indicator = discord.ui.Button(
-            label=t("EMOJI_PAGINATION_FOOTER", current=self.current_page + 1, total=total),
-            style=discord.ButtonStyle.secondary,
-            disabled=True
-        )
-        row.add_item(indicator)
-        
-        # Next button
-        next_btn = discord.ui.Button(
-            emoji=Icons.NEXT_PAGE, 
-            style=discord.ButtonStyle.secondary, 
-            disabled=(self.current_page == len(self.pages) - 1)
-        )
-        next_btn.callback = self.next_page
-        row.add_item(next_btn)
-        
-        self.add_item(row)
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
+        self.add_item(container)
 
     async def prev_page(self, interaction: discord.Interaction):
         if self.user and interaction.user.id != self.user.id:
@@ -425,6 +416,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
             self.current_page -= 1
             self.setup_page()
             try:
+                # IMPORTANT: For LayoutView, we must clear components in the message to avoid conflicts
                 await interaction.response.edit_message(view=self)
             except Exception as e:
                 log.error(f"Paginator Error (Prev): {e}")
@@ -433,7 +425,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
         if self.user and interaction.user.id != self.user.id:
             return await interaction.response.send_message(t("ERR_NOT_YOUR_BUTTON"), ephemeral=True)
             
-        if self.current_page < len(self.pages) - 1:
+        if self.current_page < len(self.page_items) - 1:
             self.current_page += 1
             self.setup_page()
             try:

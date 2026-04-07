@@ -272,12 +272,12 @@ class EmojiManager(commands.Cog):
         EMOJIS_PER_PAGE = 30
         STICKERS_PER_PAGE = 15
         
-        pages = []
-        
         # Calculate total pages needed
         total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
         total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
         total_pages = max(total_emoji_pages, total_sticker_pages, 1)
+        
+        page_items = []
         
         for i in range(total_pages):
             # We collect items for this page's container
@@ -307,22 +307,20 @@ class EmojiManager(commands.Cog):
                 title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
                 items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
             
-            # Create the container for this page and add to our list
-            container = discord.ui.Container(*items, accent_color=discord.Color(Config.COLOR_PRIMARY))
-            pages.append(container)
+            page_items.append(items)
 
-        if not pages:
+        if not page_items:
             # If for some reason there's nothing to show
             empty_items = [
                 discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
                 discord.ui.Separator(),
                 discord.ui.TextDisplay(t("LB_EMPTY"))
             ]
-            pages.append(discord.ui.Container(*empty_items, accent_color=discord.Color(Config.COLOR_PRIMARY)))
+            page_items.append(empty_items)
 
         # Build the paginator and send it!
         try:
-            view = ModernPaginatorView(pages, user=interaction.user)
+            view = ModernPaginatorView(page_items, user=interaction.user)
             await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             log.error(f"Error in list_emojis: {e}", exc_info=True)
