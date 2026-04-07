@@ -23,17 +23,17 @@ class ModernLeaderboardView(discord.ui.LayoutView):
     def setup_layout(self, items):
         # This is where we put everything together: the title, the names with medals, and all the cool buttons!
         title_text = Messages.get_lb_title(self.timeframe)
+        container_items = []
 
-        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
         if self.shared_by:
-            container.add_item(discord.ui.TextDisplay(Messages.LB_SHARED_BY.format(user=self.shared_by)))
-            container.add_item(discord.ui.Separator())
+            container_items.append(discord.ui.TextDisplay(Messages.LB_SHARED_BY.format(user=self.shared_by)))
+            container_items.append(discord.ui.Separator())
 
-        container.add_item(discord.ui.TextDisplay(f"# {title_text}"))
-        container.add_item(discord.ui.Separator())
+        container_items.append(discord.ui.TextDisplay(f"# {title_text}"))
+        container_items.append(discord.ui.Separator())
         
         if not items:
-            container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
+            container_items.append(discord.ui.TextDisplay(Messages.LB_EMPTY))
         else:
             for i, (uid, pts, stats) in enumerate(items, 1):
                 m = self.guild.get_member(uid)
@@ -46,35 +46,34 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                 medal = {1: Icons.MEDAL_1, 2: Icons.MEDAL_2, 3: Icons.MEDAL_3}.get(i, f"**{i:02d}.**")
                 
                 info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p | Me: {stats['media']} | S: {int(stats['stream'])}p`"
-                container.add_item(discord.ui.TextDisplay(info))
+                container_items.append(discord.ui.TextDisplay(info))
                 
                 if i < len(items):
-                    container.add_item(discord.ui.Separator())
+                    container_items.append(discord.ui.Separator())
         
-        container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(Messages.LB_FOOTER_POINTS))
+        container_items.append(discord.ui.Separator())
+        container_items.append(discord.ui.TextDisplay(Messages.LB_FOOTER_POINTS))
         
-        if self.static:
-            self.add_item(container)
-            return
-
         # Interactivity: Buttons for timeframe switching
-        row = discord.ui.ActionRow()
-        for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
-            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
-            if tf == self.timeframe:
-                btn.style = discord.ButtonStyle.primary
-                btn.disabled = True
-            row.add_item(btn)
-        
-        btn_me = discord.ui.Button(label=Messages.BTN_MY_RANK, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:show_me")
-        row.add_item(btn_me)
+        if not self.static:
+            row = discord.ui.ActionRow()
+            for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
+                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
+                if tf == self.timeframe:
+                    btn.style = discord.ButtonStyle.primary
+                    btn.disabled = True
+                row.add_item(btn)
+            
+            btn_me = discord.ui.Button(label=Messages.BTN_MY_RANK, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:show_me")
+            row.add_item(btn_me)
 
-        btn_share = discord.ui.Button(label=Messages.BTN_SHARE, style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
-        row.add_item(btn_share)
+            btn_share = discord.ui.Button(label=Messages.BTN_SHARE, style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
+            row.add_item(btn_share)
+            container_items.append(row)
 
-        container.add_item(row)
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
+
 
 class ModernProfileView(discord.ui.LayoutView):
     # This is the magic class that builds the gorgeous profile card when you check someone's stats!
@@ -86,19 +85,18 @@ class ModernProfileView(discord.ui.LayoutView):
         self.shared_by = shared_by
         # Store for sharing
         self.user_data_full = (user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, joined_at, tenure_days, efficiency)
-        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
+        container_items = []
         
         if self.shared_by:
-            container.add_item(discord.ui.TextDisplay(Messages.PROFILE_SHARED_BY.format(user=self.shared_by)))
-            container.add_item(discord.ui.Separator())
+            container_items.append(discord.ui.TextDisplay(Messages.PROFILE_SHARED_BY.format(user=self.shared_by)))
+            container_items.append(discord.ui.Separator())
 
-        # 1. Let's start with the top part! We show the user's name, their rank, and a little picture of them.
-        container.add_item(discord.ui.Section(
+        # 1. Header
+        container_items.append(discord.ui.Section(
             f"# {user.display_name} • #{rank}. {Messages.PROFILE_RANK}\n{Messages.PROFILE_SUBTITLE}",
             accessory=discord.ui.Thumbnail(user.display_avatar.url)
         ))
-        
-        container.add_item(discord.ui.Separator())
+        container_items.append(discord.ui.Separator())
         
         stats_text = (
             Messages.STAT_TOTAL_SCORE.format(points=f"{points:,.2f}") + "\n" +
@@ -113,48 +111,37 @@ class ModernProfileView(discord.ui.LayoutView):
         if data.get('spotify_minutes', 0) > 0:
             stats_text += Messages.STAT_SPOTIFY.format(spotify=int(data['spotify_minutes'])) + "\n"
         
-        container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
+        container_items.append(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
-        # 3. Here we show when they were last seen and how active they are on average each day.
+        # 3. Timing/Activity
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
         timing_text = (
             Messages.STAT_LAST_ACTIVE.format(time=last_active_str) + "\n" +
             Messages.STAT_DAILY_AVG.format(avg=avg_daily) + "\n" +
             Messages.STAT_AVG_VOICE.format(avg=avg_voice)
         )
-        container.add_item(discord.ui.TextDisplay(Messages.SECTION_STATS + "\n" + timing_text))
+        container_items.append(discord.ui.TextDisplay(Messages.SECTION_STATS + "\n" + timing_text))
         
-        # 4. Community: We show their favorite channel, favorite emoji, and their best friend!
+        # 4. Community
         social_lines = []
         if social["top_channel"]:
             ch = user.guild.get_channel(social['top_channel'])
             name = f"#{ch.name}" if ch else f"#{social['top_channel']}"
-            if self.static:
-                social_lines.append(Messages.SOCIAL_FAV_ROOM_STATIC.format(name=name))
-            else:
-                social_lines.append(Messages.SOCIAL_FAV_ROOM.format(id=social['top_channel']))
+            if self.static: social_lines.append(Messages.SOCIAL_FAV_ROOM_STATIC.format(name=name))
+            else: social_lines.append(Messages.SOCIAL_FAV_ROOM.format(id=social['top_channel']))
         if social["top_emoji"]:
             social_lines.append(Messages.SOCIAL_FAV_EMOJI.format(emoji=social['top_emoji']))
-        if social["top_target"]:
-            target = user.guild.get_member(social['top_target'])
-            name = f"**{target.display_name}**" if target else f"**{social['top_target']}**"
-            if self.static:
-                social_lines.append(Messages.SOCIAL_MAIN_TARGET_STATIC.format(name=name))
-            else:
-                social_lines.append(Messages.SOCIAL_MAIN_TARGET.format(id=social['top_target']))
         if partners:
             for pid, _ in partners[:1]:
                 p = user.guild.get_member(pid)
                 name = f"**{p.display_name}**" if p else f"**{pid}**"
-                if self.static:
-                    social_lines.append(Messages.SOCIAL_BEST_FRIEND_STATIC.format(name=name))
-                else:
-                    social_lines.append(Messages.SOCIAL_BEST_FRIEND.format(id=pid))
+                if self.static: social_lines.append(Messages.SOCIAL_BEST_FRIEND_STATIC.format(name=name))
+                else: social_lines.append(Messages.SOCIAL_BEST_FRIEND.format(id=pid))
         
         if social_lines:
-            container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
+            container_items.append(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
         
-        # 5. Veteran: This shows how long they have been a loyal member of our server!
+        # 5. Veteran
         if joined_at:
             join_str = joined_at.strftime("%Y-%m-%d")
             vet_text = (
@@ -162,40 +149,35 @@ class ModernProfileView(discord.ui.LayoutView):
                 Messages.STAT_TENURE.format(days=tenure_days) + "\n" +
                 Messages.STAT_LOYALTY.format(efficiency=f"{efficiency:.2f}")
             )
-            container.add_item(discord.ui.TextDisplay(Messages.SECTION_VETERAN + "\n" + vet_text))
+            container_items.append(discord.ui.TextDisplay(Messages.SECTION_VETERAN + "\n" + vet_text))
  
-        # 6. Games: This section lists the top 3 games they have played the most recently.
+        # 6. Games
         if top_games:
             games_text = " | ".join([f"`{g[0].replace(Config.GAME_ROLE_PREFIX, '')}` ({int(g[1] or 0)}p)" for g in top_games])
-            container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
+            container_items.append(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
-        # 7. Activity Graph: We show a cool 7-day chart of their points here!
+        # 7. Activity Graph
         if chart_url:
-            container.add_item(discord.ui.Separator())
-            # Fixed double emoji: SECTION_ACTIVITY usually already contains the bar chart icon if configured,
-            # but user specifically asked for 1 emoji only.
-            container.add_item(discord.ui.TextDisplay(f"{Messages.SECTION_ACTIVITY} (7D)"))
-            container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(chart_url)))
+            container_items.append(discord.ui.Separator())
+            container_items.append(discord.ui.TextDisplay(f"{Messages.SECTION_ACTIVITY} (7D)"))
+            container_items.append(discord.ui.MediaGallery(discord.MediaGalleryItem(chart_url)))
 
-        if self.static:
-            self.add_item(container)
-            return
+        # 8. Buttons
+        if not self.static:
+            container_items.append(discord.ui.Separator())
+            row = discord.ui.ActionRow()
+            for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
+                btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
+                row.add_item(btn)
+            
+            btn_me = discord.ui.Button(label=Messages.BTN_MY_RANK, style=discord.ButtonStyle.primary, custom_id=f"top:{self.timeframe}:show_me", disabled=True)
+            row.add_item(btn_me)
+            
+            btn_share = discord.ui.Button(label=Messages.BTN_SHARE, style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
+            row.add_item(btn_share)
+            container_items.append(row)
 
-        container.add_item(discord.ui.Separator())
-        
-        # 8. Buttons: These let you switch between different time views or share your profile!
-        row = discord.ui.ActionRow()
-        for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
-            btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
-            row.add_item(btn)
-        
-        btn_me = discord.ui.Button(label=Messages.BTN_MY_RANK, style=discord.ButtonStyle.primary, custom_id=f"top:{self.timeframe}:show_me", disabled=True)
-        row.add_item(btn_me)
-        
-        btn_share = discord.ui.Button(label=Messages.BTN_SHARE, style=discord.ButtonStyle.success, custom_id=f"top:{self.timeframe}:share")
-        row.add_item(btn_share)
-
-        container.add_item(row)
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
 
 class ModernInfoView(discord.ui.LayoutView):
@@ -205,37 +187,28 @@ class ModernInfoView(discord.ui.LayoutView):
         bot_member = guild.me
         bot_name = bot_member.display_name
         
-        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
-        
-        # Header with the bot's server nickname and profile picture
-        container.add_item(discord.ui.Section(
-            f"# {Messages.INFO_TITLE.format(bot_name=bot_name)}",
-            accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
-        ))
-        
-        container.add_item(discord.ui.Separator())
-        
-        # A short description of what the bot does
-        container.add_item(discord.ui.TextDisplay(Messages.INFO_DESC.format(bot_name=bot_name)))
-        
-        container.add_item(discord.ui.Separator())
-        
-        # Listing the main features and commands
-        inactive_role = guild.get_role(Config.STAGE_1_ROLE_ID)
-        role_mention = inactive_role.mention if inactive_role else "@deleted-role"
-        
-        container.add_item(discord.ui.TextDisplay(
-            Messages.INFO_FEATURES_TITLE + "\n" + 
-            Messages.INFO_FEATURES_DESC.format(role=role_mention)
-        ))
-        
-        container.add_item(discord.ui.Separator())
-        
-        # A nice footer message with a link to the stats channel
         stats_channel = guild.get_channel(Config.STATS_CHANNEL_ID)
         channel_mention = stats_channel.mention if stats_channel else "#deleted-channel"
-        container.add_item(discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*"))
+        inactive_role = guild.get_role(Config.STAGE_1_ROLE_ID)
+        role_mention = inactive_role.mention if inactive_role else "@deleted-role"
+
+        container_items = [
+            discord.ui.Section(
+                f"# {Messages.INFO_TITLE.format(bot_name=bot_name)}",
+                accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
+            ),
+            discord.ui.Separator(),
+            discord.ui.TextDisplay(Messages.INFO_DESC.format(bot_name=bot_name)),
+            discord.ui.Separator(),
+            discord.ui.TextDisplay(
+                Messages.INFO_FEATURES_TITLE + "\n" + 
+                Messages.INFO_FEATURES_DESC.format(role=role_mention)
+            ),
+            discord.ui.Separator(),
+            discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*")
+        ]
         
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
 
 class ModernDevInfoView(discord.ui.LayoutView):
@@ -243,40 +216,38 @@ class ModernDevInfoView(discord.ui.LayoutView):
     def __init__(self, guild, prefix_cmds, slash_cmds):
         super().__init__()
         
-        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
-        
         # 1. Header with the bot's server nickname and profile picture
         bot_member = guild.me
         bot_name = bot_member.display_name
-        container.add_item(discord.ui.Section(
-            f"# {Messages.INFO_DEV_TITLE.format(bot_name=bot_name)}",
-            accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
-        ))
-        
-        container.add_item(discord.ui.Separator())
+        container_items = [
+            discord.ui.Section(
+                f"# {Messages.INFO_DEV_TITLE.format(bot_name=bot_name)}",
+                accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)
+            ),
+            discord.ui.Separator()
+        ]
         
         # 2. Prefix Commands Section
         if prefix_cmds:
-            container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
+            container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
             for name, help_text in prefix_cmds:
-                container.add_item(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*"))
-            
-            container.add_item(discord.ui.Separator())
+                container_items.append(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*"))
+            container_items.append(discord.ui.Separator())
 
         # 3. Slash Commands Section
         if slash_cmds:
-            container.add_item(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
+            container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
             for name, desc, access in slash_cmds:
-                container.add_item(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*\n╰ {access}"))
-            
-            container.add_item(discord.ui.Separator())
+                container_items.append(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*\n╰ {access}"))
+            container_items.append(discord.ui.Separator())
 
-        # 4. Footer with admin channel mention and role note
+        # 4. Footer
         admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
         channel_mention = admin_channel.mention if admin_channel else "#deleted-channel"
         footer_text = f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*\n*{Messages.INFO_DEV_FOOTER_NOTE}*"
-        container.add_item(discord.ui.TextDisplay(footer_text))
+        container_items.append(discord.ui.TextDisplay(footer_text))
         
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
 
 class ModernElitesView(discord.ui.LayoutView):
@@ -287,76 +258,65 @@ class ModernElitesView(discord.ui.LayoutView):
         super().__init__()
         self.guild = guild
         
-        container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_ACCENT))
-        
-        # 1. Header: Dynamic title from Messages (localized)
-        if not title:
-            title = Messages.ELITES_TITLE
-        if not footer:
-            footer = Messages.ELITES_FOOTER
+        # Header and Footer defaults
+        title = title or Messages.ELITES_TITLE
+        footer = footer or Messages.ELITES_FOOTER
+        container_items = []
 
         header_text = f"## {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
-        container.add_item(discord.ui.Section(
+        container_items.append(discord.ui.Section(
             header_text,
             accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
         ))
         
         # 2. Winners Section
-        winners_count = 0
         winners_list = list(elite_data.items())
-        
         if winners_list:
-            container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.Separator(visible=False))
+            container_items.append(discord.ui.Separator())
+            container_items.append(discord.ui.Separator(visible=False))
         
         for i, (cat_id, (leader_id, value, msg_template)) in enumerate(winners_list):
             member = guild.get_member(leader_id)
             name = f"**{member.display_name}**" if member else f"**{leader_id}**"
             
-            # Winner line
             try:
                 winner_line = f"### {msg_template.format(name=name, value=value)}"
             except Exception:
                 winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # This part handles comparing your stats if you called the /heti_eselyek command!
             if caller_id and caller_stats:
                 caller_val = caller_stats.get(cat_id, 0)
                 if caller_id == leader_id:
-                    # They are leading
                     winner_line += f"\n> {Messages.WEEKLY_STANDINGS_KEEP_IT_UP}"
                 else:
-                    # They are behind
-                    # Format value based on category type
                     unit = "p" if cat_id in ["spotify", "gamer_total", "streamer"] else "db"
                     formatted_val = f"{caller_val:.0f}{unit}" if isinstance(caller_val, (int, float)) else f"{caller_val}"
                     diff = value - caller_val
                     formatted_diff = f"{diff:.0f}{unit}" if isinstance(diff, (int, float)) else f"{diff}"
-                    
                     winner_line += f"\n> {Messages.WEEKLY_STANDINGS_YOUR_STAT.format(value=formatted_val)}"
                     winner_line += f"\n> {Messages.WEEKLY_STANDINGS_GO_FOR_IT.format(diff=formatted_diff)}"
 
-            container.add_item(discord.ui.TextDisplay(winner_line))
-            winners_count += 1
+            container_items.append(discord.ui.TextDisplay(winner_line))
             
-        if winners_count == 0:
-            container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.TextDisplay(Messages.LB_EMPTY))
+        if not winners_list:
+            container_items.append(discord.ui.Separator())
+            container_items.append(discord.ui.TextDisplay(Messages.LB_EMPTY))
         else:
-            container.add_item(discord.ui.Separator(visible=False))
+            container_items.append(discord.ui.Separator(visible=False))
             
         # 3. Special Awards (Hall of Fame)
         if hof_notices:
-            container.add_item(discord.ui.Separator())
+            container_items.append(discord.ui.Separator())
             for notice in hof_notices:
-                container.add_item(discord.ui.Separator(visible=False))
-                container.add_item(discord.ui.TextDisplay(notice))
-                container.add_item(discord.ui.Separator(visible=False))
+                container_items.append(discord.ui.Separator(visible=False))
+                container_items.append(discord.ui.TextDisplay(notice))
+                container_items.append(discord.ui.Separator(visible=False))
         
-        # 4. Footer: Already handled in init
-        container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(f"\n*{footer}*\n"))
+        # 4. Footer
+        container_items.append(discord.ui.Separator())
+        container_items.append(discord.ui.TextDisplay(f"\n*{footer}*\n"))
         
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_ACCENT))
         self.add_item(container)
 
 class AltAccountModal(discord.ui.Modal):

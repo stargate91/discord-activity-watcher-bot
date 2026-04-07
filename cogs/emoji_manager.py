@@ -280,47 +280,45 @@ class EmojiManager(commands.Cog):
         total_pages = max(total_emoji_pages, total_sticker_pages, 1)
         
         for i in range(total_pages):
-            # We create a Container for each page, which is like a pretty box for our list!
-            container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
+            # We collect items for this page's container
+            items = [
+                discord.ui.Section(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                discord.ui.Separator()
+            ]
             
-            # Title for the whole inventory
-            container.add_item(discord.ui.Section(
-                f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"
-            ))
-            container.add_item(discord.ui.Separator())
-            
-            # Emoji section for this page
+            # 1. Emojis Section
             start_e = i * EMOJIS_PER_PAGE
             end_e = start_e + EMOJIS_PER_PAGE
             page_emojis = emoji_strs[start_e:end_e]
             
             if page_emojis:
                 title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
-                text = " ".join(page_emojis)
-                container.add_item(discord.ui.TextDisplay(f"### {title}\n{text}"))
+                items.append(discord.ui.TextDisplay(f"### {title}\n{' '.join(page_emojis)}"))
             
-            # Sticker section for this page
+            # 2. Stickers Section
             start_s = i * STICKERS_PER_PAGE
             end_s = start_s + STICKERS_PER_PAGE
             page_stickers = sticker_names[start_s:end_s]
             
             if page_stickers:
                 if page_emojis:
-                    container.add_item(discord.ui.Separator())
+                    items.append(discord.ui.Separator())
                 
                 title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
-                text = ", ".join(page_stickers)
-                container.add_item(discord.ui.TextDisplay(f"### {title}\n{text}"))
-                
+                items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
+            
+            # Create the container for this page and add to our list
+            container = discord.ui.Container(*items, accent_color=discord.Color(Config.COLOR_PRIMARY))
             pages.append(container)
 
         if not pages:
-            # If for some reason there's nothing to show (no emojis and no stickers)
-            container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
-            container.add_item(discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"))
-            container.add_item(discord.ui.Separator())
-            container.add_item(discord.ui.TextDisplay(t("LB_EMPTY")))
-            pages.append(container)
+            # If for some reason there's nothing to show
+            empty_items = [
+                discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                discord.ui.Separator(),
+                discord.ui.TextDisplay(t("LB_EMPTY"))
+            ]
+            pages.append(discord.ui.Container(*empty_items, accent_color=discord.Color(Config.COLOR_PRIMARY)))
 
         # Build the paginator and send it!
         try:
