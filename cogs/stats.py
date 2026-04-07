@@ -116,9 +116,9 @@ class StatsCog(commands.Cog):
                 daily_activity, 
                 f"Activity: {user.display_name}", 
                 points_label=Messages.VIS_POINTS,
-                voice_label=Messages.VIS_VOICE,
-                y_points_label=Messages.VIS_Y_POINTS,
-                y_voice_label=Messages.VIS_Y_VOICE,
+                voice_label=Messages.VIS_VOICE_MINS,
+                y_points_label=Messages.VIS_ACTIVITY_POINTS,
+                y_voice_label=Messages.VIS_VOICE_MINUTES,
                 output_path=path
             )
             
