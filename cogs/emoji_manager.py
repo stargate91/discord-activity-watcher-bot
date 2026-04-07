@@ -288,8 +288,8 @@ class EmojiManager(commands.Cog):
             
             if page_emojis:
                 title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
-                # FIX: 10 per row layout
-                rows = [page_emojis[j:j+10] for j in range(0, len(page_emojis), 10)]
+                # FIX: 15 per row layout for emojis
+                rows = [page_emojis[j:j+15] for j in range(0, len(page_emojis), 15)]
                 emoji_lines = "\n".join([" ".join(row) for row in rows])
                 items.append(discord.ui.TextDisplay(f"### {title}\n{emoji_lines}"))
             
@@ -303,7 +303,10 @@ class EmojiManager(commands.Cog):
                     items.append(discord.ui.Separator())
                 
                 title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
-                items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
+                # NEW: 5 per row layout for stickers
+                sticker_rows = [page_stickers[j:j+5] for j in range(0, len(page_stickers), 5)]
+                sticker_lines = "\n".join([", ".join(row) for row in sticker_rows])
+                items.append(discord.ui.TextDisplay(f"### {title}\n{sticker_lines}"))
             
             page_items.append(items)
 
