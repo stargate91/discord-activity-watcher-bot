@@ -242,6 +242,7 @@ class EmojiManager(commands.Cog):
 
     @emoji_group.command(name="list", description=Messages.CMD_LIST_EMOJIS_DESC)
     async def list_emojis(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         
         # Emoji list
@@ -256,8 +257,20 @@ class EmojiManager(commands.Cog):
 
         embed = discord.Embed(title=f"Emoji & Sticker Inventory - {guild.name}", color=discord.Color.blue())
         
-        # Emoji field
-        emoji_text = " ".join([str(e) for e in emojis[:50]]) + (f"... and {emoji_count-50} more" if emoji_count > 50 else "")
+        # Emoji field: String length must be < 1024
+        emoji_list_trimmed = []
+        current_len = 0
+        for e in emojis:
+            e_str = str(e) + " "
+            if current_len + len(e_str) > 950: # Leave room for "and more"
+                break
+            emoji_list_trimmed.append(str(e))
+            current_len += len(e_str)
+        
+        emoji_text = " ".join(emoji_list_trimmed)
+        if emoji_count > len(emoji_list_trimmed):
+            emoji_text += f"\n... and {emoji_count - len(emoji_list_trimmed)} more"
+            
         if not emoji_text: emoji_text = "None"
         embed.add_field(
             name=t("EMOJI_LIST_TITLE", count=emoji_count, limit=emoji_limit),
@@ -265,8 +278,20 @@ class EmojiManager(commands.Cog):
             inline=False
         )
         
-        # Sticker field
-        sticker_text = ", ".join([s.name for s in stickers[:20]]) + (f"... and {sticker_count-20} more" if sticker_count > 20 else "")
+        # Sticker field: String length must be < 1024
+        sticker_list_trimmed = []
+        current_len = 0
+        for s in stickers:
+            s_str = s.name + ", "
+            if current_len + len(s_str) > 950:
+                break
+            sticker_list_trimmed.append(s.name)
+            current_len += len(s_str)
+
+        sticker_text = ", ".join(sticker_list_trimmed)
+        if sticker_count > len(sticker_list_trimmed):
+            sticker_text += f"\n... and {sticker_count - len(sticker_list_trimmed)} more"
+
         if not sticker_text: sticker_text = "None"
         embed.add_field(
             name=t("STICKER_LIST_TITLE", count=sticker_count, limit=sticker_limit),
@@ -274,7 +299,7 @@ class EmojiManager(commands.Cog):
             inline=False
         )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))
