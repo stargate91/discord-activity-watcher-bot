@@ -152,9 +152,7 @@ class StatsCog(commands.Cog):
                 return
 
             if chart_file:
-                embed = discord.Embed(color=discord.Color(Config.COLOR_PRIMARY))
-                embed.set_image(url="attachment://chart.png")
-                await interaction.followup.send(view=view, embed=embed, file=chart_file, ephemeral=True)
+                await interaction.followup.send(view=view, file=chart_file, ephemeral=True)
             else:
                 await interaction.followup.send(view=view, ephemeral=True)
 
@@ -204,9 +202,7 @@ class StatsCog(commands.Cog):
                     target_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID) or interaction.channel
                     
                     if chart_file:
-                        embed = discord.Embed(color=discord.Color(Config.COLOR_PRIMARY))
-                        embed.set_image(url="attachment://chart.png")
-                        await target_channel.send(view=view_shared, embed=embed, file=chart_file)
+                        await target_channel.send(view=view_shared, file=chart_file)
                     else:
                         await target_channel.send(view=view_shared)
                     
@@ -226,9 +222,7 @@ class StatsCog(commands.Cog):
                     # Let's try sending a new one for show_me to keep it high quality.
                     if action == "show_me":
                         if chart_file:
-                            embed = discord.Embed(color=discord.Color(Config.COLOR_PRIMARY))
-                            embed.set_image(url="attachment://chart.png")
-                            await interaction.response.send_message(view=view, embed=embed, file=chart_file, ephemeral=True)
+                            await interaction.response.send_message(view=view, file=chart_file, ephemeral=True)
                         else:
                             await interaction.response.send_message(view=view, ephemeral=True)
                     else:
