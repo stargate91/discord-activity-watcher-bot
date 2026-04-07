@@ -7,6 +7,7 @@ from config_loader import Config
 from core.messages import Messages
 from core.views import ModernLeaderboardView, ModernProfileView
 from core.visualizer import draw_user_activity_chart
+from core.logger import log
 
 class StatsCog(commands.Cog):
     def __init__(self, bot):
@@ -86,6 +87,7 @@ class StatsCog(commands.Cog):
         chart_file = None
         chart_url = None
         daily_activity = self.db.get_user_daily_activity(main_id, interaction.guild_id, days=7)
+        log.info(f"Generating profile chart for {user.display_name} ({main_id}). Activity count: {len(daily_activity) if daily_activity else 0}")
         
         # We also add the voice points you are earning RIGHT NOW into today's graph entry!
         if daily_activity and main_id in self.bot.voice_start_times:
@@ -105,12 +107,16 @@ class StatsCog(commands.Cog):
             daily_activity[today_idx] = (d_str, d_points + live_points, d_voice + live_mins)
 
         if daily_activity:
-            os.makedirs("temp", exist_ok=True)
-            path = f"temp/profile_{main_id}.png"
-            draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", path)
-            if os.path.exists(path):
-                chart_file = discord.File(path, filename="chart.png")
+            import io
+            buffer = io.BytesIO()
+            draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", buffer)
+            buffer.seek(0)
+            if buffer.getbuffer().nbytes > 0:
+                chart_file = discord.File(buffer, filename="chart.png")
                 chart_url = "attachment://chart.png"
+                log.info(f"Chart generated successfully: {chart_url}")
+            else:
+                log.warning("Produced chart buffer was empty.")
 
         view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
                                  joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, chart_url=chart_url, 
@@ -138,12 +144,6 @@ class StatsCog(commands.Cog):
                 await interaction.followup.send(view=view, file=chart_file, ephemeral=True)
             else:
                 await interaction.followup.send(view=view, ephemeral=True)
-                
-            # Step 2 cleanup: delete the file after sending (in a try/finally would be better but discord.py sends it async)
-            # Actually discord.py File closes and we can delete it after the call.
-            if chart_file and os.path.exists(chart_file.fp.name):
-                try: os.remove(chart_file.fp.name)
-                except: pass
 
         except Exception as e:
             import traceback
