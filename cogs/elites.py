@@ -262,7 +262,7 @@ class ElitesCog(commands.Cog):
     @discord.app_commands.command(name="test-weekly-layout", description=Messages.CMD_TEST_WEEKLY_LAYOUT_DESC)
     @is_admin_slash()
     async def test_weekly_layout(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        log.info(f"ElitesCog: Starting test_weekly_layout for {interaction.user.name}...")
         uid = interaction.user.id
         dummy_data = {
             "spotify": (uid, 120, Messages.ELITE_SPOTIFY),
@@ -274,11 +274,18 @@ class ElitesCog(commands.Cog):
         dummy_hof = [Messages.ELITE_HALL_OF_FAME.format(name=f"**{interaction.user.display_name}**")]
         
         try:
+            log.info("ElitesCog: Building ModernElitesView (dummy)...")
             view = ModernElitesView(interaction.guild, dummy_data, hof_notices=dummy_hof)
-            await interaction.followup.send(view=view, ephemeral=True)
+            log.info("ElitesCog: Sending interaction response...")
+            # We use direct response instead of defer for immediate feedback
+            await interaction.response.send_message(view=view, ephemeral=True)
+            log.info("ElitesCog: Response sent successfully.")
         except Exception as e:
             log.error(f"Error in test_weekly_layout: {e}", exc_info=True)
-            await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
+            else:
+                await interaction.response.send_message(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
 
     @discord.app_commands.command(name="weekly-chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
     async def weekly_chances(self, interaction: discord.Interaction):

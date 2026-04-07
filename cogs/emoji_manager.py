@@ -319,9 +319,12 @@ class EmojiManager(commands.Cog):
             page_items.append(empty_items)
 
         # Build the paginator and send it!
+        log.info(f"EmojiManager: Building ModernPaginatorView for guild {interaction.guild.name}...")
         try:
             view = ModernPaginatorView(page_items, user=interaction.user)
+            log.info(f"EmojiManager: View created. Sending followup for {interaction.user.name}...")
             await interaction.followup.send(view=view, ephemeral=True)
+            log.info(f"EmojiManager: Followup sent successfully for /emoji list.")
         except Exception as e:
             log.error(f"Error in list_emojis: {e}", exc_info=True)
             await interaction.followup.send(get_feedback('ERR_GENERIC', e=e), ephemeral=True)

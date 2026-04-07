@@ -256,62 +256,43 @@ class ModernElitesView(discord.ui.LayoutView):
     """
     def __init__(self, guild, elite_data, hof_notices=None, title=None, footer=None, caller_id=None, caller_stats=None):
         super().__init__()
-        self.guild = guild
-        
-        # Header and Footer defaults
-        title = title or Messages.ELITES_TITLE
-        footer = footer or Messages.ELITES_FOOTER
-        container_items = []
+        try:
+            self.setup_layout(guild, elite_data, hof_notices, title, footer, caller_id, caller_stats)
+        except Exception as e:
+            log.error(f"Error in ModernElitesView init: {e}", exc_info=True)
 
-        header_text = f"## {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"
-        container_items.append(discord.ui.Section(
-            header_text,
-            accessory=discord.ui.Thumbnail(guild.icon.url) if guild.icon else None
-        ))
+    def setup_layout(self, guild, elite_data, hof_notices, title, footer, caller_id, caller_stats):
+        container_items = []
         
-        # 2. Winners Section
+        # 1. Header
+        title = title or Messages.ELITE_ANNOUNCEMENT_TITLE
+        container_items.append(discord.ui.TextDisplay(f"# {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"))
+        
+        # 2. Winners
         winners_list = list(elite_data.items())
-        if winners_list:
-            container_items.append(discord.ui.Separator())
-        
         for i, (cat_id, (leader_id, value, msg_template)) in enumerate(winners_list):
             member = guild.get_member(leader_id)
-            name = f"**{member.display_name}**" if member else f"**{leader_id}**"
+            name = member.display_name if member else f"Ismeretlen ({leader_id})"
             
-            try:
-                winner_line = f"### {msg_template.format(name=name, value=value)}"
-            except Exception:
-                winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
-            
-            if caller_id and caller_stats:
-                caller_val = caller_stats.get(cat_id, 0)
-                if caller_id == leader_id:
-                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_KEEP_IT_UP}"
-                else:
-                    unit = "p" if cat_id in ["spotify", "gamer_total", "streamer"] else "db"
-                    formatted_val = f"{caller_val:.0f}{unit}" if isinstance(caller_val, (int, float)) else f"{caller_val}"
-                    diff = value - caller_val
-                    formatted_diff = f"{diff:.0f}{unit}" if isinstance(diff, (int, float)) else f"{diff}"
-                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_YOUR_STAT.format(value=formatted_val)}"
-                    winner_line += f"\n> {Messages.WEEKLY_STANDINGS_GO_FOR_IT.format(diff=formatted_diff)}"
-
+            winner_line = f"### {msg_template.format(name=name, value=value)}"
             container_items.append(discord.ui.TextDisplay(winner_line))
             
-        if not winners_list:
-            container_items.append(discord.ui.Separator())
-            container_items.append(discord.ui.TextDisplay(Messages.LB_EMPTY))
-            
-        # 3. Special Awards (Hall of Fame)
+            if i < len(winners_list) - 1:
+                container_items.append(discord.ui.Separator())
+
+        # 3. Hall of Fame
         if hof_notices:
             container_items.append(discord.ui.Separator())
-            for notice in hof_notices:
-                container_items.append(discord.ui.TextDisplay(notice))
-        
+            hof_text = "\n".join(hof_notices)
+            container_items.append(discord.ui.TextDisplay(f"## {Messages.ELITE_HALL_OF_FAME_TITLE}\n{hof_text}"))
+
         # 4. Footer
+        footer = footer or Messages.ELITE_ANNOUNCEMENT_FOOTER
         container_items.append(discord.ui.Separator())
-        container_items.append(discord.ui.TextDisplay(f"\n*{footer}*\n"))
-        
-        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_ACCENT))
+        container_items.append(discord.ui.TextDisplay(f"*{footer}*"))
+
+        # 5. Build and Add Container
+        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
 
 class AltAccountModal(discord.ui.Modal):
@@ -362,49 +343,51 @@ class ModernPaginatorView(discord.ui.LayoutView):
         self.page_items = page_items # List of lists of items per page
         self.current_page = 0
         self.user = user
-        self.setup_page()
+        try:
+            self.setup_page(is_initial=True)
+        except Exception as e:
+            log.error(f"Error in ModernPaginatorView init: {e}", exc_info=True)
 
-    def setup_page(self):
-        # In LayoutView, we should clear and rebuild for complete state refresh
-        self.clear_items()
+    def setup_page(self, is_initial=False):
+        if not is_initial:
+            self.clear_items()
         
-        # Build components for the current page
+        total = len(self.page_items)
         container_items = list(self.page_items[self.current_page])
-        
-        # If there's more than one page, add navigation buttons INSIDE the container
-        if len(self.page_items) > 1:
-            container_items.append(discord.ui.Separator())
+
+        # 1. Navigation Row (only if multiple pages)
+        if total > 1:
             row = discord.ui.ActionRow()
             
-            # Back button
+            # Prev Button
             prev_btn = discord.ui.Button(
-                emoji=Icons.PREV_PAGE, 
                 style=discord.ButtonStyle.secondary, 
+                emoji="⬅️", # Simplified emoji
                 disabled=(self.current_page == 0)
             )
             prev_btn.callback = self.prev_page
             row.add_item(prev_btn)
             
-            # Page indicator
-            total = len(self.page_items)
+            # Indicator
             indicator = discord.ui.Button(
-                label=t("EMOJI_PAGINATION_FOOTER", current=self.current_page + 1, total=total),
                 style=discord.ButtonStyle.secondary,
+                label=f"Oldal {self.current_page + 1} / {total}", # Simplified label
                 disabled=True
             )
             row.add_item(indicator)
             
-            # Next button
+            # Next Button
             next_btn = discord.ui.Button(
-                emoji=Icons.NEXT_PAGE, 
                 style=discord.ButtonStyle.secondary, 
-                disabled=(self.current_page == len(self.page_items) - 1)
+                emoji="➡️", # Simplified emoji
+                disabled=(self.current_page == total - 1)
             )
             next_btn.callback = self.next_page
             row.add_item(next_btn)
             
             container_items.append(row)
 
+        # 2. Build Container
         container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
         self.add_item(container)
 
