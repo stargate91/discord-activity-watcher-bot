@@ -28,43 +28,28 @@ class GamesCog(commands.Cog):
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild)
 
-    @app_commands.command(name="add_game", description=Messages.CMD_ADD_GAME_DESC)
+    @app_commands.command(name="add-game", description=Messages.CMD_ADD_GAME_DESC)
     @app_commands.describe(search_name=Messages.CMD_ADD_GAME_NAME_DESC, role_suffix=Messages.CMD_ADD_GAME_SUFFIX_DESC)
     @is_admin_slash()
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
         # This command adds a new game for the bot to track
-        # Restricted to Admin Channel
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-            
         self.db.add_tracked_game(search_name, role_suffix)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_ADDED.format(name=search_name, suffix=role_suffix), ephemeral=True)
 
-    @app_commands.command(name="remove_game", description=Messages.CMD_REMOVE_GAME_DESC)
+    @app_commands.command(name="remove-game", description=Messages.CMD_REMOVE_GAME_DESC)
     @app_commands.describe(search_name=Messages.CMD_REMOVE_GAME_NAME_DESC)
     @is_admin_slash()
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
         # This command stops the bot from tracking a specific game
-        # Restricted to Admin Channel
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-            
         self.db.remove_tracked_game(search_name)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
 
-    @app_commands.command(name="list_games", description=Messages.CMD_LIST_GAMES_DESC)
+    @app_commands.command(name="list-games", description=Messages.CMD_LIST_GAMES_DESC)
     @is_tester_slash()
     async def list_games(self, interaction: discord.Interaction):
         # This command shows a list of all the games the bot is currently watching
-        # Restricted to Admin Channel
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-            
         games = self.db.get_tracked_games()
         if not games:
             await interaction.response.send_message(Messages.GAME_LIST_EMPTY, ephemeral=True)
@@ -74,16 +59,11 @@ class GamesCog(commands.Cog):
         embed = discord.Embed(title=Messages.GAME_LIST_TITLE, description=desc, color=Config.COLOR_SUCCESS)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="game_stats_report", description=Messages.CMD_GAME_REPORT_DESC)
+    @app_commands.command(name="game-stats-report", description=Messages.CMD_GAME_REPORT_DESC)
     @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
     @is_tester_slash()
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # This command creates a .txt file that shows which games are the most popular
-        # Restricted to Admin Channel
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-            
         await interaction.response.send_message(Messages.GAME_REPORT_GEN, ephemeral=True)
         stats = self.db.get_game_stats_report(interaction.guild_id, timeframe)
         if not stats:

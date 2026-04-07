@@ -199,7 +199,7 @@ class ChampionsCog(commands.Cog):
             
             log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
 
-    @discord.app_commands.command(name="force_calculate_champions", description=Messages.CMD_CHAMPIONS_FORCE_DESC)
+    @discord.app_commands.command(name="champ-force", description=Messages.CMD_CHAMPIONS_FORCE_DESC)
     @is_admin_slash()
     async def force_calculate_champions(self, interaction: discord.Interaction):
         """Forces the weekly champion calculation logic immediately."""
@@ -239,17 +239,9 @@ class ChampionsCog(commands.Cog):
             
         return None
 
-    @discord.app_commands.command(name="champion_log", description=Messages.CMD_CHAMPION_LOG_DESC)
-    @is_tester_slash()
+    @discord.app_commands.command(name="champion-log", description=Messages.CMD_CHAMPION_LOG_DESC)
     async def champion_log(self, interaction: discord.Interaction):
-        # Channel restriction: Stats or Admin channel only
-        if interaction.channel_id != Config.STATS_CHANNEL_ID and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(
-                Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID),
-                ephemeral=True
-            )
-            return
-
+        # Usable everywhere
         await interaction.response.defer(ephemeral=True)
         
         # Get overall stats from DB
@@ -294,7 +286,7 @@ class ChampionsCog(commands.Cog):
             
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @discord.app_commands.command(name="test_weekly_layout", description=Messages.CMD_TEST_WEEKLY_LAYOUT_DESC)
+    @discord.app_commands.command(name="test-weekly-layout", description=Messages.CMD_TEST_WEEKLY_LAYOUT_DESC)
     @is_admin_slash()
     async def test_weekly_layout(self, interaction: discord.Interaction):
         """A test command to preview the new layout with dummy data."""
@@ -326,7 +318,7 @@ class ChampionsCog(commands.Cog):
             traceback.print_exc()
             await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
 
-    @discord.app_commands.command(name="weekly_chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
+    @discord.app_commands.command(name="weekly-chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
     async def weekly_chances(self, interaction: discord.Interaction):
         """Shows current standings and compares them with the user's data."""
         await interaction.response.defer(ephemeral=True)

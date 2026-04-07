@@ -65,13 +65,9 @@ class AdminCog(commands.Cog):
              bname = self.bot.user.name if self.bot.user else "Iris"
              cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
-    @app_commands.command(name="status_report", description=Messages.CMD_STATUS_REPORT_DESC)
-    @is_admin_slash()
+    @app_commands.command(name="status-report", description=Messages.CMD_STATUS_REPORT_DESC)
+    @is_tester_slash()
     async def status_report(self, interaction: discord.Interaction):
-        # Strict Admin Channel check
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
 
         await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=True)
         
@@ -133,8 +129,7 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(get_feedback('ERR_STATS_LOAD', e=e), ephemeral=True)
 
 
-    @app_commands.command(name="server_analysis", description=Messages.CMD_SERVER_ANALYSIS_DESC)
-    @is_tester_slash()
+    @app_commands.command(name="server-analysis", description=Messages.CMD_SERVER_ANALYSIS_DESC)
     @app_commands.describe(
         type=Messages.CMD_SERVER_ANALYSIS_TYPE_DESC,
         timeframe=Messages.CMD_SERVER_ANALYSIS_TF_DESC
@@ -235,15 +230,11 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)
 
-    @app_commands.command(name="game_details", description=Messages.CMD_GAME_DETAILS_DESC)
+    @app_commands.command(name="game-details", description=Messages.CMD_GAME_DETAILS_DESC)
     @app_commands.describe(game=Messages.CMD_GAME_DETAILS_GAME_DESC)
     @is_tester_slash()
     async def game_details(self, interaction: discord.Interaction, game: str):
-        # Restricted to Admin Channel
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-
+        # Usable everywhere
         await interaction.response.defer(ephemeral=True)
         
         raw_data = self.db.get_game_top_players(interaction.guild_id, game)
@@ -281,9 +272,9 @@ class AdminCog(commands.Cog):
             for g in games if current.lower() in g.lower()
         ][:25]
 
-    @app_commands.command(name="stream_history", description=Messages.CMD_STREAM_HISTORY_DESC)
+    @app_commands.command(name="stream-history", description=Messages.CMD_STREAM_HISTORY_DESC)
     @app_commands.describe(days=Messages.CMD_STREAM_HISTORY_DAYS_DESC)
-    @is_tester_slash()
+    @is_admin_slash()
     async def stream_history(self, interaction: discord.Interaction, days: int = 7):
         # Accessible everywhere as per requirements
         await interaction.response.defer(ephemeral=True)
@@ -329,13 +320,10 @@ class AdminCog(commands.Cog):
         if os.path.exists(filename):
             os.remove(filename)
 
-    @app_commands.command(name="membership_logs", description=Messages.CMD_MEMBERSHIP_LOGS_DESC)
-    @is_tester_slash()
+    @app_commands.command(name="membership-logs", description=Messages.CMD_MEMBERSHIP_LOGS_DESC)
+    @is_admin_slash()
     async def membership_logs(self, interaction: discord.Interaction):
         # Export join/leave history to TXT
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
 
         await interaction.response.send_message(Messages.MEMBERSHIP_LOG_GEN, ephemeral=True)
         
@@ -369,13 +357,11 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
-    @app_commands.command(name="game_role_report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
-    @is_tester_slash()
+    @app_commands.command(name="game-role-report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
+    @is_admin_slash()
     async def game_role_report(self, interaction: discord.Interaction):
         # This command creates a report showing when the bot gave or took away game roles
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
+        # Usable everywhere
         
         await interaction.response.send_message(Messages.REPORT_GEN_ROLE, ephemeral=True)
         
@@ -398,13 +384,10 @@ class AdminCog(commands.Cog):
         await interaction.followup.send(file=discord.File(filename), ephemeral=True)
         os.remove(filename)
 
-    @app_commands.command(name="reset_database", description=Messages.CMD_RESET_DB_DESC)
+    @app_commands.command(name="reset-database", description=Messages.CMD_RESET_DB_DESC)
     @is_admin_slash()
     async def reset_database(self, interaction: discord.Interaction):
         # DANGER: This command deletes ALL stats from the database!
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
             
         try:
             self.db.reset_database()
@@ -412,7 +395,7 @@ class AdminCog(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
-    @app_commands.command(name="list_roles", description=Messages.CMD_LIST_ROLES_DESC)
+    @app_commands.command(name="list-roles", description=Messages.CMD_LIST_ROLES_DESC)
     @is_admin_slash()
     async def list_roles(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -464,7 +447,7 @@ class AdminCog(commands.Cog):
         if os.path.exists(filename):
             os.remove(filename)
 
-    @app_commands.command(name="list_channels", description=Messages.CMD_LIST_CHANNELS_DESC)
+    @app_commands.command(name="list-channels", description=Messages.CMD_LIST_CHANNELS_DESC)
     @is_admin_slash()
     async def list_channels(self, interaction: discord.Interaction):
         # Accessible anywhere, but only for Administrators
@@ -590,10 +573,6 @@ class AdminCog(commands.Cog):
             if hasattr(cog, "refresh_descriptions"):
                 cog.refresh_descriptions(interaction.guild)
 
-        if Config.ADMIN_CHANNEL_ID != 0 and interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-
         await interaction.response.defer(ephemeral=True)
         
         if mode == "global":
@@ -609,10 +588,10 @@ class AdminCog(commands.Cog):
 
     @commands.command(name=f"info{Config.SUFFIX}", help=Messages.CMD_INFO_DESC)
     @is_tester()
-    async def info_elf_prefix(self, ctx: commands.Context):
-        # Dual-channel check: Stats or Admin channel
-        if Config.STATS_CHANNEL_ID != 0 and ctx.channel.id != Config.STATS_CHANNEL_ID and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
-            await ctx.send(Messages.ERR_PUBLIC_CHANNELS.format(admin_id=Config.ADMIN_CHANNEL_ID, stats_id=Config.STATS_CHANNEL_ID))
+    async def info_prefix(self, ctx: commands.Context):
+        # Strictly Admin Channel for prefix version
+        if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
+            await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
             return
 
         # This command posts the bot's introduction card to the stats channel
@@ -624,13 +603,18 @@ class AdminCog(commands.Cog):
         view = ModernInfoView(ctx.guild)
         await stats_channel.send(view=view)
 
+    @app_commands.command(name="help", description=Messages.CMD_INFO_DESC)
+    @app_commands.describe(public=Messages.CMD_INFO_PUBLIC_DESC)
+    async def help_elf_slash(self, interaction: discord.Interaction, public: bool = False):
+        await self._info_logic(interaction, public)
+
     @app_commands.command(name="info", description=Messages.CMD_INFO_DESC)
     @app_commands.describe(public=Messages.CMD_INFO_PUBLIC_DESC)
-    @is_tester_slash()
     async def info_elf_slash(self, interaction: discord.Interaction, public: bool = False):
-        # Matches !info specifications
+        await self._info_logic(interaction, public)
+
+    async def _info_logic(self, interaction: discord.Interaction, public: bool):
         # Enhancement: Default ephemeral, optional public for admins, usable everywhere
-        
         if public:
             # Check if user is admin
             is_admin = interaction.user.guild_permissions.administrator
@@ -645,9 +629,9 @@ class AdminCog(commands.Cog):
         view = ModernInfoView(interaction.guild)
         await interaction.followup.send(view=view, ephemeral=not public)
 
-    @commands.command(name=f"info_dev{Config.SUFFIX}", help=Messages.CMD_INFO_DEV_DESC)
+    @commands.command(name=f"dev_info{Config.SUFFIX}", help=Messages.CMD_INFO_DEV_DESC)
     @is_tester()
-    async def info_dev_prefix(self, ctx: commands.Context):
+    async def dev_info_prefix(self, ctx: commands.Context):
         # Restricted to Admin Channel but no role requirement
         if Config.ADMIN_CHANNEL_ID != 0 and ctx.channel.id != Config.ADMIN_CHANNEL_ID:
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
@@ -655,14 +639,18 @@ class AdminCog(commands.Cog):
         
         await self._send_dev_help(ctx)
 
-    @app_commands.command(name="info_dev", description=Messages.CMD_INFO_DEV_DESC)
+    @app_commands.command(name="dev-info", description=Messages.CMD_INFO_DEV_DESC)
+    @app_commands.describe(public=Messages.CMD_INFO_PUBLIC_DESC)
     @is_tester_slash()
-    async def info_dev_slash(self, interaction: discord.Interaction):
-        # Dev help is for Admins only
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
+    async def info_dev_slash(self, interaction: discord.Interaction, public: bool = False):
+        if public:
+            is_admin = interaction.user.guild_permissions.administrator
+            if not is_admin and Config.ADMIN_ROLE_ID != 0:
+                is_admin = discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
+            if not is_admin:
+                public = False
 
+        await interaction.response.defer(ephemeral=not public)
         await self._send_dev_help(interaction)
 
     async def _send_dev_help(self, target):
@@ -688,15 +676,15 @@ class AdminCog(commands.Cog):
         if isinstance(target, commands.Context):
             await target.send(view=view)
         else:
-            await target.response.send_message(view=view)
+            await target.followup.send(view=view)
 
     def _get_command_access_info(self, name):
         """Returns a string describing the role and channel requirements for a command."""
         from core.ui_icons import Icons
         
         # Role Requirements
-        admin_cmds = ["membership_logs", "game_role_report", "reset_database", "sync", "link_alt", "add_game", "remove_game", "test_weekly_layout"]
-        tester_cmds = ["status_report", "game_details", "list_games", "game_stats_report", "info_dev", "champion_log", "server_analysis", "info"]
+        admin_cmds = ["membership-logs", "game-role-report", "reset-database", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "champ-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
+        tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
         
         icon_role = Icons.ROLE_USER
         label_role = Messages.HELP_ROLE_EVERYONE
@@ -709,34 +697,31 @@ class AdminCog(commands.Cog):
             label_role = Messages.HELP_ROLE_TESTER
         
         # Channel Requirements
-        admin_ch_cmds = admin_cmds + ["status_report", "game_details", "list_games", "game_stats_report", "info_dev"]
-        stats_ch_cmds = ["top", "server_analysis", "champion_log", "info"]
-        any_ch_cmds = ["stream_history", "me"]
+        stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
+        any_ch_cmds = admin_cmds + tester_cmds + ["champion-log", "weekly-chances", "me", "top", "emoji list"]
+        # Remove those that are specifically restricted to stats channel from the "Any" list if they were added via concatenation
+        any_ch_cmds = [c for c in any_ch_cmds if c not in stats_ch_cmds]
         
         icon_chan = Icons.CHAN_ANY
         label_chan = Messages.HELP_CHAN_ANY
         
-        if name in any_ch_cmds:
-            icon_chan = Icons.CHAN_ANY
-            label_chan = Messages.HELP_CHAN_ANY
-        elif name in admin_ch_cmds: 
-            icon_chan = Icons.CHAN_ADMIN
-            label_chan = Messages.HELP_CHAN_ADMIN
-        elif name in stats_ch_cmds: 
-            # These are allowed in both, but primarily 'Public'
+        if name in stats_ch_cmds: 
             icon_chan = Icons.CHAN_STATS
             label_chan = Messages.HELP_CHAN_STATS
+        elif name in any_ch_cmds:
+            icon_chan = Icons.CHAN_ANY
+            label_chan = Messages.HELP_CHAN_ANY
+        elif name in admin_cmds or name in tester_cmds:
+            # Fallback for anything else that might be admin/tester restricted but not in any_ch explicitly
+            icon_chan = Icons.CHAN_ANY
+            label_chan = Messages.HELP_CHAN_ANY
         
         return f"{icon_role} {label_role} | {icon_chan} {label_chan}"
 
-    @app_commands.command(name="link_alt", description=Messages.CMD_LINK_ALT_DESC)
+    @app_commands.command(name="link-alt", description=Messages.CMD_LINK_ALT_DESC)
     @is_admin_slash()
     async def link_alt(self, interaction: discord.Interaction):
         # This command opens the modal to link an alt account to a main account
-        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
-            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
-            return
-
         await interaction.response.send_modal(AltAccountModal())
 
     def refresh_descriptions(self, guild):

@@ -47,6 +47,7 @@ class Config:
     STATS_CHANNEL_ID = _channels.get("stats_id", 0)
     AFK_CHANNEL_ID = _channels.get("afk_id", 0)
     EXCLUDED_CHANNELS = _channels.get("excluded", [])
+    EMOJI_CHANNEL_ID = _channels.get("emoji_id", 1486515344674787399)
     
     # How many days of inactivity before someone loses a role (thresholds)
     _thresholds = _data.get("thresholds", {})
@@ -142,6 +143,7 @@ class Config:
             cls.STATS_CHANNEL_ID = cls._channels.get("stats_id", 0)
             cls.AFK_CHANNEL_ID = cls._channels.get("afk_id", 0)
             cls.EXCLUDED_CHANNELS = cls._channels.get("excluded", [])
+            cls.EMOJI_CHANNEL_ID = cls._channels.get("emoji_id", 1486515344674787399)
             
             cls._thresholds = cls._data.get("thresholds", {})
             cls.STAGE_1_DAYS = cls._thresholds.get("stage_1_days", 14)

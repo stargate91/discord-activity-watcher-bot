@@ -7,9 +7,9 @@ import io
 import os
 from core.messages import Messages
 from core.ui_translate import t
-from core.ui_translate import t
 from core.logger import log
 from core.ui_utils import get_feedback
+from config_loader import Config
 
 class EmojiManager(commands.Cog):
     def __init__(self, bot):
@@ -27,10 +27,14 @@ class EmojiManager(commands.Cog):
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""
         bname = self.bot.user.name if self.bot.user else "Iris"
-        from config_loader import Config
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
+
+    def _check_perms(self, interaction: discord.Interaction) -> bool:
+        """Check if user has Emoji Manager level access based on Discord permissions (Admin/Manage Expressions)."""
+        perms = interaction.user.guild_permissions
+        return perms.administrator or perms.manage_expressions
 
     emoji_group = app_commands.Group(name="emoji", description=Messages.CMD_EMOJI_GROUP_DESC)
 
@@ -92,12 +96,16 @@ class EmojiManager(commands.Cog):
         app_commands.Choice(name="Emoji", value="emoji"),
         app_commands.Choice(name="Sticker", value="sticker")
     ])
-    @commands.has_permissions(manage_expressions=True)
     async def add_emoji(self, interaction: discord.Interaction, type: str, asset_id: str = None, url: str = None):
+        if not self._check_perms(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERMISSION"), ephemeral=True)
+        if Config.EMOJI_CHANNEL_ID != 0 and interaction.channel_id != Config.EMOJI_CHANNEL_ID:
+            return await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.EMOJI_CHANNEL_ID), ephemeral=True)
+
         if not asset_id and not url:
             return await interaction.response.send_message(t("ERR_ADD_MISSING_ARGS"), ephemeral=True)
             
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
         
         data, name = None, None
         if url:
@@ -158,8 +166,12 @@ class EmojiManager(commands.Cog):
     @emoji_group.command(name="delete", description=Messages.CMD_DELETE_EMOJI_DESC)
     @app_commands.describe(name="The name of the emoji/sticker to delete")
     @app_commands.autocomplete(name=asset_autocomplete)
-    @commands.has_permissions(manage_expressions=True)
     async def delete_emoji(self, interaction: discord.Interaction, name: str):
+        if not self._check_perms(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERMISSION"), ephemeral=True)
+        if Config.EMOJI_CHANNEL_ID != 0 and interaction.channel_id != Config.EMOJI_CHANNEL_ID:
+            return await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.EMOJI_CHANNEL_ID), ephemeral=True)
+
         # The name might come with "Emoji: " or "Sticker: " prefix from autocomplete
         clean_name = name.split(": ")[-1] if ": " in name else name
         
@@ -175,7 +187,7 @@ class EmojiManager(commands.Cog):
         try:
             old_name = target.name
             await target.delete()
-            await interaction.response.send_message(t("EMOJI_DELETED_SUCCESS", name=old_name), ephemeral=True)
+            await interaction.response.send_message(t("EMOJI_DELETED_SUCCESS", name=old_name))
             log.info(f"EmojiManager: Deleted asset '{old_name}' from guild {interaction.guild.name}")
         except Exception as e:
             await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
@@ -192,8 +204,12 @@ class EmojiManager(commands.Cog):
     @emoji_group.command(name="rename", description=Messages.CMD_RENAME_EMOJI_DESC)
     @app_commands.describe(old_emoji="Select the emoji to rename", new_name="The new name")
     @app_commands.autocomplete(old_emoji=emoji_only_autocomplete)
-    @commands.has_permissions(manage_expressions=True)
     async def rename_emoji(self, interaction: discord.Interaction, old_emoji: str, new_name: str):
+        if not self._check_perms(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERMISSION"), ephemeral=True)
+        if Config.EMOJI_CHANNEL_ID != 0 and interaction.channel_id != Config.EMOJI_CHANNEL_ID:
+            return await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.EMOJI_CHANNEL_ID), ephemeral=True)
+
         try:
             # Find the actual guild emoji object
             actual_emoji = discord.utils.get(interaction.guild.emojis, name=old_emoji)
@@ -204,14 +220,17 @@ class EmojiManager(commands.Cog):
             # Discord emojinames must be alphanumeric + underscores
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', new_name)
             await actual_emoji.edit(name=clean_name)
-            await interaction.response.send_message(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name), ephemeral=True)
+            await interaction.response.send_message(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name))
         except Exception as e:
             await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
-    @emoji_group.command(name="large", description=Messages.CMD_LARGE_EMOJI_DESC)
+    @emoji_group.command(name="enlarge", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
     @app_commands.autocomplete(emoji=emoji_only_autocomplete)
-    async def large_emoji(self, interaction: discord.Interaction, emoji: str):
+    async def enlarge_emoji(self, interaction: discord.Interaction, emoji: str):
+        if Config.EMOJI_CHANNEL_ID != 0 and interaction.channel_id != Config.EMOJI_CHANNEL_ID:
+            return await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.EMOJI_CHANNEL_ID), ephemeral=True)
+
         # Find emoji by name
         target = discord.utils.get(interaction.guild.emojis, name=emoji)
         if not target:
