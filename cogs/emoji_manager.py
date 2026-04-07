@@ -184,13 +184,15 @@ class EmojiManager(commands.Cog):
         if not target:
             return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=clean_name), ephemeral=True)
         
+        await interaction.response.defer()
+        
         try:
             old_name = target.name
             await target.delete()
-            await interaction.response.send_message(t("EMOJI_DELETED_SUCCESS", name=old_name))
+            await interaction.followup.send(t("EMOJI_DELETED_SUCCESS", name=old_name))
             log.info(f"EmojiManager: Deleted asset '{old_name}' from guild {interaction.guild.name}")
         except Exception as e:
-            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e))
 
     async def emoji_only_autocomplete(self, interaction: discord.Interaction, current: str):
         """Autocomplete for only emojis (for rename and large)."""
@@ -215,14 +217,19 @@ class EmojiManager(commands.Cog):
             actual_emoji = discord.utils.get(interaction.guild.emojis, name=old_emoji)
             if not actual_emoji:
                 return await interaction.response.send_message(t("ERR_EMOJI_NOT_FOUND", name=old_emoji), ephemeral=True)
+            
+            await interaction.response.defer()
                 
             old_name = actual_emoji.name
             # Discord emojinames must be alphanumeric + underscores
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', new_name)
             await actual_emoji.edit(name=clean_name)
-            await interaction.response.send_message(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name))
+            await interaction.followup.send(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name))
         except Exception as e:
-            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send(get_feedback('ERR_GENERIC', e=e))
+            else:
+                await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
     @emoji_group.command(name="enlarge", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
