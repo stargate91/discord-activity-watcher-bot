@@ -164,13 +164,14 @@ class AdminCog(commands.Cog):
                 return
             
             day_names = [getattr(Messages, f"DAY_{i}") for i in range(7)]
-            day_names = [getattr(Messages, f"DAY_{i}") for i in range(7)]
-            buffer = io.BytesIO()
+            os.makedirs("temp", exist_ok=True)
+            output = f"temp/peak_{interaction.guild_id}_{int(datetime.datetime.now().timestamp())}.png"
             draw_peak_heatmap(data, Messages.CHART_PEAK_TITLE.format(tf=tf_name), 
                             Messages.CHART_X_HOUR, Messages.CHART_Y_DAY, day_names, 
-                            cbar_label=Messages.VIS_EVENTS, output_path=buffer)
-            buffer.seek(0)
-            await interaction.followup.send(file=discord.File(buffer, filename=f"peak_{interaction.guild_id}.png"))
+                            cbar_label=Messages.VIS_EVENTS, output_path=output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
             
         elif type == "voice":
             # Let's see which voice channels are the most popular!
@@ -186,13 +187,15 @@ class AdminCog(commands.Cog):
                 name = ch.name if ch else f"Unknown ({cid})"
                 formatted_data.append((name, mins))
             
-            buffer = io.BytesIO()
+            os.makedirs("temp", exist_ok=True)
+            output = f"temp/voice_{interaction.guild_id}_{int(datetime.datetime.now().timestamp())}.png"
             # Switch axes description for bar chart: x is minutes, y is Channel
             draw_voice_usage_bars(formatted_data, Messages.CHART_VOICE_TITLE.format(tf=tf_name), 
                                 Messages.CHART_Y_MINUTES, Messages.FIELD_CHANNEL, 
-                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=buffer)
-            buffer.seek(0)
-            await interaction.followup.send(file=discord.File(buffer, filename=f"voice_{interaction.guild_id}.png"))
+                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
             
         elif type == "dedication":
             raw_data = self.db.get_top_average_voice_duration(interaction.guild_id, days)
@@ -207,12 +210,14 @@ class AdminCog(commands.Cog):
                 name = member.display_name if member else f"Unknown ({uid})"
                 formatted_data.append((name, avg_mins))
             
-            buffer = io.BytesIO()
+            os.makedirs("temp", exist_ok=True)
+            output = f"temp/dedication_{interaction.guild_id}_{int(datetime.datetime.now().timestamp())}.png"
             draw_voice_usage_bars(formatted_data, Messages.CHART_DEDICATION_TITLE.format(tf=tf_name), 
                                 Messages.CHART_X_MIN_SESSION, Messages.FIELD_NAME, 
-                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=buffer)
-            buffer.seek(0)
-            await interaction.followup.send(file=discord.File(buffer, filename=f"dedication_{interaction.guild_id}.png"))
+                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
             
         elif type == "text_channels":
             raw_data = self.db.get_channel_activity_raw(interaction.guild_id, days)
@@ -226,12 +231,14 @@ class AdminCog(commands.Cog):
                 name = f"#{channel.name}" if channel else f"#{cid}"
                 formatted_data.append((name, total))
                 
-            buffer = io.BytesIO()
+            os.makedirs("temp", exist_ok=True)
+            output = f"temp/channels_{interaction.guild_id}_{int(datetime.datetime.now().timestamp())}.png"
             draw_voice_usage_bars(formatted_data, Messages.CHART_CHANNEL_TITLE.format(tf=tf_name), 
                                 Messages.CHART_Y_MESSAGES, Messages.FIELD_CHANNEL, 
-                                output_path=buffer)
-            buffer.seek(0)
-            await interaction.followup.send(file=discord.File(buffer, filename=f"channels_{interaction.guild_id}.png"))
+                                output_path=output)
+            
+            await interaction.followup.send(file=discord.File(output))
+            if os.path.exists(output): os.remove(output)
 
     @app_commands.command(name="game-details", description=Messages.CMD_GAME_DETAILS_DESC)
     @app_commands.describe(game=Messages.CMD_GAME_DETAILS_GAME_DESC)

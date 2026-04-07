@@ -107,16 +107,15 @@ class StatsCog(commands.Cog):
             daily_activity[today_idx] = (d_str, d_points + live_points, d_voice + live_mins)
 
         if daily_activity:
-            import io
-            buffer = io.BytesIO()
-            draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", buffer)
-            buffer.seek(0)
-            if buffer.getbuffer().nbytes > 0:
-                chart_file = discord.File(buffer, filename="chart.png")
+            os.makedirs("temp", exist_ok=True)
+            path = f"temp/profile_{main_id}_{int(datetime.datetime.now().timestamp())}.png"
+            draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", path)
+            if os.path.exists(path):
+                chart_file = discord.File(path, filename="chart.png")
                 chart_url = "attachment://chart.png"
                 log.info(f"Chart generated successfully: {chart_url}")
             else:
-                log.warning("Produced chart buffer was empty.")
+                log.warning(f"Chart file not found at {path}")
 
         view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
                                  joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, chart_url=chart_url, 
@@ -142,6 +141,9 @@ class StatsCog(commands.Cog):
 
             if chart_file:
                 await interaction.followup.send(view=view, file=chart_file, ephemeral=True)
+                # Cleanup AFTER send (it's safe here because send blocks until uploaded or scheduled)
+                try: os.remove(chart_file.fp.name)
+                except: pass
             else:
                 await interaction.followup.send(view=view, ephemeral=True)
 
