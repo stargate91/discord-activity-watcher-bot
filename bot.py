@@ -62,8 +62,7 @@ class IrisBot(commands.Bot):
         # Remind the admin to sync the commands so they actually show up in Discord
         log.info(f"Extensions loaded. Use {Config.PREFIX}sync{Config.SUFFIX} to propagate slash commands.")
 
-        # One-time migration for voice overlaps cache
-        self.db.migrate_voice_overlaps()
+
 
     # These are shortcut functions that other parts of the bot can use easily
     def get_top_data(self, guild, user=None, timeframe="alltime"):
@@ -72,8 +71,6 @@ class IrisBot(commands.Bot):
     async def load_game_franchises(self):
         await self.tracker.load_franchises()
 
-    async def migrate_role_logs(self):
-        await self.tracker.migrate_role_logs(self)
 
 if __name__ == "__main__":
     try:

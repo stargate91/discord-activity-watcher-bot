@@ -81,7 +81,6 @@ class EventsCog(commands.Cog):
     async def on_ready(self):
         # This runs when the bot starts up and is ready to work
         await self.bot.load_game_franchises()
-        await self.bot.migrate_role_logs()
         
         # Initialize qualified voice states
         if not hasattr(self.bot, 'voice_qualified_states'):

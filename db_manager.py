@@ -29,6 +29,7 @@ class DBManager:
                     stream_minutes REAL DEFAULT 0,
                     joined_at TIMESTAMP,
                     media_count INTEGER DEFAULT 0,
+                    spotify_minutes REAL DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
@@ -142,10 +143,6 @@ class DBManager:
                 )
             """)
             
-            # Migrations for active_voice_sessions
-            for col, ctype in [("multiplier", "REAL DEFAULT 2.0"), ("is_streaming", "INTEGER DEFAULT 0"), ("stream_name", "TEXT")]:
-                try: conn.execute(f"ALTER TABLE active_voice_sessions ADD COLUMN {col} {ctype}")
-                except sqlite3.OperationalError: pass
             # active_game_sessions: Remembers who is currently playing a game
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_game_sessions (
@@ -175,119 +172,6 @@ class DBManager:
                 )
             """)
             
-            
-            # Migrations for user_activity
-            for col, ctype in [("returned_at", "TIMESTAMP DEFAULT NULL"), ("message_count", "INTEGER DEFAULT 0"), 
-                               ("reaction_count", "INTEGER DEFAULT 0"), ("voice_minutes", "REAL DEFAULT 0"),
-                               ("qualified_voice_minutes", "REAL DEFAULT 0")]:
-                try: conn.execute(f"ALTER TABLE user_activity ADD COLUMN {col} {ctype}")
-                except sqlite3.OperationalError: pass
-            
-            # Migrations for role_history
-            try: conn.execute("ALTER TABLE role_history ADD COLUMN action TEXT DEFAULT 'ADDED'")
-            except sqlite3.OperationalError: pass
-
-            # Migrations for game_activity
-            try: conn.execute("ALTER TABLE game_activity ADD COLUMN total_minutes REAL DEFAULT 0")
-            except sqlite3.OperationalError: pass
-            
-            # Migration for daily_stats (Add channel_id and update Primary Key)
-            # Check if channel_id already exists
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            cols = [row[1] for row in cursor.fetchall()]
-            if "channel_id" not in cols:
-                try:
-                    # Rename old, create new, copy data
-                    conn.execute("ALTER TABLE daily_stats RENAME TO daily_stats_old")
-                    conn.execute("""
-                        CREATE TABLE IF NOT EXISTS daily_stats (
-                            user_id INTEGER,
-                            guild_id INTEGER,
-                            channel_id INTEGER DEFAULT 0,
-                            date DATE,
-                            messages INTEGER DEFAULT 0,
-                            reactions INTEGER DEFAULT 0,
-                            voice_minutes REAL DEFAULT 0,
-                            PRIMARY KEY (user_id, guild_id, channel_id, date)
-                        )
-                    """)
-                    conn.execute("""
-                        INSERT INTO daily_stats (user_id, guild_id, channel_id, date, messages, reactions, voice_minutes)
-                        SELECT user_id, guild_id, 0, date, messages, reactions, voice_minutes FROM daily_stats_old
-                    """)
-                    conn.execute("DROP TABLE daily_stats_old")
-                except sqlite3.OperationalError as e:
-                    print(f"Migration error: {e}")
-            
-            # Migration to add points columns if they don't exist
-            # 1. user_activity points_total
-            cursor = conn.execute("PRAGMA table_info(user_activity)")
-            if "points_total" not in [row[1] for row in cursor.fetchall()]:
-                try: 
-                    conn.execute("ALTER TABLE user_activity ADD COLUMN points_total REAL DEFAULT 0")
-                    # Initialize based on old formula: msg*10 + reac*5 + voice*2
-                    conn.execute("UPDATE user_activity SET points_total = (message_count * 10) + (reaction_count * 5) + (voice_minutes * 2)")
-                except sqlite3.OperationalError: pass
-                
-            # 2. daily_stats points
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            if "points" not in [row[1] for row in cursor.fetchall()]:
-                try: 
-                    conn.execute("ALTER TABLE daily_stats ADD COLUMN points REAL DEFAULT 0")
-                    # Initialize based on old formula
-                    conn.execute("UPDATE daily_stats SET points = (messages * 10) + (reactions * 5) + (voice_minutes * 2)")
-                except sqlite3.OperationalError: pass
-            
-            # Migration for stream_minutes
-            cursor = conn.execute("PRAGMA table_info(user_activity)")
-            if "stream_minutes" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE user_activity ADD COLUMN stream_minutes REAL DEFAULT 0")
-                except sqlite3.OperationalError: pass
-                
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            if "stream_minutes" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN stream_minutes REAL DEFAULT 0")
-                except sqlite3.OperationalError: pass
-            
-            # Migration for voice_sessions stream_detail
-            cursor = conn.execute("PRAGMA table_info(voice_sessions)")
-            if "stream_detail" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE voice_sessions ADD COLUMN stream_detail TEXT")
-                except sqlite3.OperationalError: pass
-            
-            # Migration for daily_stats game_minutes
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            if "game_minutes" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN game_minutes REAL DEFAULT 0")
-                except sqlite3.OperationalError: pass
-                
-            # Migration for joined_at in user_activity
-            cursor = conn.execute("PRAGMA table_info(user_activity)")
-            if "joined_at" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE user_activity ADD COLUMN joined_at TIMESTAMP")
-                except sqlite3.OperationalError: pass
-                
-            # Migration for media_count
-            cursor = conn.execute("PRAGMA table_info(user_activity)")
-            if "media_count" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE user_activity ADD COLUMN media_count INTEGER DEFAULT 0")
-                except sqlite3.OperationalError: pass
-            
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            if "media_count" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN media_count INTEGER DEFAULT 0")
-                except sqlite3.OperationalError: pass
-            
-            # Migration for spotify_minutes
-            cursor = conn.execute("PRAGMA table_info(user_activity)")
-            if "spotify_minutes" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE user_activity ADD COLUMN spotify_minutes REAL DEFAULT 0")
-                except sqlite3.OperationalError: pass
-
-            cursor = conn.execute("PRAGMA table_info(daily_stats)")
-            if "spotify_minutes" not in [row[1] for row in cursor.fetchall()]:
-                try: conn.execute("ALTER TABLE daily_stats ADD COLUMN spotify_minutes REAL DEFAULT 0")
-                except sqlite3.OperationalError: pass
             # --- INDEXES FOR PERFORMANCE ---
             
             # user_activity: guild_id for server-wide lookups
@@ -1237,34 +1121,3 @@ class DBManager:
             row = cursor.fetchone()
             return row[0] if row and row[0] is not None else 0
 
-    def migrate_voice_overlaps(self):
-        # One-time migration to populate voice_overlaps from voice_sessions
-        with self._get_connection() as conn:
-            # Check if already migrated (simple check: is the table empty?)
-            count = conn.execute("SELECT COUNT(*) FROM voice_overlaps").fetchone()[0]
-            if count > 0:
-                return # Already has data
-                
-            print("Migrating voice overlaps... this may take a moment.")
-            # This query is basically the old get_top_voice_partners logic but for EVERYONE
-            cursor = conn.execute("""
-                SELECT s1.user_id, s2.user_id, s1.guild_id, date(s1.start_time),
-                       SUM((MIN(julianday(s1.end_time), julianday(s2.end_time)) - 
-                            MAX(julianday(s1.start_time), julianday(s2.start_time))) * 1440.0) as duration
-                FROM voice_sessions s1
-                JOIN voice_sessions s2 ON s1.guild_id = s2.guild_id 
-                     AND s1.channel_id = s2.channel_id
-                     AND s1.user_id < s2.user_id
-                WHERE s2.start_time < s1.end_time 
-                  AND s2.end_time > s1.start_time
-                GROUP BY s1.user_id, s2.user_id, s1.guild_id, date(s1.start_time)
-            """)
-            
-            rows = cursor.fetchall()
-            if rows:
-                conn.executemany("""
-                    INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
-                    VALUES (?, ?, ?, ?, ?)
-                """, rows)
-                conn.commit()
-            print(f"Migration complete. {len(rows)} overlap records created.")

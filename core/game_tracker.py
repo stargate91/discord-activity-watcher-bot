@@ -134,30 +134,7 @@ class GameTracker:
                         self.db.add_game_minutes(main_id, after.guild.id, game, duration)
                         log.info(f"Logged {duration:.2f}m of {game} for Main ID {main_id}")
 
-    async def migrate_role_logs(self, bot):
-        # This part moves old text-file logs into our new database system so everything is in one place
-        if not os.path.exists("role_log.txt"): return
-        
-        log.info("Migrating role_log.txt to database...")
-        pattern = re.compile(r"\[(.*?)\] .*? \((\d+)\) -> (.*)")
-        
-        with open("role_log.txt", "r", encoding="utf-8") as f:
-            lines = f.readlines()
-            
-        count = 0
-        for line in lines:
-            match = pattern.search(line)
-            if match:
-                ts_str, uid, role = match.groups()
-                for guild in bot.guilds:
-                    if guild.get_member(int(uid)):
-                        self.db.log_role(int(uid), guild.id, role, timestamp=ts_str)
-                        count += 1
-                        break
-        
-        if count > 0:
-            os.rename("role_log.txt", "role_log_migrated.txt")
-            log.info(f"Successfully migrated {count} logs to DB.")
+
 
     async def cleanup_inactive_roles(self, bot):
         # This part removes 'Player' roles if someone hasn't played that game for a long time (e.g., 30 days)
