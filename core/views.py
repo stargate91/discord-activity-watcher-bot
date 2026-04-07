@@ -264,8 +264,8 @@ class ModernElitesView(discord.ui.LayoutView):
     def setup_layout(self, guild, elite_data, hof_notices, title, footer, caller_id, caller_stats):
         container_items = []
         
-        # 1. Header
-        title = title or Messages.ELITE_ANNOUNCEMENT_TITLE
+        # 1. Header (Standardized titles)
+        title = title or Messages.ELITES_TITLE
         container_items.append(discord.ui.TextDisplay(f"# {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"))
         
         # 2. Winners
@@ -287,7 +287,7 @@ class ModernElitesView(discord.ui.LayoutView):
             container_items.append(discord.ui.TextDisplay(f"## {Messages.ELITE_HALL_OF_FAME_TITLE}\n{hof_text}"))
 
         # 4. Footer
-        footer = footer or Messages.ELITE_ANNOUNCEMENT_FOOTER
+        footer = footer or Messages.ELITES_FOOTER
         container_items.append(discord.ui.Separator())
         container_items.append(discord.ui.TextDisplay(f"*{footer}*"))
 

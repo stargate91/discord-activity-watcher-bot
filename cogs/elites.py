@@ -263,29 +263,37 @@ class ElitesCog(commands.Cog):
     @is_admin_slash()
     async def test_weekly_layout(self, interaction: discord.Interaction):
         log.info(f"ElitesCog: Starting test_weekly_layout for {interaction.user.name}...")
-        uid = interaction.user.id
-        dummy_data = {
-            "spotify": (uid, 120, Messages.ELITE_SPOTIFY),
-            "gamer_total": (uid, 450, Messages.ELITE_GAMER_TOTAL),
-            "gamer_variety": (uid, 5, Messages.ELITE_GAMER_VARIETY),
-            "streamer": (uid, 60, Messages.ELITE_STREAMER),
-            "media": (uid, 25, Messages.ELITE_MEMELORD)
-        }
-        dummy_hof = [Messages.ELITE_HALL_OF_FAME.format(name=f"**{interaction.user.display_name}**")]
         
         try:
+            uid = interaction.user.id
+            dummy_data = {
+                "spotify": (uid, 120, Messages.ELITE_SPOTIFY),
+                "gamer_total": (uid, 450, Messages.ELITE_GAMER_TOTAL),
+                "gamer_variety": (uid, 5, Messages.ELITE_GAMER_VARIETY),
+                "streamer": (uid, 60, Messages.ELITE_STREAMER),
+                "media": (uid, 25, Messages.ELITE_MEMELORD)
+            }
+            # FIX: Included threshold=Config.ELITE_WIN_THRESHOLD to prevent KeyError
+            dummy_hof = [Messages.ELITE_HALL_OF_FAME.format(
+                name=f"**{interaction.user.display_name}**",
+                threshold=Config.ELITE_WIN_THRESHOLD
+            )]
+            
             log.info("ElitesCog: Building ModernElitesView (dummy)...")
             view = ModernElitesView(interaction.guild, dummy_data, hof_notices=dummy_hof)
+            
             log.info("ElitesCog: Sending interaction response...")
             # We use direct response instead of defer for immediate feedback
             await interaction.response.send_message(view=view, ephemeral=True)
             log.info("ElitesCog: Response sent successfully.")
+            
         except Exception as e:
             log.error(f"Error in test_weekly_layout: {e}", exc_info=True)
+            error_msg = get_feedback('ERR_LAYOUT_TEST', e=e)
             if interaction.response.is_done():
-                await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
+                await interaction.followup.send(error_msg, ephemeral=True)
             else:
-                await interaction.response.send_message(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
+                await interaction.response.send_message(error_msg, ephemeral=True)
 
     @discord.app_commands.command(name="weekly-chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
     async def weekly_chances(self, interaction: discord.Interaction):
