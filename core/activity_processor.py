@@ -63,32 +63,37 @@ class ActivityProcessor:
         if member.voice.channel.id == Config.AFK_CHANNEL_ID:
             return 0, False, "AFK"
 
-        # 1. Check if streaming to the server (Go Live) - This is a high-priority active state!
+        # Use additive model for better granularity
+        base_points = 2 # Normal voice
+        is_streaming = False
+        desc = "Voice"
+        
+        # 1. Base Logic (Mute/Deaf)
+        if member.voice.self_deaf or member.voice.deaf:
+            base_points = 0
+            desc = "Deafened"
+        elif member.voice.self_mute or member.voice.mute:
+            base_points = 1
+            desc = "Muted"
+            
+        # 2. Bonus Logic (Streaming/Video) - These are additive to the base!
+        bonus = 0
         if member.voice.self_stream:
-            # Check if they are actually in a game to determine stream name
+            is_streaming = True
+            bonus = Config.POINTS_STREAM_BONUS
+            # Determine stream name
             stream_name = Config.DEFAULT_STREAM_NAME
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
-                    # If you are playing a game, we show the game name in the log!
                     stream_name = activity.name
                     break
-            return Config.POINTS_STREAM_BONUS + Config.POINTS_VOICE, True, f"Streaming: {stream_name}"
-        
-        # 2. Camera on bonus - Also an active state
-        if member.voice.self_video:
-            return Config.POINTS_VOICE + Config.POINTS_VIDEO_BONUS, False, "Video On"
-
-        # 3. Check for mute/deaf state to determine point rate for passive listeners
-        if member.voice.self_deaf or member.voice.deaf:
-            # Deafened people hear nothing and get nothing (0 points)
-            return 0, False, "Deafened"
+            desc = f"Streaming: {stream_name}"
+        elif member.voice.self_video:
+            bonus = Config.POINTS_VIDEO_BONUS
+            desc = "Video On"
             
-        if member.voice.self_mute or member.voice.mute:
-            # Muted people are just listening, they get half points (1 point)
-            return 1, False, "Muted"
-            
-        # Regular voice activity
-        return Config.POINTS_VOICE, False, "Voice"
+        final_tier = base_points + bonus
+        return final_tier, is_streaming, desc
 
     @staticmethod
     def get_best_tier(members):
