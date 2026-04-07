@@ -11,6 +11,7 @@ async def fetch_image(url: str) -> bytes:
                 if resp.status == 200:
                     return await resp.read()
     except Exception as e:
+        # Oops, something went wrong while getting the image!
         log.error(f"Failed to fetch image from {url}: {e}")
     return None
 
@@ -28,7 +29,7 @@ def hex_to_rgba(hex_color, default=(255, 255, 255, 255)):
     return default
 
 async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_urls: list, style_config: dict) -> io.BytesIO:
-    """Generates a custom welcome card using Pillow."""
+    """This is where the magic happens! We build a beautiful welcome card for new members!"""
     width = style_config.get("card_width", 800)
     height = style_config.get("card_height", 300)
     avatar_size = style_config.get("avatar_size", 150)
@@ -46,7 +47,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     inner_width = width - (padding_x * 2)
     inner_height = height - (padding_y * 2)
     
-    # 1. Alapvászon (teljesen átlátszó)
+    # 1. We start with a blank canvas that is totally see-through!
     canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     
     def create_rounded_mask(w, h, radius):
@@ -55,7 +56,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         draw.rounded_rectangle((0, 0, w, h), radius, fill=255)
         return mask
 
-    # 2. Külső keret / Háttéralap (Sötétszürke látható kártya)
+    # 2. Now we make the rounded dark box that everything sits inside of.
     outer_card_color = hex_to_rgba(card_bg_color_hex, (25, 26, 28, 255))
     outer_mask = create_rounded_mask(width, height, 20)
     outer_card = Image.new("RGBA", (width, height), outer_card_color)
@@ -76,7 +77,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         else:
             bg_bytes = await fetch_image(bg_choice)
         
-    # 3. Belső háttérkép (vagy egyszínű blokk) rátéve a kártyára
+    # 3. Time to put a cool background image or color inside our card!
     inner_bg = None
     if bg_is_color:
         inner_bg = Image.new("RGBA", (inner_width, inner_height), solid_color_rgba)
@@ -86,7 +87,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     elif bg_bytes:
         try:
             bg_image = Image.open(io.BytesIO(bg_bytes)).convert("RGBA")
-            # Resize and crop to fit inner frame
+            # We resize and crop it so it fits perfectly in our frame.
             aspect_bg = bg_image.width / bg_image.height
             aspect_target = inner_width / inner_height
             if aspect_bg > aspect_target:
@@ -100,7 +101,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
                 top = (new_height - inner_height) // 2
                 inner_bg = bg_image.crop((0, top, inner_width, top + inner_height))
                 
-            # Sötétítő réteg a jó olvashatóságért (vagy színező réteg)
+            # We add a dark overlay so that the white text is easy to read!
             opacity = max(0, min(255, int(overlay_opacity)))
             overlay_rgba = hex_to_rgba(overlay_color_hex, (0, 0, 0, 255))
             dark_overlay = Image.new("RGBA", inner_bg.size, (overlay_rgba[0], overlay_rgba[1], overlay_rgba[2], opacity))
@@ -115,7 +116,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     if inner_bg:
         canvas.paste(inner_bg, (padding_x, padding_y), inner_bg)
 
-    # Fetch Avatar
+    # Now let's go grab the person's profile picture!
     avatar_bytes = await fetch_image(avatar_url) if avatar_url else None
     if avatar_bytes:
         try:
@@ -127,23 +128,23 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         
     avatar = avatar.resize((avatar_size, avatar_size), Image.LANCZOS)
     
-    # Create circular mask for avatar
+    # This part makes the profile picture round instead of square!
     mask = Image.new("L", avatar.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.ellipse((0, 0, avatar_size, avatar_size), fill=255)
     avatar.putalpha(mask)
     
-    # White ring around avatar
+    # Let's draw a nice white circle around the profile picture.
     ring_size = avatar_size + 8
     ring = Image.new("RGBA", (ring_size, ring_size), (0, 0, 0, 0))
     ring_draw = ImageDraw.Draw(ring)
     ring_color_rgba = hex_to_rgba(avatar_ring_color_hex, (255, 255, 255, 255))
     ring_draw.ellipse((0, 0, ring_size, ring_size), fill=ring_color_rgba)
     
-    # Paste avatar inside ring
+    # Put the profile picture inside our pretty ring!
     ring.paste(avatar, (4, 4), avatar)
     
-    # Load fonts
+    # We need some nice fonts to write their name on the card!
     font_main = None
     main_font_paths = [
         'core/fonts/Roboto-Bold.ttf',
@@ -182,7 +183,7 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
 
     draw = ImageDraw.Draw(canvas)
     
-    # Calculate text dimensions
+    # We do some math here to see how big the text is so we can center it!
     try:
         bbox1 = draw.textbbox((0, 0), main_text, font=font_main)
         tw = bbox1[2] - bbox1[0]
@@ -199,12 +200,12 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         stw = draw.textlength(sub_text, font=font_sub)
         sth = font_size_sub
         
-    # Calculate total height of all elements to vertical center them
+    # We do even more math to make sure everything is perfectly centered vertically!
     space1 = style_config.get("text_margin_top", 10)
     space2 = style_config.get("text_spacing", 10)
     total_height = ring_size + space1 + th + space2 + sth
     
-    # Paste ring+avatar to canvas
+    # Finally, we put the profile picture and text onto our main canvas!
     avatar_x = (width - ring_size) // 2
     avatar_y = (height - total_height) // 2
     canvas.paste(ring, (avatar_x, avatar_y), ring)

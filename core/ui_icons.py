@@ -33,7 +33,10 @@ class Icons:
 
     @classmethod
     def setup(cls, config):
-        """Initializes all icons from config or hardcoded defaults."""
+        """
+        This function sets up all the emojis the bot uses. It tries to get them from your 
+        config file, but if it can't find them, it uses some nice default ones!
+        """
         defaults = {
             "CHART": "📊", "ROCKET": "🚀", "SUCCESS": "✅", "TRASH": "🗑️",
             "CONTROLLER": "🎮", "STATS": "📈", "COMMUNITY": "🤝", "ERROR": "❌",
@@ -46,10 +49,10 @@ class Icons:
             "CHAMPION_LOG": "🏆"
         }
 
-        # Load from config if available (Config.EMOJIS)
+        # We check if you have added your own custom emojis in the 'EMOJIS' part of the config!
         provided_data = getattr(config, "EMOJIS", {})
         
-        # Merge defaults with provided config
+        # We combine our default emojis with yours!
         all_keys = set(defaults.keys()) | set(provided_data.keys())
         
         for key in all_keys:
@@ -57,10 +60,10 @@ class Icons:
             try:
                 setattr(cls, key, discord.PartialEmoji.from_str(val))
             except:
-                # Fallback to just the string or a basic emoji if PartialEmoji.from_str fails
+                # If something goes wrong with the special Discord emoji format, we just use the plain emoji symbol instead!
                 setattr(cls, key, val)
 
-# Default initialization for safe-importing remains, but wrapped in try/except
+# This part makes sure that even if we don't have a config, the bot doesn't crash on startup!
 class DefaultConfig: EMOJIS = {}
 try:
     Icons.setup(DefaultConfig())

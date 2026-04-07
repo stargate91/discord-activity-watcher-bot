@@ -11,7 +11,7 @@ async def main():
     
     avatar_url = "https://cdn.discordapp.com/avatars/317244795800125448/f3c92da1ee50cd662d556ad5e7a9e6af.png?size=256"
     
-    # Use random hex colors or image
+    # We can use random colors or a background image for our card!
     bg_urls = welcome_config.get("images", ["0c0d10"])
     
     main_text = "Teszt Elek csatlakozott a szerverhez!"
@@ -32,7 +32,7 @@ async def main():
         
     print(f"Image saved to {output_path}")
     
-    # Auto open in Windows
+    # This part automatically opens the picture on your computer so you can see if it looks good!
     os.startfile(output_path)
 
 if __name__ == "__main__":

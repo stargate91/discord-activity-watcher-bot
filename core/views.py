@@ -7,7 +7,7 @@ from core.ui_translate import t
 from core.ui_utils import get_feedback
 
 class ModernLeaderboardView(discord.ui.LayoutView):
-    # This is the class that builds the list of top players (the leaderboard)
+    # This is the special class that builds our beautiful list of top players (the leaderboard)!
     def __init__(self, items, timeframe, guild, user_data=None, show_user=False, static=False, shared_by=None):
         super().__init__()
         self.guild = guild
@@ -19,7 +19,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.setup_layout(items)
 
     def setup_layout(self, items):
-        # This part puts together the title, the list of names with medals, and the buttons
+        # This is where we put everything together: the title, the names with medals, and all the cool buttons!
         title_text = Messages.get_lb_title(self.timeframe)
 
         container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
@@ -75,7 +75,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernProfileView(discord.ui.LayoutView):
-    # This is the class that builds the profile card when you check someone's stats
+    # This is the magic class that builds the gorgeous profile card when you check someone's stats!
     def __init__(self, user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
                  joined_at=None, tenure_days=0, efficiency=0, chart_url=None, timeframe="me", static=False, shared_by=None):
         super().__init__()
@@ -90,7 +90,7 @@ class ModernProfileView(discord.ui.LayoutView):
             container.add_item(discord.ui.TextDisplay(Messages.PROFILE_SHARED_BY.format(user=self.shared_by)))
             container.add_item(discord.ui.Separator())
 
-        # 1. Header: Show the user's name, rank and their profile picture
+        # 1. Let's start with the top part! We show the user's name, their rank, and a little picture of them.
         container.add_item(discord.ui.Section(
             f"# {user.display_name} • #{rank}. {Messages.PROFILE_RANK}\n{Messages.PROFILE_SUBTITLE}",
             accessory=discord.ui.Thumbnail(user.display_avatar.url)
@@ -113,7 +113,7 @@ class ModernProfileView(discord.ui.LayoutView):
         
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_ACTIVITY + "\n" + stats_text))
         
-        # 3. Timing: Show when they were last active, their daily average and avg voice session
+        # 3. Here we show when they were last seen and how active they are on average each day.
         last_active_str = data["last_active"].strftime("%Y-%m-%d %H:%M")
         timing_text = (
             Messages.STAT_LAST_ACTIVE.format(time=last_active_str) + "\n" +
@@ -122,7 +122,7 @@ class ModernProfileView(discord.ui.LayoutView):
         )
         container.add_item(discord.ui.TextDisplay(Messages.SECTION_STATS + "\n" + timing_text))
         
-        # 4. Social: Show favorite channel, emoji and best friend
+        # 4. Community: We show their favorite channel, favorite emoji, and their best friend!
         social_lines = []
         if social["top_channel"]:
             ch = user.guild.get_channel(social['top_channel'])
@@ -152,7 +152,7 @@ class ModernProfileView(discord.ui.LayoutView):
         if social_lines:
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_COMMUNITY + "\n" + "\n".join(social_lines)))
         
-        # 5. Veteran: Show how long they have been on the server
+        # 5. Veteran: This shows how long they have been a loyal member of our server!
         if joined_at:
             join_str = joined_at.strftime("%Y-%m-%d")
             vet_text = (
@@ -162,12 +162,12 @@ class ModernProfileView(discord.ui.LayoutView):
             )
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_VETERAN + "\n" + vet_text))
  
-        # 6. Games: Show the top 3 games they have played the most
+        # 6. Games: This section lists the top 3 games they have played the most recently.
         if top_games:
             games_text = " | ".join([f"`{g[0].replace(Config.GAME_ROLE_PREFIX, '')}` ({int(g[1] or 0)}p)" for g in top_games])
             container.add_item(discord.ui.TextDisplay(Messages.SECTION_GAMES + "\n" + games_text))
         
-        # 7. Activity Chart: Show the 7-day points graph
+        # 7. Activity Graph: We show a cool 7-day chart of their points here!
         if chart_url:
             container.add_item(discord.ui.Separator())
             # Fixed double emoji: SECTION_ACTIVITY usually already contains the bar chart icon if configured,
@@ -181,7 +181,7 @@ class ModernProfileView(discord.ui.LayoutView):
 
         container.add_item(discord.ui.Separator())
         
-        # 6. Buttons: Add buttons so you can switch between Weekly/Monthly stats or share the profile
+        # 8. Buttons: These let you switch between different time views or share your profile!
         row = discord.ui.ActionRow()
         for tf, label in [("weekly", Messages.BTN_WEEKLY), ("monthly", Messages.BTN_MONTHLY), ("alltime", Messages.BTN_ALLTIME)]:
             btn = discord.ui.Button(label=label, style=discord.ButtonStyle.secondary, custom_id=f"top:{self.timeframe}:{tf}")
@@ -197,7 +197,7 @@ class ModernProfileView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernInfoView(discord.ui.LayoutView):
-    # This class builds a beautiful introduction card for the bot
+    # This class makes a super friendly 'welcome' card that introduces our bot to everyone!
     def __init__(self, guild):
         super().__init__()
         bot_member = guild.me
@@ -237,7 +237,7 @@ class ModernInfoView(discord.ui.LayoutView):
         self.add_item(container)
 
 class ModernDevInfoView(discord.ui.LayoutView):
-    # This class builds a premium, structured help menu for bot administrators
+    # This is the 'secret menu' for bot admins! It shows all the commands they can use.
     def __init__(self, guild, prefix_cmds, slash_cmds):
         super().__init__()
         
@@ -279,8 +279,7 @@ class ModernDevInfoView(discord.ui.LayoutView):
 
 class ModernChampionsView(discord.ui.LayoutView):
     """
-    A premium, high-impact view for announcing the Weekly Champions.
-    Uses Sections with Thumbnails for each category to create a stunning layout.
+    This is the big show! We use this to announce our weekly champions in a really cool way!
     """
     def __init__(self, guild, champion_data, hof_notices=None, title=None, footer=None, caller_id=None, caller_stats=None):
         super().__init__()
@@ -318,7 +317,7 @@ class ModernChampionsView(discord.ui.LayoutView):
             except Exception:
                 winner_line = f"### {msg_template.replace('{name}', str(name)).replace('{value}', str(value))}"
             
-            # Comparison Logic (for /heti_eselyek)
+            # This part handles comparing your stats if you called the /heti_eselyek command!
             if caller_id and caller_stats:
                 caller_val = caller_stats.get(cat_id, 0)
                 if caller_id == leader_id:
@@ -359,7 +358,7 @@ class ModernChampionsView(discord.ui.LayoutView):
         self.add_item(container)
 
 class AltAccountModal(discord.ui.Modal):
-    # This modal allows administrators to link an alt/mini account to a main account
+    # This is a special pop-up that lets admins link two accounts together (like a main and a mini account!).
     def __init__(self):
         super().__init__(title=t("MODAL_ALT_TITLE"))
         

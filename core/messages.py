@@ -262,12 +262,13 @@ class Messages:
 
     @classmethod
     def load_language(cls, lang_code):
-        """This now bridges the old attribute-based access with the new JSON locales."""
+        """This function loads all the right words for a specific language! It connects our JSON files to the bot's memory."""
         # Ensure locales are loaded
         load_locales()
         set_language(lang_code)
         
-        # This list must match all attributes defined above exactly
+        # This is a big list of all the different messages the bot can show. 
+        # We need to make sure every single one is here so the bot knows how to translate it!
         keys = (
             "LB_TITLE_WEEKLY", "LB_TITLE_MONTHLY", "LB_TITLE_ALLTIME", "LB_TITLE_DEFAULT", 
             "LB_SHARED_BY", "LB_EMPTY", "LB_UNKNOWN_USER", "LB_POINTS", "LB_FOOTER_POINTS",
@@ -342,6 +343,7 @@ class Messages:
 
     @classmethod
     def get_lb_title(cls, timeframe):
+        """This is a quick way to find the right title for the leaderboard, depending on the timeframe!"""
         return {
             "weekly": cls.LB_TITLE_WEEKLY,
             "monthly": cls.LB_TITLE_MONTHLY,

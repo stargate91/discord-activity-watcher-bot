@@ -21,6 +21,7 @@ class LoggingCog(commands.Cog):
 
     @tasks.loop(hours=24)
     async def prune_archive_loop(self):
+        """This task runs once a day to throw away very old messages so our storage doesn't get too full!"""
         if not Config.LOGGING.get("archive", {}).get("enabled", False):
             return
             
@@ -45,8 +46,8 @@ class LoggingCog(commands.Cog):
 
         delay = sync_cfg.get("delay_seconds", 10)
         batch = sync_cfg.get("batch_size", 100)
-        # Always cap at 100 (Discord API max per request) to prevent event loop blocking.
-        # batch_size=0 means "keep going until done" but still fetches 100 at a time.
+        # We only download 100 messages at a time so we don't make Discord angry or slow down the bot!
+        # batch_size=0 means "keep going until done" but we still fetch them in small groups.
         fetch_limit = min(100, batch) if batch > 0 else 100
 
         channel_to_sync = None
@@ -108,7 +109,7 @@ class LoggingCog(commands.Cog):
         await self.bot.wait_until_ready()
 
     def get_log_channel(self, event_name):
-        """Helper to get the appropriate channel for an event."""
+        """This helper function finds the right channel to post a log message in, depending on what happened."""
         if not Config.LOGGING.get("enabled", False):
             return None
         
@@ -123,7 +124,7 @@ class LoggingCog(commands.Cog):
         return self.bot.get_channel(int(channel_id))
 
     def create_base_embed(self, member, title, color):
-        """Creates a consistent premium embed style."""
+        """This creates a nice-looking blue or red box for our log messages so they look professional and are easy to read!"""
         embed = discord.Embed(
             description=title,
             color=int(color, 16) if isinstance(color, str) else color,
@@ -133,7 +134,7 @@ class LoggingCog(commands.Cog):
         return embed
 
     def add_footer_info(self, embed, user_id):
-        """Adds User ID to the footer."""
+        """This adds the secret User ID number to the bottom of our log message."""
         embed.set_footer(text=f"User ID: {user_id}")
 
     def should_log_user(self, user, is_guild=True):
@@ -147,7 +148,7 @@ class LoggingCog(commands.Cog):
         return True
 
     async def get_audit_log_user(self, guild, action_type, target_id=None):
-        """Fetches the user responsible for an action from the audit log."""
+        """This looks into Discord's 'Audit Log' to find out WHO exactly did an action (like who deleted a message)."""
         if not guild.me.guild_permissions.view_audit_log:
             return None
         try:
@@ -178,6 +179,7 @@ class LoggingCog(commands.Cog):
     # Message Events
     @commands.Cog.listener()
     async def on_raw_message_delete(self, payload):
+        # This part notices when someone deletes a message and tells us about it!
         channel = self.get_log_channel("message_delete")
         if not channel: return
 
@@ -235,6 +237,7 @@ class LoggingCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload):
+        # This part notices when someone changes a message and shows us what it looked like before!
         channel = self.get_log_channel("message_edit")
         if not channel: return
 
@@ -569,6 +572,7 @@ class LoggingCog(commands.Cog):
     # Voice Events
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        # This part logs whenever someone joins, leaves, or moves between different voice channels!
         if not self.should_log_user(member, is_guild=True): return
 
         if before.channel is None and after.channel is not None:
@@ -607,6 +611,7 @@ class LoggingCog(commands.Cog):
     # Command Logs
     @commands.Cog.listener()
     async def on_app_command_completion(self, interaction: discord.Interaction, command: discord.app_commands.Command or discord.app_commands.ContextMenu):
+        # This part writes down whenever someone uses a slash command so we can keep track of what's happening!
         channel = self.get_log_channel("command_logs")
         if not channel: return
 

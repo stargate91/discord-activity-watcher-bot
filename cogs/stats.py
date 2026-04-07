@@ -24,7 +24,7 @@ class StatsCog(commands.Cog):
              cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
     def refresh_descriptions(self, guild):
-        """Re-formats all slash command descriptions using actual names from the guild."""
+        """This function updates the descriptions of all our slash commands so they show the server's name correctly!"""
         bname = self.bot.user.name if self.bot.user else "Iris"
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
@@ -34,8 +34,8 @@ class StatsCog(commands.Cog):
     @app_commands.describe(timeframe=Messages.CMD_TOP_TF_DESC)
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
     async def top(self, interaction: discord.Interaction, timeframe: str = "alltime"):
-        # This command shows the Top 10 leaderboard (highest scores) for the server
-        # Enhancement: Usable everywhere, but response is always ephemeral
+        # This command shows the Top 10 leaderboard (the people with the most points) for the server!
+        # It's usable everywhere, but the answer is only shown to you.
         await interaction.response.defer(ephemeral=True)
 
         try:
@@ -48,8 +48,11 @@ class StatsCog(commands.Cog):
             await interaction.followup.send(Messages.ERR_STATS_LOAD.format(e=e), ephemeral=True)
 
     async def _prepare_profile(self, interaction, target_user, main_id, timeframe="me", static=False, shared_by=None):
-        """Helper to fetch stats, generate chart and prepare ModernProfileView."""
-        # Use the main_id for stat retrieval
+        """
+        This is a big helper function that gets everything ready for your profile card! 
+        It finds your score, your rank, and even draws a little activity chart for you!
+        """
+        # We use your main account ID to find all your points.
         _, user_full_stats = self.bot.engine.get_leaderboard(
             interaction.guild, 
             user=target_user, 
@@ -74,17 +77,17 @@ class StatsCog(commands.Cog):
         avg_daily = user_monthly["messages"] / Config.SOCIAL_STATS_DAYS
         avg_voice = self.db.get_user_average_voice_duration(main_id, interaction.guild_id)
         
-        # Veteran Stats
+        # We check how long you've been a part of the server (your 'tenure').
         joined_at = self.db.get_user_join_date(main_id, interaction.guild_id)
         tenure_days = (datetime.datetime.now(datetime.timezone.utc) - joined_at.replace(tzinfo=datetime.timezone.utc)).days if joined_at else 0
         efficiency = points / (tenure_days + 1) if tenure_days >= 0 else points
         
-        # Activity Chart (Points & Voice last 7 days)
+        # We create a cool picture that shows how active you were over the last 7 days!
         chart_file = None
         chart_url = None
         daily_activity = self.db.get_user_daily_activity(main_id, interaction.guild_id, days=7)
         
-        # Inject live unsaved voice activity into today's graph entry
+        # We also add the voice points you are earning RIGHT NOW into today's graph entry!
         if daily_activity and main_id in self.bot.voice_start_times:
             # Find the entry for today (the last one in the sorted list)
             today_idx = -1
@@ -117,8 +120,8 @@ class StatsCog(commands.Cog):
     @app_commands.command(name="me", description=Messages.CMD_ME_MEMBER_DESC)
     @app_commands.checks.cooldown(1, 10.0, key=lambda i: (i.guild_id, i.user.id))
     async def me(self, interaction: discord.Interaction):
-        # This command shows your personal profile card with all your points
-        # Allowed everywhere, but response is always ephemeral
+        # This command shows your own personal profile card with all your points and stats!
+        # It's allowed everywhere, but only you can see the result.
         target = interaction.user
         main_id = Config.get_main_id(target.id)
         main_member = interaction.guild.get_member(main_id) or target
@@ -149,7 +152,7 @@ class StatsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
-        # This part listens for when someone clicks a button (like 'Weekly' or 'Share')
+        # This part listens for whenever someone clicks a button on one of our menus (like 'Weekly' or 'Share')!
         if interaction.type == discord.InteractionType.component:
             custom_id = interaction.data.get("custom_id", "")
             if custom_id.startswith("top:"):
@@ -224,6 +227,7 @@ class StatsCog(commands.Cog):
                         except: pass
     
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        """If something goes wrong with a command (like if you use it too fast), this function tells you what happened!"""
         if isinstance(error, app_commands.CommandOnCooldown):
             # Tell the user how much longer they need to wait
             await interaction.response.send_message(

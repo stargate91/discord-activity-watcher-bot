@@ -4,24 +4,23 @@ from config_loader import Config
 
 class ActivityProcessor:
     """
-    Centralized logic for processing user activities, calculating points, 
-    and detecting rich media content.
+    This is where we calculate all the points people get for being active in the server!
     """
 
     @staticmethod
     def calculate_message_points(content):
         """
-        Calculates points for a single message based on base points, 
-        character length, and media attachments.
+        This function decides how many points a message is worth. 
+        Longer messages and links to cool media get more points!
         """
-        # 1. Base points for any message
+        # 1. You get some basic points just for saying anything!
         score = Config.POINTS_MESSAGE_BASE
         
-        # 2. Add points for length (1 point per 10 characters)
+        # 2. You get extra points for writing long messages (1 point for every 10 characters)
         length_bonus = len(content) / Config.POINTS_MESSAGE_SCALE
         score += min(length_bonus, Config.POINTS_MESSAGE_MAX)
         
-        # 3. Add bonus for detecting rich media (YouTube, TikTok, images)
+        # 3. If you share a video or a picture, we give you a big bonus!
         if ActivityProcessor.contains_media(content):
             score += Config.POINTS_MEDIA_BONUS
             
@@ -30,8 +29,7 @@ class ActivityProcessor:
     @staticmethod
     def contains_media(content):
         """
-        Detects if a message contains links to rich media or image extensions 
-        using regex patterns defined in config.json.
+        We use this to check if a message has a link to a video or an image based on our secret list!
         """
         for pattern in Config.MEDIA_PATTERNS:
             if re.search(pattern, content, re.IGNORECASE):
@@ -41,8 +39,7 @@ class ActivityProcessor:
     @staticmethod
     def is_media(message):
         """
-        Detects if a Discord Message object contains media.
-        Checks both attachments and content for media links.
+        This checks if a Discord message has an actual file attached or a link to a website with media!
         """
         if not message:
             return False
@@ -60,11 +57,8 @@ class ActivityProcessor:
     @staticmethod
     def get_participation_tier(member):
         """
-        Determines the voice activity tier based on current member status 
-        (streaming, camera on, or regular voice).
-        
-        Returns:
-            tuple: (multiplier, is_streaming, status_description)
+        This checks what you are doing in voice. Are you streaming? Is your camera on? 
+        This decides how many points you get every minute!
         """
         if not member or not member.voice or not member.voice.channel:
             return 0, False, "Inactive"
@@ -79,6 +73,7 @@ class ActivityProcessor:
             stream_name = Config.DEFAULT_STREAM_NAME
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
+                    # If you are playing a game, we show the game name in the log!
                     stream_name = activity.name
                     break
             return Config.POINTS_STREAM_BONUS + Config.POINTS_VOICE, True, f"Streaming: {stream_name}"
@@ -93,8 +88,7 @@ class ActivityProcessor:
     @staticmethod
     def get_best_tier(members):
         """
-        Calculates the highest participation tier from a group of linked accounts.
-        Priority: Streaming > Video On > Voice > Inactive.
+        If you have two accounts logged in, we check which one is doing more cool stuff and use that for your points!
         """
         best_tier = 0
         best_streaming = False
@@ -117,8 +111,8 @@ class ActivityProcessor:
     @staticmethod
     def is_qualified(member):
         """
-        Checks if a member qualifies for 'Basic Member' status progression.
-        Criteria: Not a bot, no excluded roles, not muted/deafened, and not alone.
+        This checks if you are 'active' enough to earn the Basic Member role. 
+        You can't be muted, deafened, or alone in a channel!
         """
         if not member or member.bot:
             return False

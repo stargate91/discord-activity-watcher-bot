@@ -217,7 +217,7 @@ class DBManager:
             conn.commit()
 
     def update_activity(self, user_id, guild_id, last_active=None):
-        # Update the 'last seen' time for a user so we know they are still around
+        # This keeps track of when we last saw a user so we know they are still active in the server!
         if last_active is None:
             last_active = datetime.datetime.now(datetime.timezone.utc)
         
@@ -232,7 +232,7 @@ class DBManager:
             conn.commit()
 
     def set_returned_at(self, user_id, guild_id, timestamp=None):
-        # Sets when the user came back after being away for a long time
+        # We save the exact time when someone came back to the server after being away for a while!
         timestamp_str = timestamp.isoformat() if timestamp else None
         with self._get_connection() as conn:
             conn.execute("""
@@ -241,7 +241,7 @@ class DBManager:
             conn.commit()
 
     def increment_messages(self, user_id, guild_id, channel_id=0, points=10):
-        # Add 1 to the message count for a user (both total and for today)
+        # Every time someone sends a message, we add 1 to their score and their daily stats!
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
@@ -261,7 +261,7 @@ class DBManager:
             conn.commit()
 
     def increment_reactions(self, user_id, guild_id, channel_id=0, points=5):
-        # Add 1 to the reaction count for a user (both total and for today)
+        # This adds 1 to the reaction count whenever someone reacts to a message!
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
@@ -281,7 +281,7 @@ class DBManager:
             conn.commit()
 
     def increment_media(self, user_id, guild_id, channel_id=0, points=5):
-        # Add 1 to the media count for a user (both total and for today)
+        # When someone shares a cool picture or video, we give them points and track it here!
         today = datetime.date.today()
         with self._get_connection() as conn:
             # Total
@@ -318,7 +318,7 @@ class DBManager:
             conn.commit()
 
     def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False, is_qualified=False):
-        # Add the minutes someone spent in voice to their stats
+        # This function keeps track of how many minutes someone has been talking or listening in voice!
         today = datetime.date.today()
         # Use provided multiplier or fall back to config
         rate = multiplier if multiplier is not None else Config.POINTS_VOICE
@@ -347,7 +347,7 @@ class DBManager:
             conn.commit()
 
     def get_leaderboard_data(self, guild_id, days=None, limit=None):
-        # Get the top players for the leaderboard (last X days or all-time)
+        # This gets the top players from our database so we can show them on the leaderboard!
         limit_clause = f" LIMIT {limit}" if limit else ""
         with self._get_connection() as conn:
             if days:
@@ -401,7 +401,7 @@ class DBManager:
             return None
 
     def get_user_daily_points(self, user_id, guild_id, days=7):
-        """Fetches daily point totals for a user for the last X days, filling gaps with 0."""
+        """This function looks up how many points a user got each day for the last week or so!"""
         cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
         with self._get_connection() as conn:
             cursor = conn.execute("""
@@ -427,7 +427,7 @@ class DBManager:
             return sorted(list(result.items()))
 
     def get_user_daily_activity(self, user_id, guild_id, days=7):
-        """Fetches daily point totals and voice minutes for a user for the last X days, filling gaps with 0."""
+        """This gets both the points and voice minutes for a user to make those pretty charts!"""
         cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
         with self._get_connection() as conn:
             cursor = conn.execute("""
@@ -476,7 +476,7 @@ class DBManager:
             return data
 
     def get_inactive_users(self, guild_id, threshold_days):
-        """Fetches only users who are inactive based on the threshold, for more efficient processing."""
+        """This finds users who haven't said anything or been in voice for a long time!"""
         cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=threshold_days)
         cutoff_str = cutoff_date.isoformat()
         
@@ -494,7 +494,7 @@ class DBManager:
             } for row in rows}
 
     def get_user_rank(self, user_id, guild_id, days=None):
-        """Calculates a user's rank compared to others in the server efficiently."""
+        """This figures out where a user stands compared to everyone else in the server!"""
         with self._get_connection() as conn:
             if days:
                 cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
@@ -525,7 +525,7 @@ class DBManager:
                 return cursor.fetchone()[0]
 
     def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
-        # Write down in the history that a role was added or removed
+        # We write down in our server log book whenever someone gets or loses a role!
         if timestamp is None:
             timestamp = datetime.datetime.now(datetime.timezone.utc)
         
@@ -547,7 +547,7 @@ class DBManager:
             return cursor.fetchall()
 
     def update_game_activity(self, user_id, guild_id, game_name, bot_assigned=False):
-        # Record which game someone is playing and if the bot gave them a role for it
+        # This records which games people are playing and if the bot gave them a special role for it!
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._get_connection() as conn:
             conn.execute("""
@@ -638,6 +638,7 @@ class DBManager:
             overlap_duration = (overlap_end - overlap_start).total_seconds() / 60.0
             
             if overlap_duration > 0:
+                # We save who was talking with who! uid1 is always the smaller ID to keep things organized.
                 uid1, uid2 = min(user_id, other_uid), max(user_id, other_uid)
                 conn.execute("""
                     INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
@@ -647,7 +648,7 @@ class DBManager:
                 """, (uid1, uid2, guild_id, today, overlap_duration))
 
     def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
-        # Save the details of a finished voice call (start time, end time, which room)
+        # This function saves all the details when someone finishes a voice call!
         with self._get_connection() as conn:
             conn.execute("""
                 INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
@@ -660,7 +661,7 @@ class DBManager:
             conn.commit()
 
     def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
-        # Save who reacted to whose message and with what emoji
+        # This remembers who gave a reaction to whose message!
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._get_connection() as conn:
             conn.execute("""
@@ -670,7 +671,7 @@ class DBManager:
             conn.commit()
 
     def get_top_voice_partners(self, user_id, guild_id, days=30):
-        # Much faster query using the pre-calculated overlaps table
+        # This finds your best friends - the people you spend the most time with in voice!
         cutoff_date = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).date()
         with self._get_connection() as conn:
             cursor = conn.execute("""
@@ -745,6 +746,7 @@ class DBManager:
     # --- VOICE PERSISTENCE ---
 
     def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier=2.0, is_streaming=False, stream_name=None):
+        # This remembers when someone joins a voice channel so we can calculate their time later!
         joined_at_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
         with self._get_connection() as conn:
             conn.execute("""
@@ -760,6 +762,7 @@ class DBManager:
             conn.commit()
 
     def end_voice_session(self, user_id, guild_id):
+        # When someone leaves, we say "bye!" and calculate how long they stayed in the voice room!
         with self._get_connection() as conn:
             cursor = conn.execute("""
                 SELECT joined_at, multiplier, is_streaming, stream_name 

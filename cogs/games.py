@@ -16,14 +16,14 @@ class GamesCog(commands.Cog):
         self.db = bot.db
         self.tracker = bot.tracker
         
-        # Initial format (placeholders to IDs)
+        # We need to make sure the command descriptions look nice when the bot starts up
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
                  cmd._raw_desc = cmd.description
              cmd.description = Config.format_desc(cmd._raw_desc)
 
     def refresh_descriptions(self, guild):
-        """Re-formats all slash command descriptions using actual names from the guild."""
+        """This function updates the command descriptions with the actual names from your server!"""
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild)
@@ -32,7 +32,7 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name=Messages.CMD_ADD_GAME_NAME_DESC, role_suffix=Messages.CMD_ADD_GAME_SUFFIX_DESC)
     @is_admin_slash()
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
-        # This command adds a new game for the bot to track
+        # This command tells the bot to start watching a new game!
         self.db.add_tracked_game(search_name, role_suffix)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_ADDED.format(name=search_name, suffix=role_suffix), ephemeral=True)
@@ -41,7 +41,7 @@ class GamesCog(commands.Cog):
     @app_commands.describe(search_name=Messages.CMD_REMOVE_GAME_NAME_DESC)
     @is_admin_slash()
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
-        # This command stops the bot from tracking a specific game
+        # This command tells the bot to stop watching a specific game
         self.db.remove_tracked_game(search_name)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
@@ -49,7 +49,7 @@ class GamesCog(commands.Cog):
     @app_commands.command(name="list-games", description=Messages.CMD_LIST_GAMES_DESC)
     @is_tester_slash()
     async def list_games(self, interaction: discord.Interaction):
-        # This command shows a list of all the games the bot is currently watching
+        # This command shows a list of every game the bot is currently keeping an eye on!
         games = self.db.get_tracked_games()
         if not games:
             await interaction.response.send_message(Messages.GAME_LIST_EMPTY, ephemeral=True)
@@ -63,7 +63,7 @@ class GamesCog(commands.Cog):
     @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
     @is_tester_slash()
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
-        # This command creates a .txt file that shows which games are the most popular
+        # We're making a text file that shows which games are the most popular in the server!
         await interaction.response.send_message(Messages.GAME_REPORT_GEN, ephemeral=True)
         stats = self.db.get_game_stats_report(interaction.guild_id, timeframe)
         if not stats:

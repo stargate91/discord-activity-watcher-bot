@@ -15,13 +15,15 @@ class EmojiManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         
-        # Initial format (placeholders to IDs)
+        # We need to make sure the command descriptions are pretty and have the right names
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
+                 # Save the original description so we don't lose it
                  cmd._raw_desc = cmd.description
              
-             # Fallback name if bot is not yet logged in
+             # If the bot isn't logged in yet, we just use "Iris" as a name
              bname = self.bot.user.name if self.bot.user else "Iris"
+             # Update the description with the bot's name
              cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
     def refresh_descriptions(self, guild):
@@ -32,7 +34,7 @@ class EmojiManager(commands.Cog):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
 
     def _check_perms(self, interaction: discord.Interaction) -> bool:
-        """Check if user has Emoji Manager level access based on Discord permissions (Admin/Manage Expressions)."""
+        """This little function checks if the person is an Admin or has the 'Manage Expressions' permission."""
         perms = interaction.user.guild_permissions
         return perms.administrator or perms.manage_expressions
 
@@ -40,9 +42,9 @@ class EmojiManager(commands.Cog):
 
     async def fetch_emoji_gg_asset(self, asset_type, asset_id):
         """
-        Fetches an emoji or sticker from emoji.gg.
-        asset_type: 'emoji' or 'sticker'
-        asset_id: slug or numeric ID (e.g. 315542-eyes)
+        This function goes to the emoji.gg website and downloads an emoji or sticker for us.
+        asset_type: tells us if it's an 'emoji' or a 'sticker'
+        asset_id: the special ID from the website (like 315542-eyes)
         """
         url = f"https://emoji.gg/{asset_type}/{asset_id}"
         async with aiohttp.ClientSession() as session:
@@ -60,7 +62,7 @@ class EmojiManager(commands.Cog):
                     name_match = re.search(r'<title>(.*?) - Discord (?:Emoji|Sticker)</title>', html)
                     name = name_match.group(1).strip().replace(" ", "_") if name_match else asset_id.split("-")[-1]
                     
-                    # Clean name (legal Discord chars: alphanumeric and underscore)
+                    # We need to make sure the name is safe for Discord (no weird characters)
                     name = re.sub(r'[^a-zA-Z0-9_]', '', name)
                     if not name: name = "custom_asset"
 
@@ -136,14 +138,17 @@ class EmojiManager(commands.Cog):
             log.info(t("LOG_EMOJI_ADDED", type=type, name=name, guild=interaction.guild.name))
             
         except discord.Forbidden:
+            # This happens if the bot doesn't have the right permissions to manage emojis
             await interaction.followup.send(t("ERR_NO_PERMISSION"))
         except discord.HTTPException as e:
-            # Check for specific error codes: 30008 (Emoji limit), 30039 (Sticker limit)
+            # If the server is full (limit reached), we tell the user about it
             if e.code in [30008, 30039]:
                 await interaction.followup.send(get_feedback('ERR_LIMIT_REACHED'))
             else:
+                # Some other weird Discord error happened
                 await interaction.followup.send(get_feedback('ERR_GENERIC', e=e.message))
         except Exception as e:
+            # Something else went wrong that we didn't expect
             await interaction.followup.send(get_feedback('ERR_GENERIC', e=e))
 
     async def asset_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -221,8 +226,9 @@ class EmojiManager(commands.Cog):
             await interaction.response.defer()
                 
             old_name = actual_emoji.name
-            # Discord emojinames must be alphanumeric + underscores
+            # Let's clean the name to make sure it only has letters, numbers, and underscores
             clean_name = re.sub(r'[^a-zA-Z0-9_]', '', new_name)
+            # Tell Discord to rename it!
             await actual_emoji.edit(name=clean_name)
             await interaction.followup.send(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name))
         except Exception as e:
@@ -249,15 +255,16 @@ class EmojiManager(commands.Cog):
 
     @emoji_group.command(name="list", description=Messages.CMD_LIST_EMOJIS_DESC)
     async def list_emojis(self, interaction: discord.Interaction):
+        # We start by telling Discord to wait a bit because the list might be long
         await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         
-        # Emoji list
+        # We get all the emojis and sort them by their names
         emojis = sorted(guild.emojis, key=lambda x: x.name)
         emoji_limit = guild.emoji_limit
         emoji_count = len(emojis)
         
-        # Sticker list
+        # We also get all the stickers and sort them by their names
         stickers = sorted(guild.stickers, key=lambda x: x.name)
         sticker_limit = guild.sticker_limit
         sticker_count = len(stickers)

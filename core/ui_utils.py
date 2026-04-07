@@ -4,10 +4,10 @@ from core.ui_translate import t
 
 def get_feedback(key: str, **kwargs) -> str:
     """
-    Returns a translated string prefixed with the appropriate emoji.
+    This helper function finds the right emoji for our message and adds it to the translated text!
     """
     icons_map = {
-        # --- Errors (Icons.ERROR) ---
+        # --- Errors (The red 'X' emoji) ---
         "error_generic": Icons.ERROR,
         "ERR_STATS_LOAD": Icons.ERROR,
         "ERR_STATS_NOT_FOUND": Icons.ERROR,
@@ -19,7 +19,7 @@ def get_feedback(key: str, **kwargs) -> str:
         "ERR_INVALID_ID": Icons.ERROR,
         "ERR_CONFIG_SAVE": Icons.ERROR,
 
-        # --- Warnings (Icons.WARNING) ---
+        # --- Warnings (The yellow triangle emoji) ---
         "no_permission": Icons.WARNING,
         "admin_only": Icons.WARNING,
         "ERR_NO_DATA": Icons.WARNING,
@@ -33,10 +33,10 @@ def get_feedback(key: str, **kwargs) -> str:
         "STREAM_HISTORY_EMPTY": Icons.WARNING,
         "MEMBERSHIP_LOG_EMPTY": Icons.WARNING,
         
-        # --- Cooldown (Icons.COOLDOWN) ---
+        # --- Cooldown (Wait a bit!) ---
         "ERR_COOLDOWN": Icons.COOLDOWN,
 
-        # --- Success (Icons.SUCCESS) ---
+        # --- Success (Everything went great!) ---
         "SUCCESS_SHARED": Icons.SUCCESS,
         "GAME_ADDED": Icons.SUCCESS,
         "DB_RESET_SUCCESS": Icons.SUCCESS,
@@ -81,7 +81,7 @@ def get_feedback(key: str, **kwargs) -> str:
         "MEDAL_2": Icons.MEDAL_2,
         "MEDAL_3": Icons.MEDAL_3,
 
-        # --- Progress & Generation (Icons.ROCKET or Icons.STATS) ---
+        # --- Progress & Generation (Going fast!) ---
         "REPORT_GEN_STATUS": Icons.ROCKET,
         "REPORT_GEN_ROLE": Icons.ROCKET,
         "GAME_REPORT_GEN": Icons.ROCKET,
@@ -93,7 +93,7 @@ def get_feedback(key: str, **kwargs) -> str:
         "STAT_SPOTIFY": Icons.SPOTIFY,
         "STAT_MEDIA": Icons.CHART,
 
-        # --- Empty Values (Explicitly no emoji) ---
+        # --- Empty Values (These don't need emojis) ---
         "LB_TITLE_DEFAULT": "",
         "LB_UNKNOWN_USER": "",
         "LB_POINTS": "",
@@ -163,10 +163,10 @@ def get_feedback(key: str, **kwargs) -> str:
     emoji = icons_map.get(key, "")
     text = t(key, **kwargs)
     
-    # If emoji is None (failed load), use empty string
+    # If we can't find an emoji, we just use an empty space so nothing breaks!
     emoji_str = str(emoji) if emoji is not None else ""
     
-    # If the text already contains the emoji (manual placeholder in JSON), don't double it
+    # Sometimes the message already has the emoji inside it, so we make sure not to add it twice!
     if emoji_str and emoji_str in text:
         return text
         

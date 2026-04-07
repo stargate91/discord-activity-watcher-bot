@@ -3,7 +3,7 @@ import json
 import discord
 from dotenv import load_dotenv
 
-# Override=True is critical on Windows/Manager setup to prevent inheriting parent’s token
+# We use override=True to make sure the computer uses the right token for this bot!
 load_dotenv(override=True)
 
 class Config:
@@ -29,10 +29,10 @@ class Config:
     BASIC_MEMBER_EXCLUDED_ROLES = _roles.get("basic_member_excluded_roles", [])
     CHAMPION_EXCLUDE_ROLE_ID = _roles.get("champion_exclude_role_id", 0)
     
-    # Advanced Champion Role definitions (Nested with IDs, Names, Colors and Announcements)
+    # Here are all the special settings for the champion roles, like their colors and names.
     CHAMPION_ROLES = _data.get("champion_roles", {})
     
-    # Helper properties for easy ID access (backward compatibility and core use)
+    # These are shortcuts so we can quickly find the ID for each champion role.
     SPOTIVIBE_ROLE_ID = CHAMPION_ROLES.get("spotify", {}).get("role_id", 0)
     GODGAMER_TOTAL_ROLE_ID = CHAMPION_ROLES.get("gamer_total", {}).get("role_id", 0)
     GODGAMER_VARIETY_ROLE_ID = CHAMPION_ROLES.get("gamer_variety", {}).get("role_id", 0)
@@ -49,7 +49,7 @@ class Config:
     EXCLUDED_CHANNELS = _channels.get("excluded", [])
     EMOJI_CHANNEL_ID = _channels.get("emoji_id", 1486515344674787399)
     
-    # How many days of inactivity before someone loses a role (thresholds)
+    # We set these numbers to decide when someone has been away for too long.
     _thresholds = _data.get("thresholds", {})
     STAGE_1_DAYS = _thresholds.get("stage_1_days", 14)
     STAGE_2_DAYS = _thresholds.get("stage_2_days", 21)
@@ -113,7 +113,7 @@ class Config:
 
     @classmethod
     def reload(cls):
-        """Re-reads config.json and updates all class attributes in-memory."""
+        """This function reloads all our settings so the bot knows about any changes we made to config.json!"""
         try:
             with open("config.json", "r", encoding="utf-8") as f:
                 cls._data = json.load(f)
@@ -206,7 +206,7 @@ class Config:
 
     @classmethod
     def get_main_id(cls, user_id):
-        """Returns the main account ID if the user is an alt, otherwise returns the user_id itself."""
+        """This helps the bot know if an account is an 'alt' and who the 'main' person is!"""
         return cls.USER_MAPPING.get(user_id, user_id)
 
     @classmethod
@@ -239,7 +239,7 @@ class Config:
 
     @classmethod
     def format_desc(cls, text: str, guild: discord.Guild = None, bot_name: str = "Iris"):
-        """Fills placeholders in command descriptions with current config values or names."""
+        """This is a cool trick to replace things like {admin_id} with real names in our messages!"""
         if not text: return text
         
         admin_val = str(cls.ADMIN_CHANNEL_ID)

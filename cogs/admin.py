@@ -12,6 +12,7 @@ from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 
 def is_admin():
+    """This little helper checks if a user is a server Admin or has our special Admin role."""
     async def predicate(ctx):
         if ctx.author.guild_permissions.administrator:
             return True
@@ -56,12 +57,13 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
         
-        # Initial format (placeholders to IDs)
+        # We need to make sure the command descriptions look nice and have the right names
         for cmd in self.get_app_commands():
              if not hasattr(cmd, "_raw_desc"):
+                 # Keep the original description safe
                  cmd._raw_desc = cmd.description
              
-             # Fallback name if bot is not yet logged in
+             # If the bot is just starting up, we use "Iris" as its name for now
              bname = self.bot.user.name if self.bot.user else "Iris"
              cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
@@ -72,14 +74,15 @@ class AdminCog(commands.Cog):
         await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=True)
         
         try:
-            # Start building a text report with everyone's stats
+            # We're starting to build a big text report with everyone's stats!
             now = datetime.datetime.now(datetime.timezone.utc)
             guild_data = self.db.get_all_guild_data(interaction.guild_id)
             r1, r2 = interaction.guild.get_role(Config.STAGE_1_ROLE_ID), interaction.guild.get_role(Config.STAGE_2_ROLE_ID)
             lines = [Messages.REPORT_TITLE_HEADER.format(guild=interaction.guild.name, now=now)]
             
-            # Go through every person in the server and add their numbers to the list
+            # Now we loop through every single person in the server
             for m in interaction.guild.members:
+                # We don't want to track other bots!
                 if m.bot: continue
                 
                 main_id = Config.get_main_id(m.id)
@@ -118,11 +121,12 @@ class AdminCog(commands.Cog):
 
                 lines.append(f"{name_display:<35} | {s:<12} | {d['message_count']:<4} | {d['reaction_count']:<4} | {int(voice_mins):<4} | {det}")
             
-            # Save everything into a .txt file and send it to the admin
+            # We save everything into a text file so it's easy to read
             filename = f"report_{interaction.guild_id}.txt"
             with open(filename, "w", encoding="utf-8") as f: f.write("\n".join(lines))
+            # Send the file to the user (ephemeral means only they can see it)
             await interaction.followup.send(file=discord.File(filename), ephemeral=True)
-            # Delete the file from the computer after sending it
+            # Delete the temporary file from the computer after sending
             if os.path.exists(filename):
                 os.remove(filename)
         except Exception as e:
@@ -145,11 +149,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="All-time", value="alltime")
     ])
     async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
-        # Enhancement: Usable everywhere, but response is always ephemeral
+        # We tell Discord we're working on it, and it will be a private response
         await interaction.response.defer(ephemeral=True)
         
         days = int(timeframe) if timeframe != "alltime" else None
-        # Handle timeframe name for title
+        # Let's make the timeframe name look pretty for the chart title
         tf_name = timeframe if timeframe == "alltime" else f"{timeframe}d"
         
         if type == "peak":
@@ -168,12 +172,13 @@ class AdminCog(commands.Cog):
             if os.path.exists(output): os.remove(output)
             
         elif type == "voice":
+            # Let's see which voice channels are the most popular!
             raw_data = self.db.get_voice_usage_raw(interaction.guild_id, days)
             if not raw_data:
                 await interaction.followup.send(Messages.LB_EMPTY)
                 return
             
-            # Resolve channel names
+            # We turn the channel IDs into real names so humans can read them
             formatted_data = []
             for cid, mins in raw_data:
                 ch = interaction.guild.get_channel(cid)
@@ -316,14 +321,14 @@ class AdminCog(commands.Cog):
             ephemeral=True
         )
         
-        # Clean up the file after sending
+        # We delete the text file after we shared it
         if os.path.exists(filename):
             os.remove(filename)
 
     @app_commands.command(name="membership-logs", description=Messages.CMD_MEMBERSHIP_LOGS_DESC)
     @is_admin_slash()
     async def membership_logs(self, interaction: discord.Interaction):
-        # Export join/leave history to TXT
+        # We're creating a list of who joined or left the server recently!
 
         await interaction.response.send_message(Messages.MEMBERSHIP_LOG_GEN, ephemeral=True)
         
@@ -467,6 +472,7 @@ class AdminCog(commands.Cog):
             c.position
         ))
         
+        # Let's map the channel types to friendly names
         type_map = {
             discord.ChannelType.text: "CHAN_TYPE_TEXT",
             discord.ChannelType.voice: "CHAN_TYPE_VOICE",
@@ -594,7 +600,7 @@ class AdminCog(commands.Cog):
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
             return
 
-        # This command posts the bot's introduction card to the stats channel
+        # Here we send the beautiful info card to the server so everyone can see what the bot does!
         stats_channel = self.bot.get_channel(Config.STATS_CHANNEL_ID)
         if not stats_channel:
             await ctx.send(Messages.ERR_STATS_NOT_FOUND)
@@ -614,9 +620,9 @@ class AdminCog(commands.Cog):
         await self._info_logic(interaction, public)
 
     async def _info_logic(self, interaction: discord.Interaction, public: bool):
-        # Enhancement: Default ephemeral, optional public for admins, usable everywhere
+        # By default, only the user sees this. But Admins can make it public!
         if public:
-            # Check if user is admin
+            # Let's double check if they really are an Admin before making it public
             is_admin = interaction.user.guild_permissions.administrator
             if not is_admin and Config.ADMIN_ROLE_ID != 0:
                 is_admin = discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
@@ -658,8 +664,8 @@ class AdminCog(commands.Cog):
         for cmd in self.bot.commands:
             prefix_cmds.append((cmd.name, Config.format_desc(cmd.help or "---", target.guild if hasattr(target, "guild") else target)))
             
-        # 3. Slash Commands Section
-        # We categorize them by their required role/access level for clarity
+        # We're building a list of all the slash commands to show in the dev help
+        # We also show what role or channel you need for each one
         slash_cmds = []
         for cmd in self.bot.tree.get_commands():
             if isinstance(cmd, app_commands.Group):
@@ -679,7 +685,7 @@ class AdminCog(commands.Cog):
             await target.followup.send(view=view)
 
     def _get_command_access_info(self, name):
-        """Returns a string describing the role and channel requirements for a command."""
+        """This function tells us if a command needs a special role or a specific channel to work!"""
         from core.ui_icons import Icons
         
         # Role Requirements
@@ -721,7 +727,7 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="link-alt", description=Messages.CMD_LINK_ALT_DESC)
     @is_admin_slash()
     async def link_alt(self, interaction: discord.Interaction):
-        # This command opens the modal to link an alt account to a main account
+        # This opens a little popup window where admins can link two accounts together!
         await interaction.response.send_modal(AltAccountModal())
 
     def refresh_descriptions(self, guild):

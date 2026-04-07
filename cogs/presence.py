@@ -24,11 +24,15 @@ class PresenceCog(commands.Cog):
 
     @tasks.loop(minutes=5)
     async def presence_task(self):
+        """
+        This is the fun part! It changes the bot's 'status' message every few minutes 
+        so it always has something new and exciting to say!
+        """
         if not self.bot.is_ready(): return
         
         try:
             if not self.categories:
-                # Fallback if no categories are defined
+                # If we didn't pick any categories to show, we just say we are "watching" the server by default.
                 activity = discord.Activity(type=discord.ActivityType.watching, name=Messages.PRESENCE_WATCHING)
                 await self.bot.change_presence(activity=activity)
                 return
@@ -42,7 +46,7 @@ class PresenceCog(commands.Cog):
                 # Pick a random stat
                 stat_type = random.choice(["players", "voice", "games"])
                 if stat_type == "players":
-                    # Count unique main_ids in active game sessions (excluding Spotify)
+                    # We count how many different people are playing games right now (but we don't count Spotify as a game!).
                     playing = set()
                     for (mid, gid, game) in self.bot.tracker.active_sessions.keys():
                         if game != "Spotify": playing.add(mid)
@@ -68,7 +72,7 @@ class PresenceCog(commands.Cog):
                     )
 
             elif category == "champions":
-                # Get the most recent champions across all guilds (keep it simple)
+                # We show off who the most active 'Champions' are on the server!
                 champs = {}
                 for guild in self.bot.guilds:
                     guild_champs = self.db.get_last_champions(guild.id)
@@ -78,7 +82,7 @@ class PresenceCog(commands.Cog):
                     cat, uid = random.choice(list(champs.items()))
                     user = self.bot.get_user(uid)
                     name = user.display_name if user else f"User {uid}"
-                    # Translate category if needed (CAT_SPOTIFY etc.)
+                    # We match the category name with the right word in our language file.
                     cat_map = {
                         "spotify": Messages.CAT_SPOTIFY,
                         "gamer_total": Messages.CAT_GAMER_TOTAL,
@@ -95,7 +99,7 @@ class PresenceCog(commands.Cog):
                     category = "sassy" # Fallback
 
             elif category == "games":
-                # Get top game from the first guild (usually enough for status)
+                # We find out what everyone's favorite game is this month and show it in our status!
                 if self.bot.guilds:
                     stats = self.db.get_game_stats_report(self.bot.guilds[0].id, timeframe="monthly")
                     if stats:
@@ -106,7 +110,7 @@ class PresenceCog(commands.Cog):
                         )
                 
                 if not activity:
-                    category = "sassy" # Fallback
+                    category = "sassy" # If we can't find a top game, we just say something funny instead!
 
             if category == "sassy":
                 sassy_msgs = [
@@ -123,7 +127,7 @@ class PresenceCog(commands.Cog):
                 activity = discord.Activity(type=discord.ActivityType.playing, name=Messages.PRESENCE_HELP)
 
             if activity:
-                # Truncate to 35 chars for clean display if needed
+                # We make sure the message isn't too long, otherwise Discord will cut it off and it won't look pretty!
                 if len(activity.name) > 35:
                     activity.name = activity.name[:32] + "..."
                     

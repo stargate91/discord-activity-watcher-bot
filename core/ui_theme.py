@@ -1,7 +1,8 @@
 import discord
 
 class Theme:
-    # Default colors (mostly dark grey and some bright status colors)
+    # These are the default colors for the bot (like blue, green, and red). 
+    # They make everything look pretty and organized!
     PRIMARY = 0x3498db
     SECONDARY = 0x2b2d31
     SUCCESS = 0x2ecc71
@@ -12,12 +13,15 @@ class Theme:
 
     @classmethod
     def init_theme(cls, config):
-        """Overrides default colors with config values, supporting both old and new formats."""
+        """
+        This function sets up the bot's look! It tries to find your custom colors in the config file, 
+        but it's also smart enough to find the 'old' way we used to store colors.
+        """
         theme_data = getattr(config, "THEME", {})
         ui_data = getattr(config, "_ui", {}) # Access legacy UI data
         
         def get_color(name, legacy_name, default):
-            # Check new theme dict first, then legacy ui dict
+            # We check the new color settings first, but if those are missing, we look for the older ones!
             val = theme_data.get(name) or ui_data.get(legacy_name)
             if not val: return default
             try:

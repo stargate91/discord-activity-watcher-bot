@@ -14,6 +14,10 @@ class ReactionRolesCog(commands.Cog):
         self.bot.loop.create_task(self.init_reaction_roles())
 
     async def init_reaction_roles(self):
+        """
+        This function runs when the bot starts up. It checks if our special 'Reaction Role' 
+        messages are already on Discord, and sends them if they are missing!
+        """
         await self.bot.wait_until_ready()
         
         # When bot starts, verify and send reaction role messages if missing
@@ -30,13 +34,13 @@ class ReactionRolesCog(commands.Cog):
                 guild = self.bot.get_guild(Config.GUILD_ID)
                 if guild:
                     for mapping in config_data.get("mappings", []):
-                        # Auto-resolve missing role IDs via name
+                        # If we don't have the secret ID for a role, we try to find it using its name instead!
                         if mapping.get("role_id", 0) == 0 and mapping.get("role_name"):
                             role = discord.utils.get(guild.roles, name=mapping.get("role_name"))
                             if role:
                                 mapping["role_id"] = role.id
                                 
-                        # Auto-resolve missing emojis via name
+                        # We do the same thing for emojis - if the ID is missing, we look for the name!
                         if not mapping.get("emoji") and mapping.get("emoji_name"):
                             emoji_obj = discord.utils.get(guild.emojis, name=mapping.get("emoji_name"))
                             if emoji_obj:
@@ -62,7 +66,7 @@ class ReactionRolesCog(commands.Cog):
                         
                 bot_name = guild.me.display_name if guild else self.bot.user.name
 
-                # Check DB to see if we already sent this message
+                # We check our notebook (the database) to see if we've already sent this message before.
                 db_record = self.db.get_reaction_role_message(identifier)
                 message = None
 
@@ -77,7 +81,7 @@ class ReactionRolesCog(commands.Cog):
                         except discord.Forbidden:
                             log.error(f"Cannot read message history in {channel.name}")
 
-                # If we don't have the message, we need to send a new one
+                # If we can't find the message, we need to send a brand new one to the channel!
                 if message is None:
                     log.info(f"Sending new reaction role message for {identifier}")
 
@@ -124,7 +128,7 @@ class ReactionRolesCog(commands.Cog):
                     # Save to DB
                     self.db.save_reaction_role_message(identifier, channel.id, message.id)
 
-                    # Add emojis
+                    # Now we add all the little emojis to the message so people can click on them!
                     for mapping in mappings:
                         emoji_str = mapping.get("emoji")
                         if emoji_str:
@@ -142,7 +146,8 @@ class ReactionRolesCog(commands.Cog):
                 log.error(f"Error processing reaction role {idx}: {e}", exc_info=True)
 
     async def _handle_reaction(self, payload, add_role: bool):
-        # We only care about our configured guilds
+        """This is the main function that gives or takes away roles when someone clicks an emoji!"""
+        # We only care about our own server.
         if payload.guild_id != Config.GUILD_ID:
             return
 
@@ -156,7 +161,7 @@ class ReactionRolesCog(commands.Cog):
         member = payload.member or guild.get_member(payload.user_id)
         if not member or member.bot: return
 
-        # Is this message part of our reaction roles?
+        # We check if the message that was clicked is actually one of our special role-giving messages.
         matched_mapping = None
         for idx, config_data in enumerate(Config.REACTION_ROLES):
             if config_data.get("enabled", True) is False:

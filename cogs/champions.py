@@ -21,7 +21,7 @@ class ChampionsCog(commands.Cog):
         self.weekly_champions_task.cancel()
 
     async def _setup_roles(self, guild):
-        """Automatically creates the champion roles if they are missing and updates the config."""
+        """This little function checks if we have all our champion roles. If some are missing, it creates them for us!"""
         role_configs = Config.CHAMPION_ROLES
         
         updated = False
@@ -29,6 +29,7 @@ class ChampionsCog(commands.Cog):
             config_data = json.load(f)
         
         if "roles" not in config_data:
+            # If the config is empty, we start with a clean dictionary
             config_data["roles"] = {}
 
         for key, data in role_configs.items():
@@ -44,7 +45,7 @@ class ChampionsCog(commands.Cog):
             role = guild.get_role(role_id) if role_id else None
             
             if role:
-                # Sync existing role if name or color changed in config
+                # If we found the role, let's make sure its name and color match our config
                 if role.name != name or role.color.value != color_int:
                     try:
                         await role.edit(name=name, color=discord.Color(color_int), reason="Syncing champion role with config.json")
@@ -60,6 +61,7 @@ class ChampionsCog(commands.Cog):
                         role = await guild.create_role(name=name, color=discord.Color(color_int), reason="Automated Champion System Setup")
                         log.info(f"Created role: {name}")
                     except discord.Forbidden:
+                        # Oops, the bot doesn't have enough power to create roles!
                         log.error(f"Failed to create role {name}: Missing permissions.")
                         continue
                 
@@ -74,13 +76,13 @@ class ChampionsCog(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def weekly_champions_task(self):
-        """Runs the champion logic every Monday at 00:01 (handled by _run_champion_logic checks)."""
+        """Every Monday morning, this function wakes up and checks who our weekly champions are!"""
         for guild in self.bot.guilds:
             if guild.id == Config.GUILD_ID:
                 await self._run_champion_logic(guild)
 
     async def _run_champion_logic(self, guild, force=False):
-        """Internal logic for calculating and awarding weekly champions."""
+        """This is where the magic happens! We calculate the winners and give out the shiny roles."""
         now = datetime.datetime.now(datetime.timezone.utc)
         today = now.date()
         
@@ -94,10 +96,11 @@ class ChampionsCog(commands.Cog):
                 row = conn.execute("SELECT MAX(win_date) FROM champion_history WHERE guild_id = ?", (guild.id,)).fetchone()
                 last_run = datetime.date.fromisoformat(row[0]) if row and row[0] else None
             
+            # We only want to run this once per Monday so we don't spam!
             if last_run == today:
                 return
 
-        # Start the process!
+        # Let's start the calculation!
         log.info(f"Starting Weekly Champion calculation (Force={force})...")
         
         await self._setup_roles(guild)
@@ -136,7 +139,7 @@ class ChampionsCog(commands.Cog):
             
             categories[cat_id] = (stat_val, role_id, msg_template)
         
-        # Manage old roles (using a set to avoid removing/checking the same role multiple times)
+        # Time to take away the roles from last week's winners so new people can have them!
         last_champs = self.db.get_last_champions(guild.id)
         roles_to_remove = set()
         
@@ -202,7 +205,7 @@ class ChampionsCog(commands.Cog):
     @discord.app_commands.command(name="champ-force", description=Messages.CMD_CHAMPIONS_FORCE_DESC)
     @is_admin_slash()
     async def force_calculate_champions(self, interaction: discord.Interaction):
-        """Forces the weekly champion calculation logic immediately."""
+        """Admins can use this to calculate champions right now instead of waiting for Monday!"""
         await interaction.response.defer(ephemeral=True)
         try:
             guild = interaction.guild
@@ -218,7 +221,7 @@ class ChampionsCog(commands.Cog):
 
 
     def _get_eligible_champion(self, guild, candidates):
-        """Processes a list of candidates and returns the first one that doesn't have the exclude role."""
+        """This helps us find a winner who doesn't have the 'Exclude' role."""
         if not candidates:
             return None
             
@@ -320,7 +323,7 @@ class ChampionsCog(commands.Cog):
 
     @discord.app_commands.command(name="weekly-chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
     async def weekly_chances(self, interaction: discord.Interaction):
-        """Shows current standings and compares them with the user's data."""
+        """This shows everyone who is currently leading the race for this week's titles!"""
         await interaction.response.defer(ephemeral=True)
         
         now = datetime.datetime.now(datetime.timezone.utc)

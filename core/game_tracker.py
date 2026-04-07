@@ -10,12 +10,12 @@ class GameTracker:
         self.db = db
         self.bot = bot
         self.franchises = {}
-        self.active_sessions = {} # (main_id, guild_id, game_name): started_at
-        self.playing_counts = {}  # (main_id, guild_id, game_name): number of accounts playing
+        self.active_sessions = {} # This keeps track of who started playing what and when!
+        self.playing_counts = {}  # This counts how many of your accounts (main + alts) are playing the same game
 
     async def load_franchises(self):
-        # This part tells the bot which game names it should look for in someone's status
-        # If the database is empty, it uses the ones we wrote here as a start.
+        # This function loads the list of games we care about from the database.
+        # If we haven't added any games yet, it uses the default ones we set in the config.
         db_games = self.db.get_tracked_games()
         
         if not db_games:
@@ -34,7 +34,7 @@ class GameTracker:
         log.info(f"Loaded {len(self.franchises)} tracked games and {len(self.active_sessions)} active game sessions.")
 
     def _get_games(self, member):
-        # Find out what games a person is currently playing on Discord
+        """This helper function finds all the games someone is currently playing on their Discord status!"""
         games = set()
         for activity in member.activities:
             if activity.type == discord.ActivityType.playing and activity.name:
@@ -48,17 +48,16 @@ class GameTracker:
         return games
 
     async def handle_presence_update(self, before, after):
-        # This function runs every time someone's status changes (like starting/stopping a game or music)
+        # This part runs every time someone starts or stops playing a game, or changes their status!
         if after.bot or not after.guild: return
         
         main_id = Config.get_main_id(after.id)
         
-        # 1. Handle Games
+        # Let's see what games they were playing before and what they are playing now.
         before_games = self._get_games(before)
         after_games = self._get_games(after)
         
-        # 2. Handle Spotify
-        # Check if they are listening to Spotify (listening type and name "Spotify")
+        # Now let's check if they are listening to some music on Spotify!
         before_spotify = any(a.type == discord.ActivityType.listening and a.name == "Spotify" for a in before.activities)
         after_spotify = any(a.type == discord.ActivityType.listening and a.name == "Spotify" for a in after.activities)
         
@@ -85,8 +84,8 @@ class GameTracker:
                     self.db.add_spotify_minutes(main_id, after.guild.id, duration)
                     log.info(f"Logged {duration:.2f}m of Spotify for Main ID {main_id}")
 
-        # 3. Handle Game Logic (original code)
-        # If they just opened a game, we add them to our 'active' list and start a timer
+        # Now we handle the logic for starting a new game!
+        # If they just opened a game, we start a stopwatch for them.
         for game in (after_games - before_games):
             key = (main_id, after.guild.id, game)
             self.playing_counts[key] = self.playing_counts.get(key, 0) + 1
@@ -114,8 +113,8 @@ class GameTracker:
 
                 self.db.update_game_activity(main_id, after.guild.id, game, bot_assigned=bot_assigned)
 
-        # Stopped playing
-        # If they closed a game, we stop the timer and calculate how many minutes they spent
+        # And here we handle what happens when they stop playing!
+        # When they close a game, we stop the stopwatch and save their time.
         for game in (before_games - after_games):
             key = (main_id, after.guild.id, game)
             self.playing_counts[key] = max(0, self.playing_counts.get(key, 1) - 1)
@@ -137,7 +136,7 @@ class GameTracker:
 
 
     async def cleanup_inactive_roles(self, bot):
-        # This part removes 'Player' roles if someone hasn't played that game for a long time (e.g., 30 days)
+        # This function cleans up old 'Player' roles from people who haven't played a game in a long time!
         for guild in bot.guilds:
             inactive = self.db.get_inactive_games(guild.id, days=Config.INACTIVE_GAME_DAYS)
             for uid, role_name in inactive:

@@ -12,7 +12,7 @@ from core.ui_theme import Theme
 import logging
 from logging.handlers import RotatingFileHandler
 
-# These tell the bot why it's starting and what it's doing
+# This part helps the bot draw charts even on servers that don't have a screen!
 import matplotlib
 try:
     matplotlib.use('Agg') # Headless fix for Linux/Debian/Headless servers
@@ -47,7 +47,7 @@ class IrisBot(commands.Bot):
         self.voice_multipliers = {}
 
     async def setup_hook(self):
-        # Make sure we don't have old or double commands hanging around on Discord
+        # We clear any old or double commands from Discord's memory so everything starts fresh!
         self.tree.clear_commands(guild=None)
 
         # Go through the 'cogs' folder and turn on every feature file we find
@@ -59,12 +59,12 @@ class IrisBot(commands.Bot):
                 except Exception as e:
                     log.error(f"Failed to load extension {filename}: {e}")
 
-        # Remind the admin to sync the commands so they actually show up in Discord
+        # We tell the admin to run the sync command so the new features actually show up on Discord!
         log.info(f"Extensions loaded. Use {Config.PREFIX}sync{Config.SUFFIX} to propagate slash commands.")
 
 
 
-    # These are shortcut functions that other parts of the bot can use easily
+    # These are handy little shortcuts that help other parts of the bot get data quickly!
     def get_top_data(self, guild, user=None, timeframe="alltime"):
         return self.engine.get_leaderboard(guild, user, timeframe, self.voice_start_times)
 
@@ -74,23 +74,22 @@ class IrisBot(commands.Bot):
 
 if __name__ == "__main__":
     try:
-        # Load language first so logs are localized
+        # Step 1: We load the language files and set up the colors and icons!
         Messages.load_language(Config.LANGUAGE)
         log.info(Messages.LOG_BOT_START)
         
-        # 1. Initialize UI components and localization safely
         log.info(Messages.LOG_UI_INIT)
         Icons.setup(Config)
         Theme.init_theme(Config)
         
-        # 2. Validate Config
+        # Step 2: We check the config.json file to make sure it was filled out correctly!
         val_error = Config.validate()
         if val_error:
             log.error(f"Config Error: {val_error}")
             import sys
             sys.exit(1)
             
-        # 3. Start the bot
+        # Step 3: Finally, we turn the bot on and connect to Discord!
         log.info(Messages.LOG_CONNECTING)
         bot = IrisBot()
         bot.run(Config.TOKEN)

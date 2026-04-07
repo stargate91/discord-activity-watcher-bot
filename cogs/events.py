@@ -28,14 +28,14 @@ class EventsCog(commands.Cog):
     # Logic moved to ActivityProcessor
 
     async def handle_member_activity(self, member: discord.Member, event_type=None, channel_id=None):
-        # This part updates the database whenever someone sends a message or adds a reaction
+        # This part updates the server's records whenever someone sends a message or adds a reaction!
         if member.bot: return
         if channel_id and channel_id in Config.EXCLUDED_CHANNELS: return
             
         main_id = Config.get_main_id(member.id)
         self.db.update_activity(main_id, member.guild.id)
         
-        # Ensure joined_at is set if missing (lazy sync)
+        # We make sure we know when they first joined the server, just in case we forgot!
         if not self.db.get_user_join_date(main_id, member.guild.id):
             if hasattr(member, 'joined_at') and member.joined_at:
                 self.db.update_join_date(main_id, member.guild.id, member.joined_at)
@@ -47,7 +47,7 @@ class EventsCog(commands.Cog):
         elif event_type == "reaction":
             self.db.increment_reactions(main_id, member.guild.id, channel_id, points=Config.POINTS_REACTION)
         
-        # Find all linked accounts in this guild to sync roles
+        # We find all the accounts this person has so we can give them all the right roles.
         all_linked = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
         
         stage1_role = member.guild.get_role(Config.STAGE_1_ROLE_ID)
@@ -56,7 +56,7 @@ class EventsCog(commands.Cog):
         # Determine current stats from DB
         data = self.db.get_user_data(main_id, member.guild.id)
         
-        # This part handles the 'Inactive' (Stage 1) and 'Returned' (Stage 2) roles
+        # Here we handle the special roles for people who have been away for a while (Stage 1) or have just come back (Stage 2)!
         for m in all_linked:
             if stage1_role and stage1_role in m.roles:
                 try:
@@ -79,10 +79,10 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # This runs when the bot starts up and is ready to work
+        # This function runs as soon as the bot wakes up and is ready to start helping the server!
         await self.bot.load_game_franchises()
         
-        # Initialize qualified voice states
+        # We set up a list to keep track of who is allowed to earn voice points.
         if not hasattr(self.bot, 'voice_qualified_states'):
             self.bot.voice_qualified_states = {}
         
@@ -91,8 +91,8 @@ class EventsCog(commands.Cog):
         # 1. Load active voice sessions from the database
         db_sessions = self.db.get_active_voice_sessions()
         
-        # 2. Sync with current voice channels across all servers (guilds)
-        # We do this so if someone joined while the bot was offline, we don't miss them!
+        # 2. We sync the bot with who is currently in voice channels across all servers.
+        # We do this so even if someone joined while the bot was sleeping, we still count their time correctly!
         for guild in self.bot.guilds:
             # Sync user data existence
             for m in guild.members:
@@ -175,7 +175,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # This runs every time someone sends a message
+        # This part watches every message sent in the server to see who is talking!
         if message.author.bot or not message.guild: return
         if message.channel.id in Config.EXCLUDED_CHANNELS: return
         
@@ -183,7 +183,7 @@ class EventsCog(commands.Cog):
             # Calculate dynamic points: Base (1) + min(Length / 10, 100)
             points = ActivityProcessor.calculate_message_points(message.content)
             
-            # 1. Media Detection (Attachments or specific Links)
+            # 1. We check if the message has a cool picture or video attached!
             has_media = ActivityProcessor.is_media(message)
             
             # We still call handle_member_activity for side effects (roles, activity times)
@@ -218,7 +218,7 @@ class EventsCog(commands.Cog):
         if member.joined_at:
             self.db.update_join_date(main_id, member.guild.id, member.joined_at)
 
-        # Welcome Message
+        # This is where the bot sends a warm welcome message to new members when they join!
         if Config.WELCOME and Config.WELCOME.get("enabled", False):
             try:
                 channel_id = Config.WELCOME.get("channel_id")
@@ -276,14 +276,14 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # This runs when someone joins, leaves, or moves between voice channels
+        # This part notices whenever someone joins, leaves, or moves between different voice channels!
         if member.bot: return
         
         main_id = Config.get_main_id(member.id)
         now = datetime.datetime.now(datetime.timezone.utc)
         
         # Aggregate all linked accounts to find the best tier (Streaming > Video > Voice)
-        linked_accounts = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+        # We check all your accounts to see who is doing the most exciting thing (like streaming!).
         new_tier, is_streaming, stream_name = ActivityProcessor.get_best_tier(linked_accounts)
         
         old_data = self.bot.voice_multipliers.get(main_id, (0.0, False, "Inactive"))
@@ -291,7 +291,7 @@ class EventsCog(commands.Cog):
         old_qual = self.bot.voice_qualified_states.get(main_id, False)
         is_tracking = main_id in self.bot.voice_start_times
         
-        # New qualification check
+        # We check if you are allowed to earn points (you can't be alone in a room!).
         new_qual = ActivityProcessor.is_qualified(member)
         
         # Detect State Change (Best tier, stream name, OR qualification state changed)
@@ -300,7 +300,7 @@ class EventsCog(commands.Cog):
         channel_changed = (before.channel != after.channel)
         
         if is_tracking and (state_changed or channel_changed):
-            # Close previous segment
+            # We stop the current timer and save the points you've earned so far.
             sess_data = self.db.end_voice_session(main_id, member.guild.id)
             if sess_data:
                 start = sess_data["joined_at"]
@@ -345,9 +345,8 @@ class EventsCog(commands.Cog):
             self.bot.voice_qualified_states[main_id] = new_qual
             await self.handle_member_activity(member)
         
-        # Step 3: Handle "Alone" status changes for OTHERS in the channel
-        # If someone joined or left, the 'is_alone' status of others might have changed.
-        # We manually trigger a segment refresh for them if they are tracking.
+        # Step 3: If you join or leave, we also check if the other people in the room are now alone.
+        # If they are all alone, they stop earning points until another friend joins!
         affected_channels = []
         if before.channel: affected_channels.append(before.channel)
         if after.channel and after.channel != before.channel: affected_channels.append(after.channel)
@@ -384,7 +383,7 @@ class EventsCog(commands.Cog):
                         self.db.start_voice_session(m_main_id, m.guild.id, channel.id, m_now, m_old_data[0], m_old_data[1], m_old_data[2])
     
     async def check_basic_member_award(self, member):
-        """Checks if a user qualifies for the Basic Member role and awards it to all linked accounts."""
+        """This function checks if you have been active enough to earn the cool 'Basic Member' role!"""
         if Config.BASIC_MEMBER_ROLE_ID == 0: return
         
         main_id = Config.get_main_id(member.id)
@@ -416,7 +415,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        # This runs when someone adds a reaction (emoji) to a message
+        # This part notices whenever someone adds a cool emoji reaction to a message!
         if payload.guild_id:
             if payload.channel_id in Config.EXCLUDED_CHANNELS: return
             
@@ -453,7 +452,7 @@ class EventsCog(commands.Cog):
 
     @tasks.loop(hours=Config.CHECK_INTERVAL_HOURS) 
     async def check_inactivity_task(self):
-        # This background task runs every few hours to check who is 'lazy' (inactive)
+        # This is a helper task that runs every few hours to see if anyone has been too quiet for too long.
         now = datetime.datetime.now(datetime.timezone.utc)
         for guild in self.bot.guilds:
             r1, r2 = guild.get_role(Config.STAGE_1_ROLE_ID), guild.get_role(Config.STAGE_2_ROLE_ID)
