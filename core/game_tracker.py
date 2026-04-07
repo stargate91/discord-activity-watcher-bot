@@ -80,6 +80,7 @@ class GameTracker:
                             try:
                                 await member.add_roles(role)
                                 log.info(f"Sync: Assigned {game} to {member.name} on startup")
+                                self.db.log_role(main_id, member.guild.id, game, action='ADDED')
                             except discord.Forbidden:
                                 pass
                 
@@ -148,6 +149,7 @@ class GameTracker:
                                 try:
                                     await m.add_roles(role)
                                     log.info(f"Assigned {game} to {m.name} (Alt Sync)")
+                                    self.db.log_role(main_id, after.guild.id, game, action='ADDED')
                                 except discord.Forbidden: pass
 
                 self.db.update_game_activity(main_id, after.guild.id, game, bot_assigned=bot_assigned)
