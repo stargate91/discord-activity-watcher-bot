@@ -46,6 +46,14 @@ class GamesCog(commands.Cog):
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
 
+    @remove_game.autocomplete("search_name")
+    async def remove_game_autocomplete(self, interaction: discord.Interaction, current: str):
+        games = self.db.get_tracked_games()
+        return [
+            app_commands.Choice(name=name, value=name)
+            for name in games.keys() if current.lower() in name.lower()
+        ][:25]
+
     @app_commands.command(name="list-games", description=Messages.CMD_LIST_GAMES_DESC)
     @is_tester_slash()
     async def list_games(self, interaction: discord.Interaction):

@@ -753,6 +753,11 @@ class DBManager:
             conn.execute("INSERT OR REPLACE INTO tracked_games (game_substring, role_suffix) VALUES (?, ?)", (substring, suffix))
             conn.commit()
 
+    def remove_tracked_game(self, substring):
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM tracked_games WHERE game_substring = ?", (substring,))
+            conn.commit()
+
     # --- VOICE PERSISTENCE ---
 
     def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier=2.0, is_streaming=False, stream_name=None):
