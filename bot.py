@@ -74,12 +74,13 @@ class IrisBot(commands.Bot):
 
 if __name__ == "__main__":
     try:
-        # Step 1: We load the language files and set up the colors and icons!
+        # Step 1: We set up the custom icons and then load the language files!
+        Icons.setup(Config)
+        log.info(Messages.LOG_UI_INIT)
+        
         Messages.load_language(Config.LANGUAGE)
         log.info(Messages.LOG_BOT_START)
         
-        log.info(Messages.LOG_UI_INIT)
-        Icons.setup(Config)
         Theme.init_theme(Config)
         
         # Step 2: We check the config.json file to make sure it was filled out correctly!

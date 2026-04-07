@@ -76,6 +76,8 @@ def get_feedback(key: str, **kwargs) -> str:
         "ELITE_GAMER_VARIETY": Icons.VARIETY,
         "ELITE_STREAMER": Icons.STREAMER,
         "ELITE_HALL_OF_FAME": Icons.VETERAN,
+        "ELITE_HALL_OF_FAME_TITLE": Icons.TROPHY,
+        "ELITE_ANNOUNCEMENT_TITLE": Icons.TROPHY,
         "ELITE_MEMELORD": Icons.MEME,
         "MEDAL_1": Icons.MEDAL_1,
         "MEDAL_2": Icons.MEDAL_2,

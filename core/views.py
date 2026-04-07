@@ -43,7 +43,7 @@ class ModernLeaderboardView(discord.ui.LayoutView):
                     name = m.mention if m else Messages.LB_UNKNOWN_USER.format(id=uid)
                 
                 from core.ui_icons import Icons
-                medal = {1: Icons.MEDAL_1, 2: Icons.MEDAL_2, 3: Icons.MEDAL_3}.get(i, f"**{i:02d}.**")
+                medal = {1: str(Icons.MEDAL_1), 2: str(Icons.MEDAL_2), 3: str(Icons.MEDAL_3)}.get(i, f"**{i:02d}.**")
                 
                 info = f"{medal} {name} - **{pts:,.2f} {Messages.LB_POINTS}**\n╰ `M: {stats['messages']} | R: {stats['reactions']} | V: {int(stats['voice'])}p | Me: {stats['media']} | S: {int(stats['stream'])}p`"
                 container_items.append(discord.ui.TextDisplay(info))
@@ -363,7 +363,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
             # Prev Button
             prev_btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
-                emoji="⬅️", # Simplified emoji
+                emoji=Icons.PREV_PAGE, # Use custom icon
                 disabled=(self.current_page == 0)
             )
             prev_btn.callback = self.prev_page
@@ -372,7 +372,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
             # Indicator
             indicator = discord.ui.Button(
                 style=discord.ButtonStyle.secondary,
-                label=f"Oldal {self.current_page + 1} / {total}", # Simplified label
+                label=f"{self.current_page + 1} / {total}", # Standardized label
                 disabled=True
             )
             row.add_item(indicator)
@@ -380,7 +380,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
             # Next Button
             next_btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
-                emoji="➡️", # Simplified emoji
+                emoji=Icons.NEXT_PAGE, # Use custom icon
                 disabled=(self.current_page == total - 1)
             )
             next_btn.callback = self.next_page
