@@ -76,21 +76,26 @@ class ActivityProcessor:
             base_points = 1
             desc = "Muted"
             
-        # 2. Bonus Logic (Streaming/Video) - These are additive to the base!
+        # 2. Bonus Logic (Streaming & Video) - These are now STACKABLE bonuses!
         bonus = 0
+        status_parts = []
         if member.voice.self_stream:
             is_streaming = True
-            bonus = Config.POINTS_STREAM_BONUS
+            bonus += Config.POINTS_STREAM_BONUS
             # Determine stream name
             stream_name = Config.DEFAULT_STREAM_NAME
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
                     stream_name = activity.name
                     break
-            desc = f"Streaming: {stream_name}"
-        elif member.voice.self_video:
-            bonus = Config.POINTS_VIDEO_BONUS
-            desc = "Video On"
+            status_parts.append(f"Streaming: {stream_name}")
+            
+        if member.voice.self_video:
+            bonus += Config.POINTS_VIDEO_BONUS
+            status_parts.append("Video")
+            
+        if status_parts:
+            desc = " + ".join(status_parts)
             
         final_tier = base_points + bonus
         return final_tier, is_streaming, desc
