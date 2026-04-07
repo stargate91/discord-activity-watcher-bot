@@ -51,77 +51,107 @@ class ActivityProcessor:
         return False
 
     @staticmethod
-    def get_participation_tier(member):
-        """
-        This checks what you are doing in voice. Are you streaming? Is your camera on? 
-        This decides how many points you get every minute!
-        """
+    def get_voice_components(member):
+        """Calculates the raw components of voice activity for a single member."""
         if not member or not member.voice or not member.voice.channel:
-            return 0, False, "Inactive"
-
-        # Explicitly ignore activity in the AFK channel
+            return 0, 0, 0, None, False, "Inactive"
+            
         if member.voice.channel.id == Config.AFK_CHANNEL_ID:
-            return 0, False, "AFK"
+            return 0, 0, 0, None, False, "AFK"
 
-        # Use additive model for better granularity
-        base_points = 2 # Normal voice
-        is_streaming = False
-        desc = "Voice"
-        
         # 1. Base Logic (Mute/Deaf)
+        base = 2 # Normal voice
+        desc = "Voice"
         if member.voice.self_deaf or member.voice.deaf:
-            base_points = 0
+            base = 0
             desc = "Deafened"
         elif member.voice.self_mute or member.voice.mute:
-            base_points = 1
+            base = 1
             desc = "Muted"
             
-        # 2. Bonus Logic (Streaming & Video) - These are now STACKABLE bonuses!
-        bonus = 0
-        status_parts = []
+        # 2. Bonus Logic (Streaming & Video)
+        stream_bonus = 0
+        video_bonus = 0
+        is_streaming = False
+        stream_name = None
+        
         if member.voice.self_stream:
             is_streaming = True
-            bonus += Config.POINTS_STREAM_BONUS
-            # Determine stream name
+            stream_bonus = Config.POINTS_STREAM_BONUS
             stream_name = Config.DEFAULT_STREAM_NAME
             for activity in member.activities:
                 if activity.type == discord.ActivityType.playing:
                     stream_name = activity.name
                     break
-            status_parts.append(f"Streaming: {stream_name}")
             
         if member.voice.self_video:
-            bonus += Config.POINTS_VIDEO_BONUS
-            status_parts.append("Video")
+            video_bonus = Config.POINTS_VIDEO_BONUS
             
-        if status_parts:
+        return base, stream_bonus, video_bonus, stream_name, is_streaming, desc
+
+    @staticmethod
+    def get_participation_tier(member):
+        """Standard tier calculation for a single member (legacy support/internal use)."""
+        base, s_bonus, v_bonus, s_name, is_stream, base_desc = ActivityProcessor.get_voice_components(member)
+        
+        final_tier = base + s_bonus + v_bonus
+        
+        # Build description
+        status_parts = []
+        if is_stream: status_parts.append(f"Streaming: {s_name}")
+        if v_bonus > 0: status_parts.append("Video")
+        
+        if not status_parts:
+            desc = base_desc
+        else:
             desc = " + ".join(status_parts)
             
-        final_tier = base_points + bonus
-        return final_tier, is_streaming, desc
+        return final_tier, is_stream, desc
 
     @staticmethod
     def get_best_tier(members):
-        """
-        If you have two accounts logged in, we check which one is doing more cool stuff and use that for your points!
-        """
-        best_tier = 0
-        best_streaming = False
-        best_desc = "Inactive"
-
-        for m in members:
-            tier, streaming, desc = ActivityProcessor.get_participation_tier(m)
-            if tier > best_tier:
-                best_tier = tier
-                best_streaming = streaming
-                best_desc = desc
-            elif tier == best_tier and tier > 0:
-                # Tie-breaker: prioritize streaming if multipliers are identical
-                if streaming and not best_streaming:
-                    best_streaming = True
-                    best_desc = desc
+        """UNIFIED: Aggregates the best possible state across ALL linked accounts."""
+        if not members:
+            return 0, False, "Inactive"
+            
+        best_base = 0
+        max_stream_bonus = 0
+        max_video_bonus = 0
+        best_stream_name = None
+        has_any_streaming = False
         
-        return best_tier, best_streaming, best_desc
+        # We collect the best of each component from all accounts
+        for m in members:
+            base, s_bonus, v_bonus, s_name, is_stream, _ = ActivityProcessor.get_voice_components(m)
+            
+            if base > best_base:
+                best_base = base
+                
+            if s_bonus > max_stream_bonus:
+                max_stream_bonus = s_bonus
+                best_stream_name = s_name
+                has_any_streaming = True
+                
+            if v_bonus > max_video_bonus:
+                max_video_bonus = v_bonus
+                
+        # Combine everything
+        final_tier = best_base + max_stream_bonus + max_video_bonus
+        
+        # Build unified description
+        status_parts = []
+        if has_any_streaming:
+            status_parts.append(f"Streaming: {best_stream_name}")
+        if max_video_bonus > 0:
+            status_parts.append("Video")
+            
+        if not status_parts:
+            # Fallback to base description logic
+            desc = "Voice" if best_base == 2 else ("Muted" if best_base == 1 else "Deafened/AFK")
+        else:
+            desc = " + ".join(status_parts)
+            
+        return final_tier, has_any_streaming, desc
     
     @staticmethod
     def is_qualified(member):
