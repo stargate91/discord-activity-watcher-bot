@@ -327,8 +327,8 @@ class EmojiManager(commands.Cog):
         try:
             page_items = await self._generate_emoji_pages(guild)
 
-            # Build the custom paginator and send it!
-            view = EmojiPaginatorView(page_items, user=interaction.user, cog=self)
+            # Build the standard paginator and send it! (Reverted from specialized Refresh view)
+            view = ModernPaginatorView(page_items, user=interaction.user)
             
             log.info(f"EmojiManager: Sending followup for {interaction.user.name}...")
             await interaction.followup.send(view=view, ephemeral=True)
@@ -342,60 +342,8 @@ class EmojiManager(commands.Cog):
             else:
                 await interaction.response.send_message(error_msg, ephemeral=True)
 
-class EmojiPaginatorView(ModernPaginatorView):
-    """Specialized paginator for emojis that includes a Refresh button."""
-    def __init__(self, page_items, user=None, cog=None):
-        super().__init__(page_items, user=user)
-        self.cog = cog
-
-    def setup_page(self, is_initial=False):
-        if not is_initial:
-            self.clear_items()
-        
-        total = len(self.page_items)
-        container_items = list(self.page_items[self.current_page])
-
-        # 1. Navigation / Action Row
-        row = discord.ui.ActionRow()
-        
-        # Navigation
-        if total > 1:
-            prev_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="⬅️", disabled=(self.current_page == 0))
-            prev_btn.callback = self.prev_page
-            row.add_item(prev_btn)
-            
-            indicator = discord.ui.Button(style=discord.ButtonStyle.secondary, label=f"{self.current_page + 1}/{total}", disabled=True)
-            row.add_item(indicator)
-            
-            next_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="➡️", disabled=(self.current_page == total - 1))
-            next_btn.callback = self.next_page
-            row.add_item(next_btn)
-        
-        # Refresh Button (Always present for dynamic updates!)
-        refresh_btn = discord.ui.Button(style=discord.ButtonStyle.primary, emoji="🔄")
-        refresh_btn.callback = self.refresh_data
-        row.add_item(refresh_btn)
-        
-        container_items.append(row)
-
-        # 2. Build Container
-        container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
-        self.add_item(container)
-
-    async def refresh_data(self, interaction: discord.Interaction):
-        if self.user and interaction.user.id != self.user.id:
-            return await interaction.response.send_message(t("ERR_NOT_YOUR_BUTTON"), ephemeral=True)
-            
-        try:
-            # Re-generate pages with fresh counts
-            self.page_items = await self.cog._generate_emoji_pages(interaction.guild)
-            self.current_page = min(self.current_page, len(self.page_items) - 1)
-            self.setup_page()
-            await interaction.response.edit_message(view=self)
-            log.info(f"EmojiManager: Manual refresh successful for {interaction.user.name}")
-        except Exception as e:
-            log.error(f"Error in EmojiPaginator refresh: {e}")
-            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
+async def setup(bot):
+    await bot.add_cog(EmojiManager(bot))
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))
