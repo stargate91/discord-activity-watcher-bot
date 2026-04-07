@@ -4,6 +4,7 @@ from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, S
 from config_loader import Config
 from core.messages import Messages
 from core.ui_translate import t
+from core.ui_icons import Icons
 from core.ui_utils import get_feedback
 
 class ModernLeaderboardView(discord.ui.LayoutView):
@@ -424,7 +425,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
         
         # Back button
         prev_btn = discord.ui.Button(
-            label="<", 
+            emoji=Icons.PREV_PAGE, 
             style=discord.ButtonStyle.secondary, 
             disabled=(self.current_page == 0)
         )
@@ -442,7 +443,7 @@ class ModernPaginatorView(discord.ui.LayoutView):
         
         # Next button
         next_btn = discord.ui.Button(
-            label=">", 
+            emoji=Icons.NEXT_PAGE, 
             style=discord.ButtonStyle.secondary, 
             disabled=(self.current_page == len(self.pages) - 1)
         )
