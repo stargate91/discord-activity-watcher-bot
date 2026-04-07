@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 class Config:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEMP_DIR = os.path.join(BASE_DIR, "temp")
+
     # Get the special bot token from the .env file (shhh, it's a secret!)
     TOKEN = os.getenv("DISCORD_TOKEN")
     

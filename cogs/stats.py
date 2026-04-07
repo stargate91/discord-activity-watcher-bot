@@ -107,10 +107,21 @@ class StatsCog(commands.Cog):
             daily_activity[today_idx] = (d_str, d_points + live_points, d_voice + live_mins)
 
         if daily_activity:
-            os.makedirs("temp", exist_ok=True)
+            os.makedirs(Config.TEMP_DIR, exist_ok=True)
             # Use absolute path to ensure matplotlib saves it exactly where we expect
-            path = os.path.abspath(f"temp/profile_{main_id}_{int(datetime.datetime.now().timestamp())}.png")
-            draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", path)
+            path = os.path.join(Config.TEMP_DIR, f"profile_{main_id}_{int(datetime.datetime.now().timestamp())}.png")
+            
+            # Using keyword arguments is safer when there are many default parameters!
+            draw_user_activity_chart(
+                daily_activity, 
+                f"Activity: {user.display_name}", 
+                points_label=Messages.VIS_POINTS,
+                voice_label=Messages.VIS_VOICE,
+                y_points_label=Messages.VIS_Y_POINTS,
+                y_voice_label=Messages.VIS_Y_VOICE,
+                output_path=path
+            )
+            
             if os.path.exists(path):
                 chart_file = discord.File(path, filename="chart.png")
                 chart_url = "attachment://chart.png"
