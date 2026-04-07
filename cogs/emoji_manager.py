@@ -10,6 +10,7 @@ from core.ui_translate import t
 from core.logger import log
 from core.ui_utils import get_feedback
 from config_loader import Config
+from core.views import ModernPaginatorView
 
 class EmojiManager(commands.Cog):
     def __init__(self, bot):
@@ -259,61 +260,71 @@ class EmojiManager(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         
-        # We get all the emojis and sort them by their names
+        # We get all the emojis and stickers
         emojis = sorted(guild.emojis, key=lambda x: x.name)
-        emoji_limit = guild.emoji_limit
-        emoji_count = len(emojis)
-        
-        # We also get all the stickers and sort them by their names
         stickers = sorted(guild.stickers, key=lambda x: x.name)
-        sticker_limit = guild.sticker_limit
-        sticker_count = len(stickers)
-
-        embed = discord.Embed(title=f"Emoji & Sticker Inventory - {guild.name}", color=discord.Color.blue())
         
-        # Emoji field: String length must be < 1024
-        emoji_list_trimmed = []
-        current_len = 0
-        for e in emojis:
-            e_str = str(e) + " "
-            if current_len + len(e_str) > 950: # Leave room for "and more"
-                break
-            emoji_list_trimmed.append(str(e))
-            current_len += len(e_str)
+        # Mapping them to strings
+        emoji_strs = [str(e) for e in emojis]
+        sticker_names = [s.name for s in stickers]
         
-        emoji_text = " ".join(emoji_list_trimmed)
-        if emoji_count > len(emoji_list_trimmed):
-            emoji_text += f"\n... and {emoji_count - len(emoji_list_trimmed)} more"
+        # How many should we show on one page?
+        EMOJIS_PER_PAGE = 30
+        STICKERS_PER_PAGE = 15
+        
+        pages = []
+        
+        # Calculate total pages needed
+        total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
+        total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
+        total_pages = max(total_emoji_pages, total_sticker_pages, 1)
+        
+        for i in range(total_pages):
+            # We create a Container for each page, which is like a pretty box for our list!
+            container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
             
-        if not emoji_text: emoji_text = "None"
-        embed.add_field(
-            name=t("EMOJI_LIST_TITLE", count=emoji_count, limit=emoji_limit),
-            value=emoji_text,
-            inline=False
-        )
-        
-        # Sticker field: String length must be < 1024
-        sticker_list_trimmed = []
-        current_len = 0
-        for s in stickers:
-            s_str = s.name + ", "
-            if current_len + len(s_str) > 950:
-                break
-            sticker_list_trimmed.append(s.name)
-            current_len += len(s_str)
+            # Title for the whole inventory
+            container.add_item(discord.ui.Section(
+                f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"
+            ))
+            container.add_item(discord.ui.Separator())
+            
+            # Emoji section for this page
+            start_e = i * EMOJIS_PER_PAGE
+            end_e = start_e + EMOJIS_PER_PAGE
+            page_emojis = emoji_strs[start_e:end_e]
+            
+            if page_emojis:
+                title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
+                text = " ".join(page_emojis)
+                container.add_item(discord.ui.TextDisplay(f"### {title}\n{text}"))
+            
+            # Sticker section for this page
+            start_s = i * STICKERS_PER_PAGE
+            end_s = start_s + STICKERS_PER_PAGE
+            page_stickers = sticker_names[start_s:end_s]
+            
+            if page_stickers:
+                if page_emojis:
+                    container.add_item(discord.ui.Separator())
+                
+                title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
+                text = ", ".join(page_stickers)
+                container.add_item(discord.ui.TextDisplay(f"### {title}\n{text}"))
+                
+            pages.append(container)
 
-        sticker_text = ", ".join(sticker_list_trimmed)
-        if sticker_count > len(sticker_list_trimmed):
-            sticker_text += f"\n... and {sticker_count - len(sticker_list_trimmed)} more"
+        if not pages:
+            # If for some reason there's nothing to show (no emojis and no stickers)
+            container = discord.ui.Container(accent_color=discord.Color(Config.COLOR_PRIMARY))
+            container.add_item(discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"))
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.TextDisplay(t("LB_EMPTY")))
+            pages.append(container)
 
-        if not sticker_text: sticker_text = "None"
-        embed.add_field(
-            name=t("STICKER_LIST_TITLE", count=sticker_count, limit=sticker_limit),
-            value=sticker_text,
-            inline=False
-        )
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        # Build the paginator and send it!
+        view = ModernPaginatorView(pages, user=interaction.user)
+        await interaction.followup.send(view=view, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))

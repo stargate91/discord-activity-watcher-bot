@@ -397,3 +397,70 @@ class AltAccountModal(discord.ui.Modal):
             )
         else:
             await interaction.response.send_message(get_feedback('ERR_CONFIG_SAVE'), ephemeral=True)
+
+class ModernPaginatorView(discord.ui.LayoutView):
+    # This is a cool helper class that lets us flip through many pages of information!
+    def __init__(self, pages, user=None):
+        super().__init__()
+        self.pages = pages # This is a list of pre-built Container or Embed objects
+        self.current_page = 0
+        self.user = user
+        self.setup_page()
+
+    def setup_page(self):
+        # We clear the old buttons and add the new ones for the current page
+        self.clear_items()
+        
+        # Get the content for the current page
+        content = self.pages[self.current_page]
+        self.add_item(content)
+        
+        # If there's only one page, we don't need buttons!
+        if len(self.pages) <= 1:
+            return
+
+        # Add the navigation buttons in a neat row
+        row = discord.ui.ActionRow()
+        
+        # Back button
+        prev_btn = discord.ui.Button(
+            label="<", 
+            style=discord.ButtonStyle.secondary, 
+            disabled=(self.current_page == 0)
+        )
+        prev_btn.callback = self.prev_page
+        row.add_item(prev_btn)
+        
+        # Page indicator
+        total = len(self.pages)
+        indicator = discord.ui.Button(
+            label=t("EMOJI_PAGINATION_FOOTER", current=self.current_page + 1, total=total),
+            style=discord.ButtonStyle.secondary,
+            disabled=True
+        )
+        row.add_item(indicator)
+        
+        # Next button
+        next_btn = discord.ui.Button(
+            label=">", 
+            style=discord.ButtonStyle.secondary, 
+            disabled=(self.current_page == len(self.pages) - 1)
+        )
+        next_btn.callback = self.next_page
+        row.add_item(next_btn)
+        
+        self.add_item(row)
+
+    async def prev_page(self, interaction: discord.Interaction):
+        # Go back one page!
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.setup_page()
+            await interaction.response.edit_message(view=self)
+
+    async def next_page(self, interaction: discord.Interaction):
+        # Go forward one page!
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self.setup_page()
+            await interaction.response.edit_message(view=self)
