@@ -39,12 +39,7 @@ class EventsCog(commands.Cog):
         if not self.db.get_user_join_date(main_id, member.guild.id):
             if hasattr(member, 'joined_at') and member.joined_at:
                 self.db.update_join_date(main_id, member.guild.id, member.joined_at)
-        if event_type == "message":
-            # Dynamic Scoring: Points = Base + min(Length / Scale, Max)
-            # member here is used to get the content if available (but handle_member_activity doesn't have message)
-            # I should move the point calculation to on_message or pass points as argument.
-            pass 
-        elif event_type == "reaction":
+        if event_type == "reaction":
             self.db.increment_reactions(main_id, member.guild.id, channel_id, points=Config.POINTS_REACTION)
         
         # We find all the accounts this person has so we can give them all the right roles.

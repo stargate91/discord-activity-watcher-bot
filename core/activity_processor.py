@@ -20,10 +20,6 @@ class ActivityProcessor:
         length_bonus = len(content) / Config.POINTS_MESSAGE_SCALE
         score += min(length_bonus, Config.POINTS_MESSAGE_MAX)
         
-        # 3. If you share a video or a picture, we give you a big bonus!
-        if ActivityProcessor.contains_media(content):
-            score += Config.POINTS_MEDIA_BONUS
-            
         return score
 
     @staticmethod
@@ -80,7 +76,7 @@ class ActivityProcessor:
         
         # 2. Camera on bonus - Also an active state
         if member.voice.self_video:
-            return Config.POINTS_VOICE + 1, False, "Video On"
+            return Config.POINTS_VOICE + Config.POINTS_VIDEO_BONUS, False, "Video On"
 
         # 3. Check for mute/deaf state to determine point rate for passive listeners
         if member.voice.self_deaf or member.voice.deaf:

@@ -69,6 +69,7 @@ class Config:
     POINTS_REACTION = _scoring.get("points_reaction", 5)
     POINTS_VOICE = _scoring.get("points_voice_per_min", 2)
     POINTS_STREAM_BONUS = _scoring.get("points_voice_streaming_bonus", 2)
+    POINTS_VIDEO_BONUS = _scoring.get("points_voice_video_bonus", 1)
     POINTS_MEDIA_BONUS = _scoring.get("points_media_bonus", 5)
 
     # Settings for how the bot looks and how much data it shows
@@ -163,6 +164,7 @@ class Config:
             cls.POINTS_REACTION = cls._scoring.get("points_reaction", 5)
             cls.POINTS_VOICE = cls._scoring.get("points_voice_per_min", 2)
             cls.POINTS_STREAM_BONUS = cls._scoring.get("points_voice_streaming_bonus", 2)
+            cls.POINTS_VIDEO_BONUS = cls._scoring.get("points_voice_video_bonus", 1)
             cls.POINTS_MEDIA_BONUS = cls._scoring.get("points_media_bonus", 5)
 
             cls._ui = cls._data.get("ui", {})
