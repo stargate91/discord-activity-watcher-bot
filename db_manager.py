@@ -861,11 +861,14 @@ class DBManager:
             
             # 2. Daily Summary
             conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, game_minutes) VALUES (?, ?, 0, ?, ?)
+                ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
                     game_minutes = game_minutes + ?
             """, (int(user_id), int(guild_id), today, minutes, minutes))
             
             # 3. Daily Per-Game (for Variety)
             conn.execute("""
+                INSERT INTO daily_game_stats (user_id, guild_id, game_name, date, minutes) VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(user_id, guild_id, game_name, date) DO UPDATE SET 
                     minutes = minutes + ?
             """, (int(user_id), int(guild_id), game_name, today, minutes, minutes))
