@@ -3,6 +3,7 @@
 
 # Database
 activity.db
+database.db
 
 # Logs
 role_log.txt
