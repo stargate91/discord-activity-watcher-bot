@@ -158,10 +158,17 @@ class ModernProfileView(discord.ui.LayoutView):
         
         # 7. Activity Graph
         if chart_url:
+            from core.logger import log
+            log.info(f"ModernProfileView setup: chart_url={chart_url}")
             container_items.append(discord.ui.Separator())
-            chart_header = f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"
-            container_items.append(discord.ui.TextDisplay(chart_header))
-            container_items.append(discord.ui.MediaGallery(discord.MediaGalleryItem(chart_url)))
+            
+            # Header
+            container_items.append(discord.ui.TextDisplay(f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"))
+            
+            # MediaGallery requires a list of items
+            container_items.append(discord.ui.MediaGallery(
+                [discord.ui.MediaGalleryItem(chart_url)]
+            ))
 
         # 8. Buttons
         if not self.static:

@@ -171,7 +171,6 @@ class AdminCog(commands.Cog):
                             cbar_label=Messages.VIS_EVENTS, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
-            if os.path.exists(output): os.remove(output)
             
         elif type == "voice":
             # Let's see which voice channels are the most popular!
@@ -195,7 +194,6 @@ class AdminCog(commands.Cog):
                                 min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
-            if os.path.exists(output): os.remove(output)
             
         elif type == "dedication":
             raw_data = self.db.get_top_average_voice_duration(interaction.guild_id, days)
@@ -217,7 +215,6 @@ class AdminCog(commands.Cog):
                                 min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
-            if os.path.exists(output): os.remove(output)
             
         elif type == "text_channels":
             raw_data = self.db.get_channel_activity_raw(interaction.guild_id, days)
@@ -238,7 +235,6 @@ class AdminCog(commands.Cog):
                                 output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
-            if os.path.exists(output): os.remove(output)
 
     @app_commands.command(name="game-details", description=Messages.CMD_GAME_DETAILS_DESC)
     @app_commands.describe(game=Messages.CMD_GAME_DETAILS_GAME_DESC)
