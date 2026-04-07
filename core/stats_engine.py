@@ -22,21 +22,27 @@ class StatsEngine:
         # If someone is currently in a voice channel, we add their current minutes to their score right now!
         if live_voice_times:
             for main_id, start in live_voice_times.items():
-                if main_id in data:
-                    curr_mins = (now_utc - start).total_seconds() / 60
-                    data[main_id]["voice"] += curr_mins
-                    
-                    # We check the cached multiplier from the bot if possible
-                    if self.bot and main_id in self.bot.voice_multipliers:
-                        tier, is_streaming, _ = self.bot.voice_multipliers[main_id]
-                    else:
-                        # Fallback: Find all the active accounts for this person on the server to get the best tier
-                        linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
-                        tier, is_streaming, _ = ActivityProcessor.get_best_tier(linked_accounts)
-                    
-                    data[main_id]["points"] += (curr_mins * tier)
-                    if is_streaming:
-                        data[main_id]["stream"] += curr_mins
+                # If they aren't in the data yet (e.g. new user in their first session), we bootstrap them
+                if main_id not in data:
+                    data[main_id] = {
+                        "messages": 0, "reactions": 0, "voice": 0, 
+                        "points": 0, "stream": 0, "media": 0
+                    }
+                
+                curr_mins = (now_utc - start).total_seconds() / 60
+                data[main_id]["voice"] += curr_mins
+                
+                # We check the cached multiplier from the bot if possible
+                if self.bot and main_id in self.bot.voice_multipliers:
+                    tier, is_streaming, _ = self.bot.voice_multipliers[main_id]
+                else:
+                    # Fallback: Find all the active accounts for this person on the server to get the best tier
+                    linked_accounts = [m for m in guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+                    tier, is_streaming, _ = ActivityProcessor.get_best_tier(linked_accounts)
+                
+                data[main_id]["points"] += (curr_mins * tier)
+                if is_streaming:
+                    data[main_id]["stream"] = data[main_id].get("stream", 0) + curr_mins
 
         # Now we turn our data into a nice list where everyone has their score attached.
         scores = []

@@ -1005,7 +1005,8 @@ class DBManager:
             "user_activity", "daily_stats", "role_history", "game_activity", 
             "voice_sessions", "reaction_history", "active_voice_sessions", 
             "active_game_sessions", "membership_history", "elite_history", 
-            "tracked_games", "daily_game_stats", "reaction_role_messages"
+            "tracked_games", "daily_game_stats", "reaction_role_messages",
+            "voice_overlaps"
         ]
         with self._get_connection() as conn:
             for table in tables:
