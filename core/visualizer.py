@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import os
+import logging
 
 # We set a nice clean look for our charts!
 sns.set_theme(style="whitegrid")
@@ -10,6 +11,7 @@ def draw_peak_heatmap(data, title, x_label, y_label, day_names, cbar_label="Even
     """
     This function makes a cool 'heat map' that shows when the server is most busy during the week!
     """
+    logging.info(f"Generating peak heatmap at {output_path}")
     # Convert string indices from SQLite strftime to integers
     df = pd.DataFrame(data, columns=['day', 'hour', 'count'])
     df['day'] = df['day'].astype(int)
@@ -51,6 +53,7 @@ def draw_voice_usage_bars(data, title, x_label, y_label, min_suffix="m", output_
     if not data:
         return None
         
+    logging.info(f"Generating voice usage bars at {output_path}")
     df = pd.DataFrame(data, columns=['channel', 'minutes'])
     df = df.sort_values(by='minutes', ascending=False)
     
@@ -108,7 +111,11 @@ def draw_user_activity_chart(data, title, points_label="Points", voice_label="Vo
     # Remove top spines
     sns.despine(top=True, right=False)
     
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=120, transparent=False, facecolor='white')
-    plt.close()
+    try:
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=120, transparent=False, facecolor='white')
+        plt.close()
+    except Exception as e:
+        plt.close()
+        raise RuntimeError(f"Matplotlib failed to save to {output_path}: {e}")
     return output_path

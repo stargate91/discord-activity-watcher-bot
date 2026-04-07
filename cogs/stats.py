@@ -108,14 +108,15 @@ class StatsCog(commands.Cog):
 
         if daily_activity:
             os.makedirs("temp", exist_ok=True)
-            path = f"temp/profile_{main_id}_{int(datetime.datetime.now().timestamp())}.png"
+            # Use absolute path to ensure matplotlib saves it exactly where we expect
+            path = os.path.abspath(f"temp/profile_{main_id}_{int(datetime.datetime.now().timestamp())}.png")
             draw_user_activity_chart(daily_activity, f"Activity: {user.display_name}", path)
             if os.path.exists(path):
                 chart_file = discord.File(path, filename="chart.png")
                 chart_url = "attachment://chart.png"
-                log.info(f"Chart generated successfully: {chart_url}")
+                log.info(f"Chart generated successfully at: {path}")
             else:
-                log.warning(f"Chart file not found at {path}")
+                log.error(f"Chart file missing after generation at: {path}")
 
         view = ModernProfileView(user, data, points, voice_mins, social, partners, rank, top_games, avg_daily, avg_voice, 
                                  joined_at=joined_at, tenure_days=tenure_days, efficiency=efficiency, chart_url=chart_url, 
