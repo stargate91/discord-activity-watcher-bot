@@ -267,6 +267,7 @@ class ModernElitesView(discord.ui.LayoutView):
         # 1. Header (Standardized titles)
         title = title or Messages.ELITES_TITLE
         container_items.append(discord.ui.TextDisplay(f"# {title}\n{datetime.datetime.now().strftime('%Y-%m-%d')}"))
+        container_items.append(discord.ui.Separator())
         
         # 2. Winners
         winners_list = list(elite_data.items())
