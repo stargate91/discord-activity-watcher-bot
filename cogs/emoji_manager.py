@@ -260,74 +260,82 @@ class EmojiManager(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         guild = interaction.guild
         
-        # We get all the emojis and stickers
-        emojis = sorted(guild.emojis, key=lambda x: x.name)
-        stickers = sorted(guild.stickers, key=lambda x: x.name)
+        log.info(f"EmojiManager: Generating items for /emoji list in {guild.name}...")
         
-        # Mapping them to strings
-        emoji_strs = [str(e) for e in emojis]
-        sticker_names = [s.name for s in stickers]
-        
-        # How many should we show on one page?
-        EMOJIS_PER_PAGE = 30
-        STICKERS_PER_PAGE = 15
-        
-        # Calculate total pages needed
-        total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
-        total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
-        total_pages = max(total_emoji_pages, total_sticker_pages, 1)
-        
-        page_items = []
-        
-        for i in range(total_pages):
-            # We collect items for this page's container
-            items = [
-                discord.ui.Section(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
-                discord.ui.Separator()
-            ]
-            
-            # 1. Emojis Section
-            start_e = i * EMOJIS_PER_PAGE
-            end_e = start_e + EMOJIS_PER_PAGE
-            page_emojis = emoji_strs[start_e:end_e]
-            
-            if page_emojis:
-                title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
-                items.append(discord.ui.TextDisplay(f"### {title}\n{' '.join(page_emojis)}"))
-            
-            # 2. Stickers Section
-            start_s = i * STICKERS_PER_PAGE
-            end_s = start_s + STICKERS_PER_PAGE
-            page_stickers = sticker_names[start_s:end_s]
-            
-            if page_stickers:
-                if page_emojis:
-                    items.append(discord.ui.Separator())
-                
-                title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
-                items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
-            
-            page_items.append(items)
-
-        if not page_items:
-            # If for some reason there's nothing to show
-            empty_items = [
-                discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
-                discord.ui.Separator(),
-                discord.ui.TextDisplay(t("LB_EMPTY"))
-            ]
-            page_items.append(empty_items)
-
-        # Build the paginator and send it!
-        log.info(f"EmojiManager: Building ModernPaginatorView for guild {interaction.guild.name}...")
         try:
+            # We get all the emojis and stickers
+            emojis = sorted(guild.emojis, key=lambda x: x.name)
+            stickers = sorted(guild.stickers, key=lambda x: x.name)
+            
+            # Mapping them to strings
+            emoji_strs = [str(e) for e in emojis]
+            sticker_names = [s.name for s in stickers]
+            
+            # How many should we show on one page?
+            EMOJIS_PER_PAGE = 30
+            STICKERS_PER_PAGE = 15
+            
+            # Calculate total pages needed
+            total_emoji_pages = (len(emoji_strs) + EMOJIS_PER_PAGE - 1) // EMOJIS_PER_PAGE
+            total_sticker_pages = (len(sticker_names) + STICKERS_PER_PAGE - 1) // STICKERS_PER_PAGE
+            total_pages = max(total_emoji_pages, total_sticker_pages, 1)
+            
+            page_items = []
+            
+            for i in range(total_pages):
+                # FIXED: Using TextDisplay instead of Section for consistency with /top
+                items = [
+                    discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                    discord.ui.Separator()
+                ]
+                
+                # 1. Emojis Section
+                start_e = i * EMOJIS_PER_PAGE
+                end_e = start_e + EMOJIS_PER_PAGE
+                page_emojis = emoji_strs[start_e:end_e]
+                
+                if page_emojis:
+                    title = t("EMOJI_LIST_TITLE", count=len(emojis), limit=guild.emoji_limit)
+                    items.append(discord.ui.TextDisplay(f"### {title}\n{' '.join(page_emojis)}"))
+                
+                # 2. Stickers Section
+                start_s = i * STICKERS_PER_PAGE
+                end_s = start_s + STICKERS_PER_PAGE
+                page_stickers = sticker_names[start_s:end_s]
+                
+                if page_stickers:
+                    if page_emojis:
+                        items.append(discord.ui.Separator())
+                    
+                    title = t("STICKER_LIST_TITLE", count=len(stickers), limit=guild.sticker_limit)
+                    items.append(discord.ui.TextDisplay(f"### {title}\n{', '.join(page_stickers)}"))
+                
+                page_items.append(items)
+
+            if not page_items:
+                # If for some reason there's nothing to show
+                empty_items = [
+                    discord.ui.TextDisplay(f"# {Messages.EMOJI_LIST_INVENTORY_TITLE.format(guild=guild.name)}"),
+                    discord.ui.Separator(),
+                    discord.ui.TextDisplay(t("LB_EMPTY"))
+                ]
+                page_items.append(empty_items)
+
+            # Build the paginator and send it!
+            log.info(f"EmojiManager: Building ModernPaginatorView with {len(page_items)} pages...")
             view = ModernPaginatorView(page_items, user=interaction.user)
-            log.info(f"EmojiManager: View created. Sending followup for {interaction.user.name}...")
+            
+            log.info(f"EmojiManager: Sending followup for {interaction.user.name}...")
             await interaction.followup.send(view=view, ephemeral=True)
             log.info(f"EmojiManager: Followup sent successfully for /emoji list.")
+            
         except Exception as e:
             log.error(f"Error in list_emojis: {e}", exc_info=True)
-            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
+            error_msg = get_feedback('ERR_GENERIC', e=e)
+            if interaction.response.is_done():
+                await interaction.followup.send(error_msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(error_msg, ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(EmojiManager(bot))
