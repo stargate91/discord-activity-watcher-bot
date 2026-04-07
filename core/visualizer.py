@@ -6,7 +6,7 @@ import os
 # Set a clean style for charts
 sns.set_theme(style="whitegrid")
 
-def draw_peak_heatmap(data, title, x_label, y_label, day_names, output_path="peak_heatmap.png"):
+def draw_peak_heatmap(data, title, x_label, y_label, day_names, cbar_label="Events", output_path="peak_heatmap.png"):
     """
     Creates a heatmap showing server activity by day of week and hour of day.
     data: list of tuples (day_index_str, hour_index_str, count)
@@ -35,7 +35,7 @@ def draw_peak_heatmap(data, title, x_label, y_label, day_names, output_path="pea
 
     plt.figure(figsize=(14, 7))
     # Use a vibrant color map (magma or YlGnBu)
-    sns.heatmap(pivot, annot=True, fmt="g", cmap="magma", cbar_kws={'label': 'Events'})
+    sns.heatmap(pivot, annot=True, fmt="g", cmap="magma", cbar_kws={'label': cbar_label})
     
     plt.title(title, fontsize=16, pad=20)
     plt.xlabel(x_label, fontsize=12)
@@ -46,7 +46,7 @@ def draw_peak_heatmap(data, title, x_label, y_label, day_names, output_path="pea
     plt.close()
     return output_path
 
-def draw_voice_usage_bars(data, title, x_label, y_label, output_path="voice_bars.png"):
+def draw_voice_usage_bars(data, title, x_label, y_label, min_suffix="m", output_path="voice_bars.png"):
     """
     Creates a bar chart showing voice usage duration per channel.
     data: list of tuples (channel_name, minutes)
@@ -64,7 +64,7 @@ def draw_voice_usage_bars(data, title, x_label, y_label, output_path="voice_bars
     # Add values at the end of bars
     for p in ax.patches:
         width = p.get_width()
-        plt.text(width + 1, p.get_y() + p.get_height()/2, f'{int(width)}m', ha='left', va='center')
+        plt.text(width + 1, p.get_y() + p.get_height()/2, f'{int(width)}{min_suffix}', ha='left', va='center')
 
     plt.title(title, fontsize=16, pad=20)
     plt.xlabel(x_label, fontsize=12)
@@ -75,7 +75,7 @@ def draw_voice_usage_bars(data, title, x_label, y_label, output_path="voice_bars
     plt.close()
     return output_path
 
-def draw_user_activity_chart(data, title, output_path="activity_chart.png"):
+def draw_user_activity_chart(data, title, points_label="Points", voice_label="Voice Mins", y_points_label="Activity Points", y_voice_label="Voice Minutes", output_path="activity_chart.png"):
     """
     Creates a composite line chart showing daily points and voice minutes for a user.
     data: list of tuples (date_str, points, voice_minutes)
@@ -91,18 +91,18 @@ def draw_user_activity_chart(data, title, output_path="activity_chart.png"):
     
     # 1. Primary axis: Points (Blue)
     color_points = "#3498db"
-    ax1 = sns.lineplot(x='date', y='points', data=df, marker='o', color=color_points, linewidth=2.5, label="Points")
+    ax1 = sns.lineplot(x='date', y='points', data=df, marker='o', color=color_points, linewidth=2.5, label=points_label)
     plt.fill_between(df['date'], df['points'], color=color_points, alpha=0.1)
     
     # 2. Secondary axis: Voice Mins (Greenish-Yellow/Gold)
     ax2 = ax1.twinx()
     color_voice = "#f1c40f"
-    sns.lineplot(x='date', y='voice', data=df, marker='s', color=color_voice, linewidth=1.5, ls='--', ax=ax2, label="Voice Mins")
+    sns.lineplot(x='date', y='voice', data=df, marker='s', color=color_voice, linewidth=1.5, ls='--', ax=ax2, label=voice_label)
     
     ax1.set_title(title, fontsize=14, pad=15)
     ax1.set_xlabel(None)
-    ax1.set_ylabel("Activity Points", color=color_points, fontsize=10)
-    ax2.set_ylabel("Voice Minutes", color=color_voice, fontsize=10)
+    ax1.set_ylabel(y_points_label, color=color_points, fontsize=10)
+    ax2.set_ylabel(y_voice_label, color=color_voice, fontsize=10)
     
     # Grid and legend
     ax1.grid(True, alpha=0.3, ls=':')

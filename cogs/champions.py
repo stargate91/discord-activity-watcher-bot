@@ -8,6 +8,7 @@ from config_loader import Config
 from core.messages import Messages
 from core.ui_icons import Icons
 from core.views import ModernChampionsView
+from core.ui_utils import get_feedback
 from cogs.admin import is_admin_slash, is_tester_slash
 
 class ChampionsCog(commands.Cog):
@@ -198,7 +199,7 @@ class ChampionsCog(commands.Cog):
             
             log.info(f"Weekly Champions announced in {stats_channel.name} using Modern UI")
 
-    @discord.app_commands.command(name="force_calculate_champions", description="Manuális heti rangosztás (csak Admin / Bárhol használható)")
+    @discord.app_commands.command(name="force_calculate_champions", description=Messages.CMD_CHAMPIONS_FORCE_DESC)
     @is_admin_slash()
     async def force_calculate_champions(self, interaction: discord.Interaction):
         """Forces the weekly champion calculation logic immediately."""
@@ -206,14 +207,14 @@ class ChampionsCog(commands.Cog):
         try:
             guild = interaction.guild
             if guild.id != Config.GUILD_ID:
-                await interaction.followup.send(f"❌ Ez a parancs csak a kijelölt szerveren ({Config.GUILD_ID}) használható.", ephemeral=True)
+                await interaction.followup.send(get_feedback('ERR_WRONG_GUILD', guild_id=Config.GUILD_ID), ephemeral=True)
                 return
                 
             await self._run_champion_logic(guild, force=True)
-            await interaction.followup.send("✅ Sikerült! A heti rangok kiszámítása és kiosztása megtörtént.", ephemeral=True)
+            await interaction.followup.send(get_feedback('SUCCESS_CHAMPIONS_FORCED'), ephemeral=True)
         except Exception as e:
             log.error(f"Error in force_calculate_champions: {e}")
-            await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
 
     def _get_eligible_champion(self, guild, candidates):
@@ -323,7 +324,7 @@ class ChampionsCog(commands.Cog):
         except Exception as e:
             import traceback
             traceback.print_exc()
-            await interaction.followup.send(f"❌ Error during layout test: {e}", ephemeral=True)
+            await interaction.followup.send(get_feedback('ERR_LAYOUT_TEST', e=e), ephemeral=True)
 
     @discord.app_commands.command(name="weekly_chances", description=Messages.CMD_WEEKLY_STANDINGS_DESC)
     async def weekly_chances(self, interaction: discord.Interaction):
@@ -386,7 +387,7 @@ class ChampionsCog(commands.Cog):
             await interaction.followup.send(view=view)
         except Exception as e:
             log.error(f"Error in heti_eselyek: {e}")
-            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ChampionsCog(bot))

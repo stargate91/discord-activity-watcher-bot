@@ -12,6 +12,12 @@ def get_feedback(key: str, **kwargs) -> str:
         "ERR_STATS_LOAD": Icons.ERROR,
         "ERR_STATS_NOT_FOUND": Icons.ERROR,
         "DB_RESET_ERROR": Icons.ERROR,
+        "ERR_GENERIC": Icons.ERROR,
+        "ERR_WRONG_GUILD": Icons.ERROR,
+        "ERR_LAYOUT_TEST": Icons.ERROR,
+        "ERR_LIMIT_REACHED": Icons.ERROR,
+        "ERR_INVALID_ID": Icons.ERROR,
+        "ERR_CONFIG_SAVE": Icons.ERROR,
 
         # --- Warnings (Icons.WARNING) ---
         "no_permission": Icons.WARNING,
@@ -34,6 +40,8 @@ def get_feedback(key: str, **kwargs) -> str:
         "SUCCESS_SHARED": Icons.SUCCESS,
         "GAME_ADDED": Icons.SUCCESS,
         "DB_RESET_SUCCESS": Icons.SUCCESS,
+        "SUCCESS_CHAMPIONS_FORCED": Icons.SUCCESS,
+        "MODAL_ALT_SUCCESS": Icons.SUCCESS,
         "CMD_CLEAR_DONE": Icons.SUCCESS,
         "GAME_REPORT_DONE": Icons.SUCCESS,
         "STREAM_HISTORY_DONE": Icons.SUCCESS,

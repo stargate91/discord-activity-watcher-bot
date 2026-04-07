@@ -7,6 +7,7 @@ import math
 from config_loader import Config
 from core.messages import Messages
 from core.ui_translate import t
+from core.ui_utils import get_feedback
 from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 
@@ -129,7 +130,7 @@ class AdminCog(commands.Cog):
             if os.path.exists(filename):
                 os.remove(filename)
         except Exception as e:
-            await interaction.followup.send(f"❌ Hiba történt a riport generálása közben: `{e}`", ephemeral=True)
+            await interaction.followup.send(get_feedback('ERR_STATS_LOAD', e=e), ephemeral=True)
 
 
     @app_commands.command(name="server_analysis", description=Messages.CMD_SERVER_ANALYSIS_DESC)
@@ -165,7 +166,8 @@ class AdminCog(commands.Cog):
             day_names = [getattr(Messages, f"DAY_{i}") for i in range(7)]
             output = f"peak_{interaction.guild_id}.png"
             draw_peak_heatmap(data, Messages.CHART_PEAK_TITLE.format(tf=tf_name), 
-                            Messages.CHART_X_HOUR, Messages.CHART_Y_DAY, day_names, output)
+                            Messages.CHART_X_HOUR, Messages.CHART_Y_DAY, day_names, 
+                            cbar_label=Messages.VIS_EVENTS, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)
@@ -186,7 +188,8 @@ class AdminCog(commands.Cog):
             output = f"voice_{interaction.guild_id}.png"
             # Switch axes description for bar chart: x is minutes, y is Channel
             draw_voice_usage_bars(formatted_data, Messages.CHART_VOICE_TITLE.format(tf=tf_name), 
-                                Messages.CHART_Y_MINUTES, "Channel", output)
+                                Messages.CHART_Y_MINUTES, Messages.FIELD_CHANNEL, 
+                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)
@@ -206,7 +209,8 @@ class AdminCog(commands.Cog):
             
             output = f"dedication_{interaction.guild_id}.png"
             draw_voice_usage_bars(formatted_data, Messages.CHART_DEDICATION_TITLE.format(tf=tf_name), 
-                                Messages.CHART_X_MIN_SESSION, "User", output)
+                                Messages.CHART_X_MIN_SESSION, Messages.FIELD_NAME, 
+                                min_suffix=Messages.VIS_MIN_SUFFIX, output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)
@@ -225,7 +229,8 @@ class AdminCog(commands.Cog):
                 
             output = f"channels_{interaction.guild_id}.png"
             draw_voice_usage_bars(formatted_data, Messages.CHART_CHANNEL_TITLE.format(tf=tf_name), 
-                                Messages.CHART_Y_MESSAGES, "Channel", output)
+                                Messages.CHART_Y_MESSAGES, Messages.FIELD_CHANNEL, 
+                                output_path=output)
             
             await interaction.followup.send(file=discord.File(output))
             if os.path.exists(output): os.remove(output)

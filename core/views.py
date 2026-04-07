@@ -3,6 +3,8 @@ import datetime
 from discord.ui import LayoutView, Container, Section, TextDisplay, Thumbnail, Separator, ActionRow, Button, Modal, TextInput
 from config_loader import Config
 from core.messages import Messages
+from core.ui_translate import t
+from core.ui_utils import get_feedback
 
 class ModernLeaderboardView(discord.ui.LayoutView):
     # This is the class that builds the list of top players (the leaderboard)
@@ -359,7 +361,7 @@ class ModernChampionsView(discord.ui.LayoutView):
 class AltAccountModal(discord.ui.Modal):
     # This modal allows administrators to link an alt/mini account to a main account
     def __init__(self):
-        super().__init__(title="Mini Account Összekötés")
+        super().__init__(title=t("MODAL_ALT_TITLE"))
         
         self.alt_id = TextInput(
             label="Mini Account Discord ID",
@@ -382,7 +384,7 @@ class AltAccountModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         # We check if the IDs are actually numbers
         if not self.alt_id.value.isdigit() or not self.main_id.value.isdigit():
-            await interaction.response.send_message("❌ Érvénytelen Discord ID (csak számokat tartalmazhat)!", ephemeral=True)
+            await interaction.response.send_message(get_feedback('ERR_INVALID_ID'), ephemeral=True)
             return
             
         alt_id_int = int(self.alt_id.value)
@@ -391,8 +393,8 @@ class AltAccountModal(discord.ui.Modal):
         # Update config and memory
         if Config.update_user_mapping(alt_id_int, main_id_int):
             await interaction.response.send_message(
-                f"✅ **Összekötés sikeres!**\nSikeresen összekötöttük a(z) <@{alt_id_int}> fiókot a(z) <@{main_id_int}> fő fiókkal.",
+                get_feedback('MODAL_ALT_SUCCESS', alt_id=alt_id_int, main_id=main_id_int),
                 ephemeral=True
             )
         else:
-            await interaction.response.send_message("❌ Hiba történt a konfiguráció mentése során!", ephemeral=True)
+            await interaction.response.send_message(get_feedback('ERR_CONFIG_SAVE'), ephemeral=True)

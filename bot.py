@@ -77,13 +77,14 @@ class IrisBot(commands.Bot):
 
 if __name__ == "__main__":
     try:
-        log.info("--- Iris Bot Starting ---")
+        # Load language first so logs are localized
+        Messages.load_language(Config.LANGUAGE)
+        log.info(Messages.LOG_BOT_START)
         
         # 1. Initialize UI components and localization safely
-        log.info("Initializing UI & Locales...")
+        log.info(Messages.LOG_UI_INIT)
         Icons.setup(Config)
         Theme.init_theme(Config)
-        Messages.load_language(Config.LANGUAGE)
         
         # 2. Validate Config
         val_error = Config.validate()
@@ -93,7 +94,7 @@ if __name__ == "__main__":
             sys.exit(1)
             
         # 3. Start the bot
-        log.info("Connecting to Discord...")
+        log.info(Messages.LOG_CONNECTING)
         bot = IrisBot()
         bot.run(Config.TOKEN)
         

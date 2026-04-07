@@ -7,7 +7,9 @@ import io
 import os
 from core.messages import Messages
 from core.ui_translate import t
+from core.ui_translate import t
 from core.logger import log
+from core.ui_utils import get_feedback
 
 class EmojiManager(commands.Cog):
     def __init__(self, bot):
@@ -30,7 +32,7 @@ class EmojiManager(commands.Cog):
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
 
-    emoji_group = app_commands.Group(name="emoji", description="Emoji management commands")
+    emoji_group = app_commands.Group(name="emoji", description=Messages.CMD_EMOJI_GROUP_DESC)
 
     async def fetch_emoji_gg_asset(self, asset_type, asset_id):
         """
@@ -123,18 +125,18 @@ class EmojiManager(commands.Cog):
                 msg = t("STICKER_ADDED_SUCCESS", name=sticker.name)
             
             await interaction.followup.send(msg)
-            log.info(f"EmojiManager: Added {type} '{name}' to guild {interaction.guild.name}")
+            log.info(t("LOG_EMOJI_ADDED", type=type, name=name, guild=interaction.guild.name))
             
         except discord.Forbidden:
-            await interaction.followup.send("❌ I don't have permission to manage emojis/stickers.")
+            await interaction.followup.send(t("ERR_NO_PERMISSION"))
         except discord.HTTPException as e:
             # Check for specific error codes: 30008 (Emoji limit), 30039 (Sticker limit)
             if e.code in [30008, 30039]:
-                await interaction.followup.send(f"❌ {t('ERR_LIMIT_REACHED')}")
+                await interaction.followup.send(get_feedback('ERR_LIMIT_REACHED'))
             else:
-                await interaction.followup.send(f"❌ Error: {e.message}")
+                await interaction.followup.send(get_feedback('ERR_GENERIC', e=e.message))
         except Exception as e:
-            await interaction.followup.send(f"❌ Error: {e}")
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=e))
 
     async def asset_autocomplete(self, interaction: discord.Interaction, current: str):
         """Autocomplete for both emojis and stickers."""
@@ -176,7 +178,7 @@ class EmojiManager(commands.Cog):
             await interaction.response.send_message(t("EMOJI_DELETED_SUCCESS", name=old_name), ephemeral=True)
             log.info(f"EmojiManager: Deleted asset '{old_name}' from guild {interaction.guild.name}")
         except Exception as e:
-            await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
     async def emoji_only_autocomplete(self, interaction: discord.Interaction, current: str):
         """Autocomplete for only emojis (for rename and large)."""
@@ -204,7 +206,7 @@ class EmojiManager(commands.Cog):
             await actual_emoji.edit(name=clean_name)
             await interaction.response.send_message(t("EMOJI_RENAMED_SUCCESS", old=old_name, new=clean_name), ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+            await interaction.response.send_message(get_feedback('ERR_GENERIC', e=e), ephemeral=True)
 
     @emoji_group.command(name="large", description=Messages.CMD_LARGE_EMOJI_DESC)
     @app_commands.describe(emoji="Select an emoji")
