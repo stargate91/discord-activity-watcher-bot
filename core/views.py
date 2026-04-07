@@ -164,11 +164,7 @@ class ModernProfileView(discord.ui.LayoutView):
             
             # Header
             container_items.append(discord.ui.TextDisplay(f"{Icons.CHART} {Messages.SECTION_ACTIVITY} (7D)"))
-            
-            # MediaGallery requires a list of items
-            container_items.append(discord.ui.MediaGallery(
-                [discord.ui.MediaGalleryItem(chart_url)]
-            ))
+            # The chart image itself is rendered using an Embed fallback alongside this View.
 
         # 8. Buttons
         if not self.static:
