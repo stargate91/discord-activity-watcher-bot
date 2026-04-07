@@ -67,16 +67,7 @@ class ActivityProcessor:
         if member.voice.channel.id == Config.AFK_CHANNEL_ID:
             return 0, False, "AFK"
 
-        # Check for mute/deaf state to determine point rate
-        if member.voice.self_deaf or member.voice.deaf:
-            # Deafened people hear nothing and get nothing (0 points)
-            return 0, False, "Deafened"
-            
-        if member.voice.self_mute or member.voice.mute:
-            # Muted people are just listening, they get half points (1 point)
-            return 1, False, "Muted"
-
-        # Check if streaming to the server (Go Live)
+        # 1. Check if streaming to the server (Go Live) - This is a high-priority active state!
         if member.voice.self_stream:
             # Check if they are actually in a game to determine stream name
             stream_name = Config.DEFAULT_STREAM_NAME
@@ -87,9 +78,18 @@ class ActivityProcessor:
                     break
             return Config.POINTS_STREAM_BONUS + Config.POINTS_VOICE, True, f"Streaming: {stream_name}"
         
-        # Camera on bonus
+        # 2. Camera on bonus - Also an active state
         if member.voice.self_video:
             return Config.POINTS_VOICE + 1, False, "Video On"
+
+        # 3. Check for mute/deaf state to determine point rate for passive listeners
+        if member.voice.self_deaf or member.voice.deaf:
+            # Deafened people hear nothing and get nothing (0 points)
+            return 0, False, "Deafened"
+            
+        if member.voice.self_mute or member.voice.mute:
+            # Muted people are just listening, they get half points (1 point)
+            return 1, False, "Muted"
             
         # Regular voice activity
         return Config.POINTS_VOICE, False, "Voice"
