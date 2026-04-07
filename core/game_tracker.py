@@ -47,6 +47,45 @@ class GameTracker:
                 games.add(name)
         return games
 
+    async def sync_member_games(self, member):
+        """
+        This helps the bot 'see' what you were already playing when it first wakes up!
+        """
+        if member.bot or not member.guild: return
+        
+        main_id = Config.get_main_id(member.id)
+        current_games = self._get_games(member)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        
+        for game in current_games:
+            key = (main_id, member.guild.id, game)
+            
+            # Increment the count of how many copies of this person are playing this game
+            self.playing_counts[key] = self.playing_counts.get(key, 0) + 1
+            
+            # If this is the first account we've seen playing this game, start the session
+            if self.playing_counts[key] == 1:
+                # If we aren't already tracking this session (it wasn't in the DB from last time)
+                if key not in self.active_sessions:
+                    self.active_sessions[key] = now
+                    self.db.start_game_session(main_id, member.guild.id, game, now)
+                    
+                # If it's a game we track, make sure they have the role!
+                bot_assigned = False
+                if game.startswith(Config.GAME_ROLE_PREFIX):
+                    role = discord.utils.get(member.guild.roles, name=game)
+                    if role:
+                        bot_assigned = True
+                        if role not in member.roles:
+                            try:
+                                await member.add_roles(role)
+                                log.info(f"Sync: Assigned {game} to {member.name} on startup")
+                            except discord.Forbidden:
+                                pass
+                
+                # Update records about this game
+                self.db.update_game_activity(main_id, member.guild.id, game, bot_assigned=bot_assigned)
+
     async def handle_presence_update(self, before, after):
         # This part runs every time someone starts or stops playing a game, or changes their status!
         if after.bot or not after.guild: return

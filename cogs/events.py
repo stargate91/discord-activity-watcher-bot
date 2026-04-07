@@ -100,12 +100,13 @@ class EventsCog(commands.Cog):
                 if not self.db.get_user_data(Config.get_main_id(m.id), guild.id):
                     self.db.update_activity(Config.get_main_id(m.id), guild.id)
                 
-                # Automated Join Date Sync
-                main_id = Config.get_main_id(m.id)
                 if not self.db.get_user_join_date(main_id, guild.id):
                     if m.joined_at:
                         self.db.update_join_date(main_id, guild.id, m.joined_at)
                         log.debug(f"Synced join date for {m.display_name}: {m.joined_at}")
+                
+                # Automated Game Sync
+                await self.tracker.sync_member_games(m)
             
             # Sync voice sessions
             for m in guild.members:
