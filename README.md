@@ -1,79 +1,61 @@
-# 👁️ Watcher Bot - Elite Activity & Engagement Manager
+# Iris Bot - Server Activity Tracker
 
-A state-of-the-art Discord bot designed for professional community management. It provides high-precision activity monitoring, automated game role distribution, and a gamified engagement system through a modern, configuration-driven UI.
+Hello! This is the README file for our project called Iris. It is a very cool Discord bot that we built to help people keep track of what is happening on their servers. It watches who is talking, who is playing games, and who is hanging out in voice channels, and then it gives them points for being active.
 
-## ✨ Key Features
+## What this bot does
 
-### 🏆 Gamification & Rewards
-- **Weekly Champions**: Automatically awards unique roles every Monday to the top performers:
-  - **GodGamer (Hardcore)**: Most minutes spent in tracked games.
-  - **GodGamer (Variety)**: Played the most diverse set of games.
-  - **SpotiViber**: The most active music listener on the server.
-  - **Sharing is Caring**: Most time spent streaming to the community.
-  - **MemeLord**: Awarded for sharing the most media content (links, images, videos).
-- **Hall of Fame**: Permanent recognition for users who win 5+ weekly championships.
-- **Champion Log**: Detailed history and Hall of Fame views via `/champion_log`.
-- **Modern Leaderboards**: Beautiful, icon-mapped `/top` (Weekly, Monthly, All-time) and `/me` profiles.
+We wanted to make a bot that makes servers more fun. Here are the main things it can do:
 
-### 🛡️ Smart Activity Processing
-- **ActivityProcessor**: Centralized business logic for point calculation and media detection.
-- **Media Factory**: Earn bonus points for sharing YouTube, TikTok, images, or links.
-- **Dynamic Multipliers**: Voice points are calculated based on participation tiers (Streaming, Camera on, etc.).
-- **Server Veteran System**: Tracks tenure and calculates a **Loyalty Index** based on activity vs. time joined.
-- **Auto Game Roles**: Dynamic role distribution based on what game you are currently playing.
+### Tracking and Points
+The bot is like a very organized secretary. It watches when people send messages or add reactions to things. If you share a cool picture or a video link from YouTube or TikTok, the bot notices and gives you extra points for being helpful and sharing media. It even knows if you are just talking or if you are sharing your screen or camera in a voice room, and it calculates your points based on that.
 
-### 🔗 Unified Identity (Alt & Mini Accounts)
-- Link multiple Discord accounts to a single primary identity via `/link_alt`.
-- Automatic aggregation of messages, reactions, voice time, and game playtime across all accounts.
-- **Atomic Role Sync**: Inactivity and game roles are automatically synced across ALL linked identities.
+### Games and Roles
+Iris loves games! It can automatically give you a role on Discord based on the game you are playing right now. We also have a system called Franchises where we group similar games together.
 
-### ⚡ Professional Infrastructure
-- **Dynamic Help Menu**: Admin dashboard that automatically discovers all registered prefix and slash commands.
-- **Localization Engine**: Full support for Hungarian and English, powered by centralized JSON locale files.
-- **Icon Mapping**: Custom Discord application symbols can be mapped in `config.json` without touching the code.
-- **Security Decorators**: Standardized role-based access control (`is_admin`, `is_tester`).
+### Weekly Champions
+Every Monday, the bot looks at its notebook (the database) and finds out who was the most active during the week. It gives out special awards for things like:
+- Playing the most games
+- Playing many different types of games
+- Listening to the most music on Spotify
+- Streaming for the community
+- Sharing the most memes and pictures
+There is also a Hall of Fame for people who win a lot of times!
 
-## 🚀 Setup & Installation
+### Profiles and Leaderboards
+Users can type /me to see a very pretty card that shows all their stats. It even has a little chart that shows how active they were during the week. You can also use /top to see who the top 10 people on the whole server are.
 
-### 1. Prerequisites
-- Python 3.10+
-- SQLite3
-- **Privileged Intents**: `Server Members`, `Presence`, `Message Content`, `Voice States`.
+### Linked Accounts
+Sometimes people have a second account or a "mini" account. Our bot is smart enough to link them together so all your points from both accounts go into one big pile. It also makes sure your roles are the same on all your accounts.
 
-### 2. Configuration
-- **[.env](file:///.env)**: Store your secret `DISCORD_TOKEN`.
-- **[config.json](file:///config.json)**: Manage Role IDs, Channel IDs, Emojis, and Activity Thresholds.
-- **[locales/](file:///locales/)**: Customize all bot responses in `hu.json` or `en.json`.
+### Emoji and Sticker Manager
+We added a special tool that lets server admins easily add new emojis or stickers from a website called emoji.gg or from any direct link. It can also rename them or show them in a very large size if you want to see the details.
 
-### 3. Running the Bot
-```bash
-pip install -r requirements.txt
-python bot.py
-```
+### Reaction Roles
+This part of the bot helps you set up those cool messages where people can click an emoji to get a role. The bot can even send the message for you and add all the emojis automatically!
 
-## 🛠️ Command Suites (Prefix Suffix: `_elf`)
+### Localization
+We made sure the bot can speak different languages! Right now it knows English and Hungarian. Everything the bot says is saved in simple JSON files, so it is very easy to add more languages later.
 
-### 📊 Public Commands (Stats/Public Channels)
-- `/top` - Explore the leaderboard with medals and tiers.
-- `/me` - View your comprehensive profile card and veteran stats.
-- `/champion_log` - View the weekly Hall of Fame and historical winners.
-- `/server_analysis` - Visual heatmaps and charts of server activity.
-- `/info` - General introduction and bot features.
+### Admin and Logs
+For the people running the server, the bot keeps a very detailed log of everything that happens, like when someone joins, leaves, deletes a message, or changes their nickname. It also has a safety net to catch any errors and write them down so we can fix them.
 
-### 🛡️ Management & Dev (Admin/Tester Channels)
-- `/status_report` - Detailed audit of all members' activity and status.
-- `/game_details` - Deep dive into statistics for a specific game (Export to TXT).
-- `/membership_logs` - Export join/leave history logs.
-- `/stream_history` - Review recorded community streaming sessions.
-- `/link_alt` - Open the modal to link a secondary account.
-- `/info_dev` / `!info_dev_elf` - Dynamic administrator dashboard.
-- `!sync_elf` - Force synchronize all slash commands to Discord.
+## How to set it up
 
-## ⚙️ Core Architecture
-- **`db_manager.py`**: High-performance SQLite interaction with optimized indexing.
-- **`core/activity_processor.py`**: The logic behind scoring, tiers, and media detection.
-- **`core/messages.py`**: Localization and dynamic string formatting engine.
-- **`cogs/`**: Modularized features (Admin, Stats, Champions, Games, Events).
+If you want to run this bot yourself, here is what you need to do:
 
----
-*Built for communities that value engagement, transparency, and premium UI.*
+1. Make sure you have Python 3.10 or newer installed on your computer.
+2. Install the requirements by typing "pip install -r requirements.txt" in your terminal.
+3. Put your secret Discord Token into a file named .env.
+4. Open the config.json file and fill in the ID numbers for your server roles and channels.
+5. You can change what the bot says by looking at the files in the locales folder.
+6. Start the bot by running "python bot.py".
+
+## How it works inside
+
+We tried to keep the code very neat and organized:
+- The bot.py is the main brain that starts everything.
+- The cogs folder has different files for each feature, like stats or events.
+- The core folder has all the heavy-lifting logic, like the database manager and the image generator.
+- We use SQLite to save all the data because it is simple and fast.
+
+We are very happy with how it turned out and we hope it makes your server a much better place to hang out!
