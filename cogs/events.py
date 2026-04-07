@@ -282,6 +282,9 @@ class EventsCog(commands.Cog):
         main_id = Config.get_main_id(member.id)
         now = datetime.datetime.now(datetime.timezone.utc)
         
+        # We find all the active accounts for this person on the server
+        linked_accounts = [m for m in member.guild.members if Config.get_main_id(m.id) == main_id and not m.bot]
+        
         # Aggregate all linked accounts to find the best tier (Streaming > Video > Voice)
         # We check all your accounts to see who is doing the most exciting thing (like streaming!).
         new_tier, is_streaming, stream_name = ActivityProcessor.get_best_tier(linked_accounts)
