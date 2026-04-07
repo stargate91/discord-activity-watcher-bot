@@ -63,17 +63,21 @@ class StatsEngine:
                 # 2. Not in Top 10, fetch specific rank and stats
                 rank = self.db.get_user_rank(user_id, guild.id, days)
                 
-                u_raw = self.db.get_user_data(user_id, guild.id)
-                if not u_raw:
-                    u_stats = {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0}
+                if days:
+                    u_stats = self.db.get_user_stats_for_period(user_id, guild.id, days)
                 else:
-                    u_stats = {
-                        "messages": u_raw["message_count"],
-                        "reactions": u_raw["reaction_count"],
-                        "voice": u_raw["voice_minutes"],
-                        "points": u_raw["points_total"],
-                        "stream": u_raw["stream_minutes"]
-                    }
+                    u_raw = self.db.get_user_data(user_id, guild.id)
+                    if not u_raw:
+                        u_stats = {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
+                    else:
+                        u_stats = {
+                            "messages": u_raw["message_count"],
+                            "reactions": u_raw["reaction_count"],
+                            "voice": u_raw["voice_minutes"],
+                            "points": u_raw["points_total"],
+                            "stream": u_raw["stream_minutes"],
+                            "media": u_raw["media_count"]
+                        }
                 
                 # If they are currently talking in a voice channel, we add those extra points too!
                 live_points = 0

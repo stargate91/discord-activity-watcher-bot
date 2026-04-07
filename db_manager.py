@@ -164,15 +164,6 @@ class DBManager:
                 )
             """)
             
-            # Migration: Rename champion_history to elite_history if it exists
-            try:
-                cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='champion_history'")
-                if cursor.fetchone():
-                    conn.execute("INSERT INTO elite_history (user_id, guild_id, category, win_date) SELECT user_id, guild_id, category, win_date FROM champion_history")
-                    conn.execute("DROP TABLE champion_history")
-                    # Also update index if needed, but CREATE TABLE IF NOT EXISTS elite_history already handled it
-            except Exception as e:
-                pass # Already migrated or table doesn't exist
             # reaction_role_messages: Tracks which static reaction roles have been sent
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS reaction_role_messages (
@@ -385,6 +376,28 @@ class DBManager:
                 "stream": row[5] or 0,
                 "media": row[6] or 0
             } for row in rows}
+
+
+    def get_user_stats_for_period(self, user_id, guild_id, days):
+        """Gets summed stats for a specific user over a certain number of days."""
+        cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes), SUM(media_count)
+                FROM daily_stats 
+                WHERE user_id = ? AND guild_id = ? AND date >= ?
+            """, (int(user_id), int(guild_id), cutoff_date))
+            row = cursor.fetchone()
+            if row:
+                return {
+                    "messages": row[0] or 0,
+                    "reactions": row[1] or 0,
+                    "voice": row[2] or 0,
+                    "points": row[3] or 0,
+                    "stream": row[4] or 0,
+                    "media": row[5] or 0
+                }
+            return {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
 
     def get_user_data(self, user_id, guild_id):
         with self._get_connection() as conn:

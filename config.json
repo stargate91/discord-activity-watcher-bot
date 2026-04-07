@@ -152,7 +152,7 @@
     "reaction_roles": [
         {
             "identifier": "news_access",
-            "enabled": true,
+            "enabled": false,
             "channel_id": 1443383492091183235,
             "title": "📰 Hírcsatornák",
             "description": "Itt kérhetsz hozzáférést a kedvenc tartalomgyártóid dedikált hírfolyamához. Kattints a lenti emojikra, hogy vizuálisan lásd a posztokat!\n*(Megjegyzés: Ezektől a rangoktól még **NEM** kapsz zavaró push értesítéseket, kizárólag a csatornát teszik láthatóvá számodra.)*",
@@ -189,7 +189,7 @@
         },
         {
             "identifier": "news_pings",
-            "enabled": true,
+            "enabled": false,
             "channel_id": 1443383492091183235,
             "title": "🔔 Értesítések",
             "description": "Nem akarsz lemaradni az igazán friss tartalmakról? Vedd fel az Értesítő (Ping) rangokat!\nAmikor a rendszerünk új videót vagy streamet érzékel a tartalomgyártótól, azonnal **meg fog említeni téged** a hozzá tartozó hírfolyamban.",
@@ -221,7 +221,7 @@
         },
         {
             "identifier": "dota_battlecup",
-            "enabled": true,
+            "enabled": false,
             "channel_id": 1443383492091183235,
             "title": "🏆 Versenyek",
             "description": "Rendszeresen indulsz a hétvégi összecsapásokon?\nReagálj a lenti zöld pipával, hogy beállj a Battle Cup várólistára, így heti egyszer dedikált értesítést (pinget) kapsz a közelgő versenyek és csapatkeresések kapcsán!",
