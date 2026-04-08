@@ -47,6 +47,18 @@ class ReactionRolesCog(commands.Cog):
                     if not interaction.response.is_done():
                         await interaction.response.send_message(t("RR_ERROR_GENERIC"), ephemeral=True)
 
+    CLASS_STYLE_MAP = {
+        "primary": discord.ButtonStyle.primary,
+        "secondary": discord.ButtonStyle.secondary,
+        "success": discord.ButtonStyle.success,
+        "danger": discord.ButtonStyle.danger,
+        "blurple": discord.ButtonStyle.primary,
+        "grey": discord.ButtonStyle.secondary,
+        "gray": discord.ButtonStyle.secondary,
+        "green": discord.ButtonStyle.success,
+        "red": discord.ButtonStyle.danger
+    }
+
     async def init_reaction_roles(self):
         """
         This function runs when the bot starts up. It checks if our special 'Reaction Role' 
@@ -137,6 +149,11 @@ class ReactionRolesCog(commands.Cog):
                         mappings = config_data.get("mappings", [])
                         mode = config_data.get("mode", "reactions")
                         show_list = config_data.get("show_list", True)
+                        list_quote = config_data.get("list_quote", True)
+                        
+                        list_prefix = config_data.get("list_prefix", "▪️")
+                        # Ensure there's a space if prefix exists
+                        prefix_fmt = f"{list_prefix} " if list_prefix else ""
                         
                         if mode == "reactions":
                             if show_list and mappings:
@@ -146,9 +163,10 @@ class ReactionRolesCog(commands.Cog):
                                     emoji = mapping.get("emoji")
                                     label = mapping.get("label", "")
                                     if emoji:
-                                        lines.append(f"▪️ {emoji} **{label}**")
+                                        lines.append(f"{prefix_fmt}{emoji} **{label}**")
                                 if lines:
-                                    container.add_item(TextDisplay(">>> " + "\n".join(lines)))
+                                    quote_prefix = ">>> " if list_quote else ""
+                                    container.add_item(TextDisplay(quote_prefix + "\n".join(lines)))
                         elif mode == "buttons":
                             row_size = min(max(int(config_data.get("row_size", 5)), 1), 5)
                             current_row = ActionRow()
@@ -164,7 +182,10 @@ class ReactionRolesCog(commands.Cog):
                                 
                                 emoji = mapping.get("emoji")
                                 label = mapping.get("label")
-                                current_row.add_item(ReactionRoleButton(role_id=role_id, label=label, emoji=emoji))
+                                style_str = mapping.get("style", "secondary").lower()
+                                style = self.CLASS_STYLE_MAP.get(style_str, discord.ButtonStyle.secondary)
+                                
+                                current_row.add_item(ReactionRoleButton(role_id=role_id, label=label, emoji=emoji, style=style))
                             
                             if len(current_row.children) > 0:
                                 container.add_item(current_row)
