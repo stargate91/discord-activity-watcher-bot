@@ -206,23 +206,23 @@
             "mappings": [
                 {
                     "emoji_name": "whyfiles",
-                    "label": "Ping: Why Files",
-                    "role_name": "Ping: Why Files"
+                    "label": "Why Files",
+                    "role_name": "Hecklefisher"
                 },
                 {
                     "emoji_name": "criticaldrinker",
-                    "label": "Ping: Critical Drinker",
-                    "role_name": "Ping: Critical Drinker"
+                    "label": "Drinker",
+                    "role_name": "Drinker"
                 },
                 {
                     "emoji_name": "thevr",
-                    "label": "Ping: TheVR",
-                    "role_name": "Ping: TheVR"
+                    "label": "TheVR",
+                    "role_name": "TheVR"
                 },
                 {
                     "emoji_name": "asmongold",
-                    "label": "Ping: Asmongold",
-                    "role_name": "Ping: Asmongold"
+                    "label": "Asmondigger",
+                    "role_name": "Asmondigger"
                 }
             ]
         },
@@ -270,6 +270,54 @@
             "0c0d10"
         ],
         "color": "0x3498DB"
+    },
+    "boost": {
+        "enabled": true,
+        "channel_id": 1442726320655302686,
+        "show_timestamp": true,
+        "message_content": "{user.mention} rálőtt egy boostot a {guild.mention} szerverre!",
+        "title": "",
+        "title_url": "",
+        "header_text": "",
+        "header_icon": "",
+        "header_url": "",
+        "description": "",
+        "color": "0xF47FFF",
+        "thumbnail": "",
+        "images": [
+            "https://i.imgur.com/NQW4Hc0.png"
+        ],
+        "fields": [],
+        "footer_text": "",
+        "footer_icon": "",
+        "components_v2": {
+            "enabled": false,
+            "accent_color": "0xF47FFF",
+            "sections": [
+                {
+                    "texts": [
+                        "🚀 **{user.name}** boostolta a szervert!"
+                    ],
+                    "accessory_type": "thumbnail",
+                    "accessory_url": "{user.avatar}"
+                }
+            ],
+            "separator": true,
+            "gallery_images": [
+                "https://i.imgur.com/NQW4Hc0.png"
+            ],
+            "gallery_random": true,
+            "bottom_texts": [
+                "Köszönjük a támogatást! 💖 A szerver jelenleg **{boost_count}** boosttal rendelkezik."
+            ],
+            "buttons": [
+                {
+                    "label": "Booster jutalmak",
+                    "url": "",
+                    "emoji": "🎁"
+                }
+            ]
+        }
     },
     "logging": {
         "enabled": true,
