@@ -703,7 +703,7 @@ class AdminCog(commands.Cog):
             from core.ui_icons import Icons
 
             # Command Lists (Must match _get_command_access_info for consistency)
-            admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
+            admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename", "clear_commands", "clear-help"]
             tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
             stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
 
@@ -730,12 +730,22 @@ class AdminCog(commands.Cog):
             # 1. Gather Prefix Commands (Group into Admin/Tester/Everyone based on name)
             for cmd in self.bot.commands:
                 help_text = Config.format_desc(cmd.help or "---", guild)
-                # For prefix, we'll just check if it's in the hardcoded lists by name
-                role_label = Messages.HELP_ROLE_EVERYONE
-                if cmd.name in admin_cmds: role_label = Messages.HELP_ROLE_ADMIN
-                elif cmd.name in tester_cmds: role_label = Messages.HELP_ROLE_TESTER
                 
-                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.TOOLS} - *{help_text}*"
+                # Normalize name by removing suffix and replacing underscores for role lookup
+                base_name = cmd.name
+                if Config.SUFFIX and base_name.endswith(Config.SUFFIX):
+                    base_name = base_name[:-len(Config.SUFFIX)]
+                norm_name = base_name.replace("_", "-")
+
+                # Determine role based on normalized name
+                role_label = Messages.HELP_ROLE_EVERYONE
+                if norm_name in admin_cmds or base_name in admin_cmds: 
+                    role_label = Messages.HELP_ROLE_ADMIN
+                elif norm_name in tester_cmds or base_name in tester_cmds: 
+                    role_label = Messages.HELP_ROLE_TESTER
+                
+                # We remove the Tools icon and the accessory line as requested!
+                line = f"• **{Config.PREFIX}{cmd.name}** - *{help_text}*"
                 categorized[role_label][Messages.HELP_CHAN_ANY].append(line)
 
             # 2. Gather Slash Commands
