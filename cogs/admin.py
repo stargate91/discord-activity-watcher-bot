@@ -885,9 +885,12 @@ class AdminCog(commands.Cog):
                         elif chan_key == CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.STATS_CHANNEL_ID}>"
                     
-                    # Add LOCK icon for restricted categories as requested
-                    prefix = f"{Icons.LOCK} " if chan_key in [CHAN_ADMIN, CHAN_STATS] else ""
-                    # User requested only locks, so no c_icon here
+                    # Add LOCK icon for restricted categories, or GLOBE for 'Anywhere'
+                    if chan_key in [CHAN_ADMIN, CHAN_STATS]:
+                        prefix = f"{Icons.LOCK} "
+                    else:
+                        prefix = f"{Icons.CHAN_ANY} "
+                        
                     chan_header = f"> {prefix}**{display_chan}**"
                     add_to_page(chan_header, is_new_block=True)
                     
