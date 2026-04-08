@@ -161,6 +161,8 @@
             "identifier": "news_pings",
             "enabled": true,
             "show_list": false,
+            "mode": "buttons",
+            "row_size": 3,
             "channel_id": 1443383492091183235,
             "title": "<:bellringinglight:1491245890021753042> Értesítések",
             "description": "Nem akarsz lemaradni semmiről? Vedd fel az értesítő rangokat, és a rendszerünk azonnal **pingel téged**, amint új tartalom érkezik!\n\n**Free Looter** - Ingyenes játékok értesítései (Epic Games, Steam, GOG)\n**Why Files** - Új Why Files videók a YouTube-on\n**Drinker** - Critical Drinker és Critical Gamer új videói\n**TheVR** - TheVR Podcast, Tech, Shortcut és Gaming+ feltöltései\n**Digger** - Asmongold TV legfrissebb videói\n**Csillagász** - A csillagaszat.hu legújabb cikkei",
