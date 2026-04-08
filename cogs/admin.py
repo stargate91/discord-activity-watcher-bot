@@ -895,7 +895,9 @@ class AdminCog(commands.Cog):
                         elif chan == Messages.HELP_CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.STATS_CHANNEL_ID}>"
                     
-                    chan_header = f"> {c_icon} **{display_chan}**"
+                    # Add LOCK icon for restricted categories as requested
+                    prefix = f"{Icons.LOCK} " if chan in [Messages.HELP_CHAN_ADMIN, Messages.HELP_CHAN_STATS] else ""
+                    chan_header = f"> {c_icon} {prefix}**{display_chan}**"
                     add_to_page(chan_header, is_new_block=True)
                     
                     for line in cmd_lines:
@@ -904,12 +906,8 @@ class AdminCog(commands.Cog):
                     # Separator after a channel group within the same role if more content follows
                     current_page_items.append(discord.ui.Separator())
 
-            # Finalize last page with Footer
+            # Finalize last page
             if current_page_items:
-                admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
-                channel_mention = admin_channel.mention if admin_channel else "#admin-channel"
-                footer_text = f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*\n*{Messages.INFO_DEV_FOOTER_NOTE}*"
-                add_to_page(footer_text, is_new_block=True)
                 pages.append(current_page_items)
 
             # Send View
