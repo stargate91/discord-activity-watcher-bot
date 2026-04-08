@@ -728,7 +728,7 @@ class AdminCog(commands.Cog):
             await ctx.send(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID))
             return
         
-        await self._send_dev_help(ctx)
+        await self._send_dev_help(ctx, is_ephemeral=False)
 
     @app_commands.command(name="dev-info", description=Messages.CMD_INFO_DEV_DESC)
     @app_commands.describe(public=Messages.CMD_INFO_PUBLIC_DESC)
@@ -743,12 +743,12 @@ class AdminCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=not public)
         try:
-            await self._send_dev_help(interaction)
+            await self._send_dev_help(interaction, is_ephemeral=not public)
         except Exception as e:
             log.error(f"Error in info_dev_slash: {e}", exc_info=True)
             await interaction.followup.send(get_feedback('ERR_GENERIC', e=f"DevInfo collection: {e}"), ephemeral=True)
 
-    async def _send_dev_help(self, target):
+    async def _send_dev_help(self, target, is_ephemeral=False):
         try:
             guild = target.guild if hasattr(target, "guild") else target
             bot_member = guild.me
@@ -869,7 +869,16 @@ class AdminCog(commands.Cog):
                 
                 # Check for space for Role Section Header
                 r_icon = Icons.ROLE_ADMIN if role == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
-                role_header = f"## {r_icon} {role}"
+                
+                # Use mentions in ephemeral messages as requested
+                display_role = role
+                if is_ephemeral:
+                    if role == Messages.HELP_ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
+                        display_role = f"<@&{Config.ADMIN_ROLE_ID}>"
+                    elif role == Messages.HELP_ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
+                        display_role = f"<@&{Config.TESTER_ROLE_ID}>"
+                
+                role_header = f"## {r_icon} {display_role}"
                 add_to_page(role_header, is_new_block=True)
                 
                 for chan in chans_order:
@@ -878,7 +887,15 @@ class AdminCog(commands.Cog):
                     
                     # Channel Sub-header
                     c_icon = Icons.CHAN_STATS if chan == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
-                    chan_header = f"> {c_icon} **{chan}**"
+                    
+                    display_chan = chan
+                    if is_ephemeral:
+                        if chan == Messages.HELP_CHAN_ADMIN and Config.ADMIN_CHANNEL_ID != 0:
+                            display_chan = f"<#{Config.ADMIN_CHANNEL_ID}>"
+                        elif chan == Messages.HELP_CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
+                            display_chan = f"<#{Config.STATS_CHANNEL_ID}>"
+                    
+                    chan_header = f"> {c_icon} **{display_chan}**"
                     add_to_page(chan_header, is_new_block=True)
                     
                     for line in cmd_lines:
