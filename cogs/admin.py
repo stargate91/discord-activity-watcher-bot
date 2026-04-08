@@ -724,27 +724,33 @@ class AdminCog(commands.Cog):
             pages = []
             current_page_items = []
             current_page_chars = 0
+            current_block_text = ""
             MAX_PAGE_CHARS = 3200 # Leave room for header/footer/separator
             MAX_BLOCK_CHARS = 1800
 
             def add_to_page(item_text, is_new_block=False):
-                nonlocal current_page_chars, current_page_items
+                nonlocal current_page_chars, current_page_items, current_block_text
                 
                 # If adding this would blow the page limit, start a new page
                 if current_page_chars + len(item_text) > MAX_PAGE_CHARS and current_page_items:
                     pages.append(list(current_page_items))
                     current_page_items.clear()
                     current_page_chars = 0
+                    current_block_text = ""
                 
-                # Try to append to existing TextDisplay or create new one
-                if not is_new_block and current_page_items and isinstance(current_page_items[-1], discord.ui.TextDisplay):
-                    if len(current_page_items[-1].label) + len(item_text) + 1 < MAX_BLOCK_CHARS:
-                        current_page_items[-1].label += "\n" + item_text
+                # Try to append to existing block or create new one
+                if not is_new_block and current_block_text:
+                    if len(current_block_text) + len(item_text) + 1 < MAX_BLOCK_CHARS:
+                        current_block_text += "\n" + item_text
+                        # Update the last item in the page (the TextDisplay) with new content
+                        current_page_items[-1] = discord.ui.TextDisplay(current_block_text)
                         current_page_chars += len(item_text) + 1
                         return
                 
+                # Create a new TextDisplay block
                 new_disp = discord.ui.TextDisplay(item_text)
                 current_page_items.append(new_disp)
+                current_block_text = item_text if not is_new_block else ""
                 current_page_chars += len(item_text)
 
             # Page 1 Header
