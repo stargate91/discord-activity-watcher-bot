@@ -711,9 +711,9 @@ class AdminCog(commands.Cog):
             # Roles: Admin, Tester, Everyone
             # Locations: Restricted, Anywhere
             categorized = {
-                Messages.HELP_ROLE_ADMIN: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
-                Messages.HELP_ROLE_TESTER: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
-                Messages.HELP_ROLE_EVERYONE: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []}
+                Messages.HELP_ROLE_ADMIN: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
+                Messages.HELP_ROLE_TESTER: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
+                Messages.HELP_ROLE_EVERYONE: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []}
             }
 
             def categorize_command(full_name, icon_role, label_role, icon_chan, label_chan, desc):
@@ -744,9 +744,12 @@ class AdminCog(commands.Cog):
                 elif norm_name in tester_cmds or base_name in tester_cmds: 
                     role_label = Messages.HELP_ROLE_TESTER
                 
-                # We remove the Tools icon and the accessory line as requested!
+                # Prefix commands are restricted to the Admin Channel
+                chan_label = Messages.HELP_CHAN_ADMIN
+                icon_c = Icons.CHAN_ADMIN
+                
                 line = f"• **{Config.PREFIX}{cmd.name}** - *{help_text}*"
-                categorized[role_label][Messages.HELP_CHAN_ANY].append(line)
+                categorized[role_label][chan_label].append(line)
 
             # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
@@ -809,7 +812,7 @@ class AdminCog(commands.Cog):
 
             # Iterate categorized groups
             roles_order = [Messages.HELP_ROLE_ADMIN, Messages.HELP_ROLE_TESTER, Messages.HELP_ROLE_EVERYONE]
-            chans_order = [Messages.HELP_CHAN_STATS, Messages.HELP_CHAN_ANY]
+            chans_order = [Messages.HELP_CHAN_ADMIN, Messages.HELP_CHAN_STATS, Messages.HELP_CHAN_ANY]
 
             for role in roles_order:
                 # Find if this role has ANY commands at all across any channel
