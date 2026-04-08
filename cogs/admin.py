@@ -724,7 +724,7 @@ class AdminCog(commands.Cog):
                 chan_key = label_chan
                 if chan_key not in categorized[role_key]: chan_key = Messages.HELP_CHAN_ANY
                 
-                line = f"• **/{full_name}** - *{desc}*\n╰ {icon_role} {label_role} | {icon_chan} {label_chan}"
+                line = f"• **/{full_name}** - *{desc}*"
                 categorized[role_key][chan_key].append(line)
 
             # 1. Gather Prefix Commands (Group into Admin/Tester/Everyone based on name)
@@ -735,10 +735,7 @@ class AdminCog(commands.Cog):
                 if cmd.name in admin_cmds: role_label = Messages.HELP_ROLE_ADMIN
                 elif cmd.name in tester_cmds: role_label = Messages.HELP_ROLE_TESTER
                 
-                icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
-                icon_c = Icons.CHAN_ANY
-                
-                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.TOOLS} - *{help_text}*\n╰ {icon_r} {role_label} | {icon_c} {Messages.HELP_CHAN_ANY}"
+                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.TOOLS} - *{help_text}*"
                 categorized[role_label][Messages.HELP_CHAN_ANY].append(line)
 
             # 2. Gather Slash Commands
@@ -810,7 +807,8 @@ class AdminCog(commands.Cog):
                 if not has_any_role_cmd: continue
                 
                 # Check for space for Role Section Header
-                role_header = f"## {role}"
+                r_icon = Icons.ROLE_ADMIN if role == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
+                role_header = f"## {r_icon} {role}"
                 add_to_page(role_header, is_new_block=True)
                 
                 for chan in chans_order:
@@ -818,7 +816,8 @@ class AdminCog(commands.Cog):
                     if not cmd_lines: continue
                     
                     # Channel Sub-header
-                    chan_header = f"> **{chan}**"
+                    c_icon = Icons.CHAN_STATS if chan == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
+                    chan_header = f"> {c_icon} **{chan}**"
                     add_to_page(chan_header, is_new_block=True)
                     
                     for line in cmd_lines:
