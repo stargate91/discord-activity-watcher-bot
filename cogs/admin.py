@@ -9,7 +9,7 @@ from config_loader import Config
 from core.messages import Messages
 from core.ui_translate import t
 from core.ui_utils import get_feedback
-from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
+from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal, ModernPaginatorView
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 from core.logger import log
 
@@ -697,35 +697,100 @@ class AdminCog(commands.Cog):
 
     async def _send_dev_help(self, target):
         try:
-            prefix_cmds = []
+            guild = target.guild if hasattr(target, "guild") else target
+            bot_member = guild.me
+            user_obj = target.user if not isinstance(target, commands.Context) else target.author
+
+            # Build all lines first
+            prefix_lines = []
             for cmd in self.bot.commands:
-                prefix_cmds.append((cmd.name, Config.format_desc(cmd.help or "---", target.guild if hasattr(target, "guild") else target)))
+                help_text = Config.format_desc(cmd.help or "---", guild)
+                prefix_lines.append(f"• **{Config.PREFIX}{cmd.name}** - *{help_text}*")
                 
-            # We're building a list of all the slash commands to show in the dev help
-            # We also show what role or channel you need for each one
-            slash_cmds = []
+            slash_lines = []
             for cmd in self.bot.tree.get_commands():
                 if isinstance(cmd, app_commands.Group):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
-                        access_info = self._get_command_access_info(full_name)
-                        slash_cmds.append((full_name, Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target), access_info))
+                        desc = Config.format_desc(sub.description, guild)
+                        access = self._get_command_access_info(full_name)
+                        slash_lines.append(f"• **/{full_name}** - *{desc}*\n╰ {access}")
                 else:
-                    access_info = self._get_command_access_info(cmd.name)
-                    slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target), access_info))
+                    desc = Config.format_desc(cmd.description, guild)
+                    access = self._get_command_access_info(cmd.name)
+                    slash_lines.append(f"• **/{cmd.name}** - *{desc}*\n╰ {access}")
 
-            view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
-            
+            # Define Paginator Page Builder
+            pages = []
+            current_page_items = []
+            current_page_chars = 0
+            MAX_PAGE_CHARS = 3200 # Leave room for header/footer/separator
+            MAX_BLOCK_CHARS = 1800
+
+            def add_to_page(item_text, is_new_block=False):
+                nonlocal current_page_chars, current_page_items
+                
+                # If adding this would blow the page limit, start a new page
+                if current_page_chars + len(item_text) > MAX_PAGE_CHARS and current_page_items:
+                    pages.append(list(current_page_items))
+                    current_page_items.clear()
+                    current_page_chars = 0
+                
+                # Try to append to existing TextDisplay or create new one
+                if not is_new_block and current_page_items and isinstance(current_page_items[-1], discord.ui.TextDisplay):
+                    if len(current_page_items[-1].label) + len(item_text) + 1 < MAX_BLOCK_CHARS:
+                        current_page_items[-1].label += "\n" + item_text
+                        current_page_chars += len(item_text) + 1
+                        return
+                
+                new_disp = discord.ui.TextDisplay(item_text)
+                current_page_items.append(new_disp)
+                current_page_chars += len(item_text)
+
+            # Page 1 Header
+            header_text = f"# {Messages.INFO_DEV_TITLE.format(bot_name=bot_member.display_name)}"
+            current_page_items.append(discord.ui.Section(header_text, accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)))
+            current_page_items.append(discord.ui.Separator())
+            current_page_chars += len(header_text)
+
+            # Add Prefix Commands
+            if prefix_lines:
+                add_to_page(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX), is_new_block=True)
+                for line in prefix_lines:
+                    add_to_page(line)
+                current_page_items.append(discord.ui.Separator())
+
+            # Add Slash Commands
+            if slash_lines:
+                # If we're starting slash commands on a fresh page or near limit, add title
+                add_to_page(Messages.INFO_DEV_SLASH, is_new_block=True)
+                for line in slash_lines:
+                    add_to_page(line)
+                current_page_items.append(discord.ui.Separator())
+
+            # Finalize last page
+            if current_page_items:
+                # Add Footer to the very last page
+                admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
+                channel_mention = admin_channel.mention if admin_channel else "#admin-channel"
+                footer_text = f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*\n*{Messages.INFO_DEV_FOOTER_NOTE}*"
+                add_to_page(footer_text, is_new_block=True)
+                pages.append(current_page_items)
+
+            # Send paginated view
+            view = ModernPaginatorView(pages, user=user_obj)
             if isinstance(target, commands.Context):
                 await target.send(view=view)
             else:
                 await target.followup.send(view=view)
+
         except Exception as e:
             log.error(f"Error in _send_dev_help: {e}", exc_info=True)
+            err_msg = get_feedback('ERR_GENERIC', e=f"DevHelp Paginator: {e}")
             if not isinstance(target, commands.Context):
-                await target.followup.send(get_feedback('ERR_GENERIC', e=f"DevHelp builder: {e}"), ephemeral=True)
+                await target.followup.send(err_msg, ephemeral=True)
             else:
-                await target.send(get_feedback('ERR_GENERIC', e=f"DevHelp builder: {e}"))
+                await target.send(err_msg)
 
     def _get_command_access_info(self, name):
         """This function tells us if a command needs a special role or a specific channel to work!"""
