@@ -738,7 +738,7 @@ class AdminCog(commands.Cog):
                 icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
                 icon_c = Icons.CHAN_ANY
                 
-                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.ROLE_PREFIX} - *{help_text}*\n╰ {icon_r} {role_label} | {icon_c} {Messages.HELP_CHAN_ANY}"
+                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.TOOLS} - *{help_text}*\n╰ {icon_r} {role_label} | {icon_c} {Messages.HELP_CHAN_ANY}"
                 categorized[role_label][Messages.HELP_CHAN_ANY].append(line)
 
             # 2. Gather Slash Commands
