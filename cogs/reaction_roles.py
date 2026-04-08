@@ -144,7 +144,12 @@ class ReactionRolesCog(commands.Cog):
                         if desc: desc = desc.replace("{bot_name}", bot_name)
                         
                         content_text = f"## {title}\n{desc}"
-                        container.add_item(TextDisplay(content_text))
+                        
+                        thumbnail_url = config_data.get("thumbnail")
+                        if thumbnail_url:
+                            container.add_item(Section(content_text, accessory=Thumbnail(thumbnail_url)))
+                        else:
+                            container.add_item(TextDisplay(content_text))
                         
                         mappings = config_data.get("mappings", [])
                         mode = config_data.get("mode", "reactions")

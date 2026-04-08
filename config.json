@@ -175,7 +175,7 @@
                 {
                     "emoji": "💸",
                     "label": "Free Looter",
-                    "style": "secondary",
+                    "style": "success",
                     "role_name": "Free Looter"
                 },
                 {
@@ -222,7 +222,7 @@
                 {
                     "emoji": "✅",
                     "label": "",
-                    "style": "secondary",
+                    "style": "success",
                     "role_name": "BCup Enjoyer"
                 }
             ]
