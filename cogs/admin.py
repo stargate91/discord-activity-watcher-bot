@@ -755,40 +755,27 @@ class AdminCog(commands.Cog):
             user_obj = target.user if not isinstance(target, commands.Context) else target.author
             from core.ui_icons import Icons
 
-            # Structure: categorized[RoleLabel][ChanLabel] = [Lines]
+            # Structure: categorized[RoleKey][ChanKey] = [Lines]
             categorized = {
-                Messages.HELP_ROLE_ADMIN: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
-                Messages.HELP_ROLE_TESTER: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
-                Messages.HELP_ROLE_EVERYONE: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []}
+                ROLE_ADMIN: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []},
+                ROLE_TESTER: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []},
+                ROLE_EVERYONE: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []}
             }
 
-            def get_reqs_and_labels(name):
-                # Helper to get registry data and map to labels/icons
-                reqs = COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
-                role_lv, chan_lv = reqs
-                
-                # Role Label
-                if role_lv == ROLE_ADMIN: role_label = Messages.HELP_ROLE_ADMIN
-                elif role_lv == ROLE_TESTER: role_label = Messages.HELP_ROLE_TESTER
-                else: role_label = Messages.HELP_ROLE_EVERYONE
-                
-                # Channel Label
-                if chan_lv == CHAN_ADMIN: chan_label = Messages.HELP_CHAN_ADMIN
-                elif chan_lv == CHAN_STATS: chan_label = Messages.HELP_CHAN_STATS
-                else: chan_label = Messages.HELP_CHAN_ANY
-                
-                return role_label, chan_label
+            def get_req_keys(name):
+                # Helper to get logical registry keys
+                return COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
 
-            def categorize_command(full_name, role_label, chan_label, desc, is_prefix=False):
-                # Ensure the roles/channels are in our structure
-                if role_label not in categorized: role_label = Messages.HELP_ROLE_EVERYONE
-                if chan_label not in categorized[role_label]: chan_label = Messages.HELP_CHAN_ANY
+            def categorize_command(full_name, role_key, chan_key, desc, is_prefix=False):
+                # Use logical keys for the structure
+                if role_key not in categorized: role_key = ROLE_EVERYONE
+                if chan_key not in categorized[role_key]: chan_key = CHAN_ANY
                 
                 if is_prefix:
                     line = f"• **{Config.PREFIX}{full_name}** - *{desc}*"
                 else:
                     line = f"• **/{full_name}** - *{desc}*"
-                categorized[role_label][chan_label].append(line)
+                categorized[role_key][chan_key].append(line)
 
             # 1. Gather Prefix Commands
             for cmd in self.bot.commands:
@@ -800,11 +787,11 @@ class AdminCog(commands.Cog):
                     base_name = base_name[:-len(Config.SUFFIX)]
                 norm_name = base_name.replace("_", "-")
 
-                # Get requirements from registry using normalized names
-                role_label, _ = get_reqs_and_labels(norm_name if norm_name in COMMAND_REGISTRY else base_name)
+                # Get logical level from registry
+                role_key, _ = get_req_keys(norm_name if norm_name in COMMAND_REGISTRY else base_name)
                 
                 # Prefix commands are always marked as Admin Channel as per user request
-                categorize_command(cmd.name, role_label, Messages.HELP_CHAN_ADMIN, help_text, is_prefix=True)
+                categorize_command(cmd.name, role_key, CHAN_ADMIN, help_text, is_prefix=True)
 
             # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
@@ -814,15 +801,15 @@ class AdminCog(commands.Cog):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
                         desc = Config.format_desc(sub.description, guild)
-                        role_label, chan_label = get_reqs_and_labels(full_name)
-                        categorize_command(full_name, role_label, chan_label, desc)
+                        role_key, chan_key = get_req_keys(full_name)
+                        categorize_command(full_name, role_key, chan_key, desc)
                 else:
                     display_name = cmd.name
                     if cmd.name == "info": display_name = "info / help"
                     
                     desc = Config.format_desc(cmd.description, guild)
-                    role_label, chan_label = get_reqs_and_labels(cmd.name)
-                    categorize_command(display_name, role_label, chan_label, desc)
+                    role_key, chan_key = get_req_keys(cmd.name)
+                    categorize_command(display_name, role_key, chan_key, desc)
 
             # 3. Build Pages from Categorized Groups
             pages = []
@@ -858,46 +845,50 @@ class AdminCog(commands.Cog):
             current_page_items.append(discord.ui.Separator())
             current_page_chars += len(header_text)
 
-            # Iterate categorized groups
-            roles_order = [Messages.HELP_ROLE_ADMIN, Messages.HELP_ROLE_TESTER, Messages.HELP_ROLE_EVERYONE]
-            chans_order = [Messages.HELP_CHAN_ADMIN, Messages.HELP_CHAN_STATS, Messages.HELP_CHAN_ANY]
+            # Iterate categorized groups using logical order
+            roles_order = [ROLE_ADMIN, ROLE_TESTER, ROLE_EVERYONE]
+            chans_order = [CHAN_ADMIN, CHAN_STATS, CHAN_ANY]
 
-            for role in roles_order:
+            for role_key in roles_order:
                 # Find if this role has ANY commands at all across any channel
-                has_any_role_cmd = any(categorized[role].values())
+                has_any_role_cmd = any(categorized[role_key].values())
                 if not has_any_role_cmd: continue
                 
                 # Check for space for Role Section Header
-                r_icon = Icons.ROLE_ADMIN if role == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
+                r_icon = Icons.ROLE_ADMIN if role_key == ROLE_ADMIN else Icons.ROLE_TESTER if role_key == ROLE_TESTER else Icons.ROLE_USER
+                
+                # Map logical key to locale label
+                role_label = Messages.HELP_ROLE_ADMIN if role_key == ROLE_ADMIN else Messages.HELP_ROLE_TESTER if role_key == ROLE_TESTER else Messages.HELP_ROLE_EVERYONE
                 
                 # Use mentions in ephemeral messages as requested
-                display_role = role
+                display_role = role_label
                 if is_ephemeral:
-                    if role == Messages.HELP_ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
+                    if role_key == ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
                         display_role = f"<@&{Config.ADMIN_ROLE_ID}>"
-                    elif role == Messages.HELP_ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
+                    elif role_key == ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
                         display_role = f"<@&{Config.TESTER_ROLE_ID}>"
                 
                 role_header = f"## {r_icon} {display_role}"
                 add_to_page(role_header, is_new_block=True)
                 
-                for chan in chans_order:
-                    cmd_lines = categorized[role][chan]
+                for chan_key in chans_order:
+                    cmd_lines = categorized[role_key][chan_key]
                     if not cmd_lines: continue
                     
-                    # Channel Sub-header
-                    c_icon = Icons.CHAN_STATS if chan == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
+                    # Map logical key to locale label
+                    chan_label = Messages.HELP_CHAN_ADMIN if chan_key == CHAN_ADMIN else Messages.HELP_CHAN_STATS if chan_key == CHAN_STATS else Messages.HELP_CHAN_ANY
                     
-                    display_chan = chan
+                    display_chan = chan_label
                     if is_ephemeral:
-                        if chan == Messages.HELP_CHAN_ADMIN and Config.ADMIN_CHANNEL_ID != 0:
+                        if chan_key == CHAN_ADMIN and Config.ADMIN_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.ADMIN_CHANNEL_ID}>"
-                        elif chan == Messages.HELP_CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
+                        elif chan_key == CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.STATS_CHANNEL_ID}>"
                     
                     # Add LOCK icon for restricted categories as requested
-                    prefix = f"{Icons.LOCK} " if chan in [Messages.HELP_CHAN_ADMIN, Messages.HELP_CHAN_STATS] else ""
-                    chan_header = f"> {c_icon} {prefix}**{display_chan}**"
+                    prefix = f"{Icons.LOCK} " if chan_key in [CHAN_ADMIN, CHAN_STATS] else ""
+                    # User requested only locks, so no c_icon here
+                    chan_header = f"> {prefix}**{display_chan}**"
                     add_to_page(chan_header, is_new_block=True)
                     
                     for line in cmd_lines:
