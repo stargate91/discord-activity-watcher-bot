@@ -700,90 +700,142 @@ class AdminCog(commands.Cog):
             guild = target.guild if hasattr(target, "guild") else target
             bot_member = guild.me
             user_obj = target.user if not isinstance(target, commands.Context) else target.author
+            from core.ui_icons import Icons
 
-            # Build all lines first
-            prefix_lines = []
+            # Command Lists (Must match _get_command_access_info for consistency)
+            admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
+            tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
+            stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
+
+            # Structure: categorized[Role][Location] = [Lines]
+            # Roles: Admin, Tester, Everyone
+            # Locations: Restricted, Anywhere
+            categorized = {
+                Messages.HELP_ROLE_ADMIN: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
+                Messages.HELP_ROLE_TESTER: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
+                Messages.HELP_ROLE_EVERYONE: {Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []}
+            }
+
+            def categorize_command(full_name, icon_role, label_role, icon_chan, label_chan, desc):
+                # Ensure the roles/channels are in our structure
+                role_key = label_role
+                if role_key not in categorized: role_key = Messages.HELP_ROLE_EVERYONE
+                
+                chan_key = label_chan
+                if chan_key not in categorized[role_key]: chan_key = Messages.HELP_CHAN_ANY
+                
+                line = f"• **/{full_name}** - *{desc}*\n╰ {icon_role} {label_role} | {icon_chan} {label_chan}"
+                categorized[role_key][chan_key].append(line)
+
+            # 1. Gather Prefix Commands (Group into Admin/Tester/Everyone based on name)
             for cmd in self.bot.commands:
                 help_text = Config.format_desc(cmd.help or "---", guild)
-                prefix_lines.append(f"• **{Config.PREFIX}{cmd.name}** - *{help_text}*")
+                # For prefix, we'll just check if it's in the hardcoded lists by name
+                role_label = Messages.HELP_ROLE_EVERYONE
+                if cmd.name in admin_cmds: role_label = Messages.HELP_ROLE_ADMIN
+                elif cmd.name in tester_cmds: role_label = Messages.HELP_ROLE_TESTER
                 
-            slash_lines = []
+                icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
+                icon_c = Icons.CHAN_ANY
+                
+                line = f"• **{Config.PREFIX}{cmd.name}** {Icons.ROLE_PREFIX} - *{help_text}*\n╰ {icon_r} {role_label} | {icon_c} {Messages.HELP_CHAN_ANY}"
+                categorized[role_label][Messages.HELP_CHAN_ANY].append(line)
+
+            # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
                 if isinstance(cmd, app_commands.Group):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
                         desc = Config.format_desc(sub.description, guild)
-                        access = self._get_command_access_info(full_name)
-                        slash_lines.append(f"• **/{full_name}** - *{desc}*\n╰ {access}")
+                        
+                        # Determine role
+                        role_label = Messages.HELP_ROLE_ADMIN if full_name in admin_cmds else Messages.HELP_ROLE_TESTER if full_name in tester_cmds else Messages.HELP_ROLE_EVERYONE
+                        icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
+                        
+                        # Determine location
+                        chan_label = Messages.HELP_CHAN_STATS if full_name in stats_ch_cmds else Messages.HELP_CHAN_ANY
+                        icon_c = Icons.CHAN_STATS if chan_label == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
+                        
+                        categorize_command(full_name, icon_r, role_label, icon_c, chan_label, desc)
                 else:
                     desc = Config.format_desc(cmd.description, guild)
-                    access = self._get_command_access_info(cmd.name)
-                    slash_lines.append(f"• **/{cmd.name}** - *{desc}*\n╰ {access}")
+                    role_label = Messages.HELP_ROLE_ADMIN if cmd.name in admin_cmds else Messages.HELP_ROLE_TESTER if cmd.name in tester_cmds else Messages.HELP_ROLE_EVERYONE
+                    icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
+                    chan_label = Messages.HELP_CHAN_STATS if cmd.name in stats_ch_cmds else Messages.HELP_CHAN_ANY
+                    icon_c = Icons.CHAN_STATS if chan_label == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
+                    
+                    categorize_command(cmd.name, icon_r, role_label, icon_c, chan_label, desc)
 
-            # Define Paginator Page Builder
+            # 3. Build Pages from Categorized Groups
             pages = []
             current_page_items = []
             current_page_chars = 0
             current_block_text = ""
-            MAX_PAGE_CHARS = 3200 # Leave room for header/footer/separator
+            MAX_PAGE_CHARS = 3200
             MAX_BLOCK_CHARS = 1800
 
             def add_to_page(item_text, is_new_block=False):
                 nonlocal current_page_chars, current_page_items, current_block_text
-                
-                # If adding this would blow the page limit, start a new page
                 if current_page_chars + len(item_text) > MAX_PAGE_CHARS and current_page_items:
                     pages.append(list(current_page_items))
                     current_page_items.clear()
                     current_page_chars = 0
                     current_block_text = ""
                 
-                # Try to append to existing block or create new one
                 if not is_new_block and current_block_text:
                     if len(current_block_text) + len(item_text) + 1 < MAX_BLOCK_CHARS:
                         current_block_text += "\n" + item_text
-                        # Update the last item in the page (the TextDisplay) with new content
                         current_page_items[-1] = discord.ui.TextDisplay(current_block_text)
                         current_page_chars += len(item_text) + 1
                         return
                 
-                # Create a new TextDisplay block
                 new_disp = discord.ui.TextDisplay(item_text)
                 current_page_items.append(new_disp)
                 current_block_text = item_text if not is_new_block else ""
                 current_page_chars += len(item_text)
 
-            # Page 1 Header
+            # Header on Page 1
             header_text = f"# {Messages.INFO_DEV_TITLE.format(bot_name=bot_member.display_name)}"
             current_page_items.append(discord.ui.Section(header_text, accessory=discord.ui.Thumbnail(bot_member.display_avatar.url)))
             current_page_items.append(discord.ui.Separator())
             current_page_chars += len(header_text)
 
-            # Add Prefix Commands
-            if prefix_lines:
-                add_to_page(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX), is_new_block=True)
-                for line in prefix_lines:
-                    add_to_page(line)
-                current_page_items.append(discord.ui.Separator())
+            # Iterate categorized groups
+            roles_order = [Messages.HELP_ROLE_ADMIN, Messages.HELP_ROLE_TESTER, Messages.HELP_ROLE_EVERYONE]
+            chans_order = [Messages.HELP_CHAN_STATS, Messages.HELP_CHAN_ANY]
 
-            # Add Slash Commands
-            if slash_lines:
-                # If we're starting slash commands on a fresh page or near limit, add title
-                add_to_page(Messages.INFO_DEV_SLASH, is_new_block=True)
-                for line in slash_lines:
-                    add_to_page(line)
-                current_page_items.append(discord.ui.Separator())
+            for role in roles_order:
+                # Find if this role has ANY commands at all across any channel
+                has_any_role_cmd = any(categorized[role].values())
+                if not has_any_role_cmd: continue
+                
+                # Check for space for Role Section Header
+                role_header = f"## {role}"
+                add_to_page(role_header, is_new_block=True)
+                
+                for chan in chans_order:
+                    cmd_lines = categorized[role][chan]
+                    if not cmd_lines: continue
+                    
+                    # Channel Sub-header
+                    chan_header = f"> **{chan}**"
+                    add_to_page(chan_header, is_new_block=True)
+                    
+                    for line in cmd_lines:
+                        add_to_page(line)
+                    
+                    # Separator after a channel group within the same role if more content follows
+                    current_page_items.append(discord.ui.Separator())
 
-            # Finalize last page
+            # Finalize last page with Footer
             if current_page_items:
-                # Add Footer to the very last page
                 admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
                 channel_mention = admin_channel.mention if admin_channel else "#admin-channel"
                 footer_text = f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*\n*{Messages.INFO_DEV_FOOTER_NOTE}*"
                 add_to_page(footer_text, is_new_block=True)
                 pages.append(current_page_items)
 
-            # Send paginated view
+            # Send View
             view = ModernPaginatorView(pages, user=user_obj)
             if isinstance(target, commands.Context):
                 await target.send(view=view)
@@ -792,7 +844,7 @@ class AdminCog(commands.Cog):
 
         except Exception as e:
             log.error(f"Error in _send_dev_help: {e}", exc_info=True)
-            err_msg = get_feedback('ERR_GENERIC', e=f"DevHelp Paginator: {e}")
+            err_msg = get_feedback('ERR_GENERIC', e=f"DevHelp Categorizer: {e}")
             if not isinstance(target, commands.Context):
                 await target.followup.send(err_msg, ephemeral=True)
             else:
