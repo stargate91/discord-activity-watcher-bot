@@ -234,18 +234,33 @@ class ModernDevInfoView(discord.ui.LayoutView):
             discord.ui.Separator()
         ]
         
-        # 2. Prefix Commands Section
+        # 2. Prefix Commands Section (Grouped into one block)
         if prefix_cmds:
             container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
+            
+            # We group all prefix commands into one big block of text
+            prefix_lines = []
             for name, help_text in prefix_cmds:
-                container_items.append(discord.ui.TextDisplay(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*"))
+                prefix_lines.append(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*")
+            
+            # If we have too many, we might need to split, but usually they are short
+            container_items.append(discord.ui.TextDisplay("\n".join(prefix_lines)))
             container_items.append(discord.ui.Separator())
 
-        # 3. Slash Commands Section
+        # 3. Slash Commands Section (Grouped into blocks of 8)
         if slash_cmds:
             container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
-            for name, desc, access in slash_cmds:
-                container_items.append(discord.ui.TextDisplay(f"• **/{name}** - *{desc}*\n╰ {access}"))
+            
+            # We group slash commands into blocks so we don't hit the component limit!
+            CHUNK_SIZE = 8
+            for i in range(0, len(slash_cmds), CHUNK_SIZE):
+                chunk = slash_cmds[i:i + CHUNK_SIZE]
+                slash_lines = []
+                for name, desc, access in chunk:
+                    slash_lines.append(f"• **/{name}** - *{desc}*\n╰ {access}")
+                
+                container_items.append(discord.ui.TextDisplay("\n".join(slash_lines)))
+            
             container_items.append(discord.ui.Separator())
 
         # 4. Footer
