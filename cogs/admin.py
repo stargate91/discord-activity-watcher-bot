@@ -54,6 +54,59 @@ def is_tester():
         return False
     return commands.check(predicate)
 
+# Permission levels for the command registry
+ROLE_ADMIN = "ADMIN"
+ROLE_TESTER = "TESTER"
+ROLE_EVERYONE = "EVERYONE"
+
+CHAN_ADMIN = "ADMIN_ONLY"
+CHAN_STATS = "STATS_ONLY"
+CHAN_ANY = "ANYWHERE"
+
+# Centralized registry of all commands and their requirements.
+# This makes it easy to change permissions without hunting through the code!
+COMMAND_REGISTRY = {
+    # --- ADMIN COMMANDS ---
+    "membership-logs": (ROLE_ADMIN, CHAN_ANY),
+    "game-role-report": (ROLE_ADMIN, CHAN_ANY),
+    "reset-database": (ROLE_ADMIN, CHAN_ANY),
+    "reset-games": (ROLE_ADMIN, CHAN_ANY),
+    "reset-elites": (ROLE_ADMIN, CHAN_ANY),
+    "reset-reaction-roles": (ROLE_ADMIN, CHAN_ANY),
+    "sync": (ROLE_ADMIN, CHAN_ANY),
+    "link-alt": (ROLE_ADMIN, CHAN_ANY),
+    "add-game": (ROLE_ADMIN, CHAN_ANY),
+    "remove-game": (ROLE_ADMIN, CHAN_ANY),
+    "test-weekly-layout": (ROLE_ADMIN, CHAN_ANY),
+    "elite-force": (ROLE_ADMIN, CHAN_ANY),
+    "list-channels": (ROLE_ADMIN, CHAN_ANY),
+    "list-roles": (ROLE_ADMIN, CHAN_ANY),
+    "emoji add": (ROLE_ADMIN, CHAN_STATS),
+    "emoji delete": (ROLE_ADMIN, CHAN_STATS),
+    "emoji rename": (ROLE_ADMIN, CHAN_STATS),
+    "clear_commands": (ROLE_ADMIN, CHAN_ANY),
+    "clear-help": (ROLE_ADMIN, CHAN_ANY),
+
+    # --- TESTER COMMANDS ---
+    "status-report": (ROLE_TESTER, CHAN_ANY),
+    "game-details": (ROLE_TESTER, CHAN_ANY),
+    "stream-history": (ROLE_TESTER, CHAN_ANY),
+    "list-games": (ROLE_TESTER, CHAN_ANY),
+    "game-stats-report": (ROLE_TESTER, CHAN_ANY),
+    "dev-info": (ROLE_TESTER, CHAN_ANY),
+    "server-analysis": (ROLE_TESTER, CHAN_ANY),
+    "info": (ROLE_TESTER, CHAN_ANY),
+    "help": (ROLE_TESTER, CHAN_ANY),
+
+    # --- PUBLIC COMMANDS WITH RESTRICTIONS ---
+    "emoji enlarge": (ROLE_EVERYONE, CHAN_STATS),
+    "emoji list": (ROLE_EVERYONE, CHAN_ANY),
+    "elite-log": (ROLE_EVERYONE, CHAN_ANY),
+    "weekly-chances": (ROLE_EVERYONE, CHAN_ANY),
+    "me": (ROLE_EVERYONE, CHAN_ANY),
+    "top": (ROLE_EVERYONE, CHAN_ANY)
+}
+
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -702,32 +755,42 @@ class AdminCog(commands.Cog):
             user_obj = target.user if not isinstance(target, commands.Context) else target.author
             from core.ui_icons import Icons
 
-            # Command Lists (Must match _get_command_access_info for consistency)
-            admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename", "clear_commands", "clear-help"]
-            tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
-            stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
-
-            # Structure: categorized[Role][Location] = [Lines]
-            # Roles: Admin, Tester, Everyone
-            # Locations: Restricted, Anywhere
+            # Structure: categorized[RoleLabel][ChanLabel] = [Lines]
             categorized = {
                 Messages.HELP_ROLE_ADMIN: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
                 Messages.HELP_ROLE_TESTER: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []},
                 Messages.HELP_ROLE_EVERYONE: {Messages.HELP_CHAN_ADMIN: [], Messages.HELP_CHAN_STATS: [], Messages.HELP_CHAN_ANY: []}
             }
 
-            def categorize_command(full_name, icon_role, label_role, icon_chan, label_chan, desc):
-                # Ensure the roles/channels are in our structure
-                role_key = label_role
-                if role_key not in categorized: role_key = Messages.HELP_ROLE_EVERYONE
+            def get_reqs_and_labels(name):
+                # Helper to get registry data and map to labels/icons
+                reqs = COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
+                role_lv, chan_lv = reqs
                 
-                chan_key = label_chan
-                if chan_key not in categorized[role_key]: chan_key = Messages.HELP_CHAN_ANY
+                # Role Label
+                if role_lv == ROLE_ADMIN: role_label = Messages.HELP_ROLE_ADMIN
+                elif role_lv == ROLE_TESTER: role_label = Messages.HELP_ROLE_TESTER
+                else: role_label = Messages.HELP_ROLE_EVERYONE
                 
-                line = f"• **/{full_name}** - *{desc}*"
-                categorized[role_key][chan_key].append(line)
+                # Channel Label
+                if chan_lv == CHAN_ADMIN: chan_label = Messages.HELP_CHAN_ADMIN
+                elif chan_lv == CHAN_STATS: chan_label = Messages.HELP_CHAN_STATS
+                else: chan_label = Messages.HELP_CHAN_ANY
+                
+                return role_label, chan_label
 
-            # 1. Gather Prefix Commands (Group into Admin/Tester/Everyone based on name)
+            def categorize_command(full_name, role_label, chan_label, desc, is_prefix=False):
+                # Ensure the roles/channels are in our structure
+                if role_label not in categorized: role_label = Messages.HELP_ROLE_EVERYONE
+                if chan_label not in categorized[role_label]: chan_label = Messages.HELP_CHAN_ANY
+                
+                if is_prefix:
+                    line = f"• **{Config.PREFIX}{full_name}** - *{desc}*"
+                else:
+                    line = f"• **/{full_name}** - *{desc}*"
+                categorized[role_label][chan_label].append(line)
+
+            # 1. Gather Prefix Commands
             for cmd in self.bot.commands:
                 help_text = Config.format_desc(cmd.help or "---", guild)
                 
@@ -737,19 +800,11 @@ class AdminCog(commands.Cog):
                     base_name = base_name[:-len(Config.SUFFIX)]
                 norm_name = base_name.replace("_", "-")
 
-                # Determine role based on normalized name
-                role_label = Messages.HELP_ROLE_EVERYONE
-                if norm_name in admin_cmds or base_name in admin_cmds: 
-                    role_label = Messages.HELP_ROLE_ADMIN
-                elif norm_name in tester_cmds or base_name in tester_cmds: 
-                    role_label = Messages.HELP_ROLE_TESTER
+                # Get requirements from registry using normalized names
+                role_label, _ = get_reqs_and_labels(norm_name if norm_name in COMMAND_REGISTRY else base_name)
                 
-                # Prefix commands are restricted to the Admin Channel
-                chan_label = Messages.HELP_CHAN_ADMIN
-                icon_c = Icons.CHAN_ADMIN
-                
-                line = f"• **{Config.PREFIX}{cmd.name}** - *{help_text}*"
-                categorized[role_label][chan_label].append(line)
+                # Prefix commands are always marked as Admin Channel as per user request
+                categorize_command(cmd.name, role_label, Messages.HELP_CHAN_ADMIN, help_text, is_prefix=True)
 
             # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
@@ -759,27 +814,15 @@ class AdminCog(commands.Cog):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
                         desc = Config.format_desc(sub.description, guild)
-                        
-                        # Determine role
-                        role_label = Messages.HELP_ROLE_ADMIN if full_name in admin_cmds else Messages.HELP_ROLE_TESTER if full_name in tester_cmds else Messages.HELP_ROLE_EVERYONE
-                        icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
-                        
-                        # Determine location
-                        chan_label = Messages.HELP_CHAN_STATS if full_name in stats_ch_cmds else Messages.HELP_CHAN_ANY
-                        icon_c = Icons.CHAN_STATS if chan_label == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
-                        
-                        categorize_command(full_name, icon_r, role_label, icon_c, chan_label, desc)
+                        role_label, chan_label = get_reqs_and_labels(full_name)
+                        categorize_command(full_name, role_label, chan_label, desc)
                 else:
                     display_name = cmd.name
                     if cmd.name == "info": display_name = "info / help"
                     
                     desc = Config.format_desc(cmd.description, guild)
-                    role_label = Messages.HELP_ROLE_ADMIN if cmd.name in admin_cmds else Messages.HELP_ROLE_TESTER if cmd.name in tester_cmds else Messages.HELP_ROLE_EVERYONE
-                    icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
-                    chan_label = Messages.HELP_CHAN_STATS if cmd.name in stats_ch_cmds else Messages.HELP_CHAN_ANY
-                    icon_c = Icons.CHAN_STATS if chan_label == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
-                    
-                    categorize_command(display_name, icon_r, role_label, icon_c, chan_label, desc)
+                    role_label, chan_label = get_reqs_and_labels(cmd.name)
+                    categorize_command(display_name, role_label, chan_label, desc)
 
             # 3. Build Pages from Categorized Groups
             pages = []
@@ -871,40 +914,32 @@ class AdminCog(commands.Cog):
         """This function tells us if a command needs a special role or a specific channel to work!"""
         from core.ui_icons import Icons
         
-        # Role Requirements
-        admin_cmds = ["membership-logs", "game-role-report", "reset-database", "reset-games", "reset-elites", "reset-reaction-roles", "sync", "link-alt", "add-game", "remove-game", "test-weekly-layout", "elite-force", "list-channels", "list-roles", "emoji add", "emoji delete", "emoji rename"]
-        tester_cmds = ["status-report", "game-details", "stream-history", "list-games", "game-stats-report", "dev-info", "server-analysis", "info", "help"]
-        
-        icon_role = Icons.ROLE_USER
-        label_role = Messages.HELP_ROLE_EVERYONE
-        
-        if name in admin_cmds: 
+        # Look up in registry
+        reqs = COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
+        role_lv, chan_lv = reqs
+
+        # 1. Map Role Level to Display
+        if role_lv == ROLE_ADMIN:
             icon_role = Icons.ROLE_ADMIN
             label_role = Messages.HELP_ROLE_ADMIN
-        elif name in tester_cmds: 
+        elif role_lv == ROLE_TESTER:
             icon_role = Icons.ROLE_TESTER
             label_role = Messages.HELP_ROLE_TESTER
-        
-        # Channel Requirements
-        stats_ch_cmds = ["emoji add", "emoji delete", "emoji rename", "emoji enlarge"]
-        any_ch_cmds = admin_cmds + tester_cmds + ["elite-log", "weekly-chances", "me", "top", "emoji list"]
-        # Remove those that are specifically restricted to stats channel from the "Any" list if they were added via concatenation
-        any_ch_cmds = [c for c in any_ch_cmds if c not in stats_ch_cmds]
-        
-        icon_chan = Icons.CHAN_ANY
-        label_chan = Messages.HELP_CHAN_ANY
-        
-        if name in stats_ch_cmds: 
+        else:
+            icon_role = Icons.ROLE_USER
+            label_role = Messages.HELP_ROLE_EVERYONE
+            
+        # 2. Map Channel Level to Display
+        if chan_lv == CHAN_ADMIN:
+            icon_chan = Icons.CHAN_ADMIN
+            label_chan = Messages.HELP_CHAN_ADMIN
+        elif chan_lv == CHAN_STATS:
             icon_chan = Icons.CHAN_STATS
             label_chan = Messages.HELP_CHAN_STATS
-        elif name in any_ch_cmds:
+        else:
             icon_chan = Icons.CHAN_ANY
             label_chan = Messages.HELP_CHAN_ANY
-        elif name in admin_cmds or name in tester_cmds:
-            # Fallback for anything else that might be admin/tester restricted but not in any_ch explicitly
-            icon_chan = Icons.CHAN_ANY
-            label_chan = Messages.HELP_CHAN_ANY
-        
+
         return f"{icon_role} {label_role} | {icon_chan} {label_chan}"
 
     @app_commands.command(name="link-alt", description=Messages.CMD_LINK_ALT_DESC)
