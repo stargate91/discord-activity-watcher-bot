@@ -280,5 +280,9 @@
     "ERR_GENERIC": "Error: {e}",
     "ERR_WRONG_GUILD": "This command can only be used on the configured server ({guild_id}).",
     "SUCCESS_ELITES_FORCED": "Success! Weekly Elite ranks have been calculated and distributed.",
-    "ERR_LAYOUT_TEST": "Error during layout test: {e}"
+    "ERR_LAYOUT_TEST": "Error during layout test: {e}",
+    "RR_ROLE_ADDED": "✅ Added: **{role}**",
+    "RR_ROLE_REMOVED": "✅ Removed: **{role}**",
+    "RR_ERROR_ROLE_NOT_FOUND": "❌ Role not found.",
+    "RR_ERROR_GENERIC": "❌ An error occurred during the operation."
 }

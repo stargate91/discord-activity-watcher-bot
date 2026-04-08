@@ -279,5 +279,9 @@
     "ERR_GENERIC": "Hiba történt: {e}",
     "ERR_WRONG_GUILD": "Ez a parancs csak a kijelölt szerveren ({guild_id}) használható.",
     "SUCCESS_ELITES_FORCED": "Sikerült! A heti Elite rangok kiszámítása és kiosztása megtörtént.",
-    "ERR_LAYOUT_TEST": "Hiba a layout tesztelés közben: {e}"
+    "ERR_LAYOUT_TEST": "Hiba a layout tesztelés közben: {e}",
+    "RR_ROLE_ADDED": "✅ Hozzáadva: **{role}**",
+    "RR_ROLE_REMOVED": "✅ Eltávolítva: **{role}**",
+    "RR_ERROR_ROLE_NOT_FOUND": "❌ A szerepkör nem található.",
+    "RR_ERROR_GENERIC": "❌ Hiba történt a művelet közben."
 }

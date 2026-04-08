@@ -18,6 +18,8 @@ def get_feedback(key: str, **kwargs) -> str:
         "ERR_LIMIT_REACHED": Icons.ERROR,
         "ERR_INVALID_ID": Icons.ERROR,
         "ERR_CONFIG_SAVE": Icons.ERROR,
+        "RR_ERROR_ROLE_NOT_FOUND": Icons.ERROR,
+        "RR_ERROR_GENERIC": Icons.ERROR,
 
         # --- Warnings (The yellow triangle emoji) ---
         "no_permission": Icons.WARNING,
@@ -46,9 +48,13 @@ def get_feedback(key: str, **kwargs) -> str:
         "GAME_REPORT_DONE": Icons.SUCCESS,
         "STREAM_HISTORY_DONE": Icons.SUCCESS,
         "MEMBERSHIP_LOG_DONE": Icons.SUCCESS,
+        "RR_ROLE_ADDED": Icons.SUCCESS,
+        "RR_ROLE_REMOVED": Icons.SUCCESS,
 
         # --- Features & UI Elements ---
         "GAME_REMOVED": Icons.TRASH,
+        "RR_ERROR_ROLE_NOT_FOUND": Icons.ERROR,
+        "RR_ERROR_GENERIC": Icons.ERROR,
         "GAME_LIST_TITLE": Icons.CONTROLLER,
         "LB_TITLE_WEEKLY": Icons.CHART,
         "LB_TITLE_MONTHLY": Icons.CHART,
