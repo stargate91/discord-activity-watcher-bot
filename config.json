@@ -299,35 +299,7 @@
         ],
         "fields": [],
         "footer_text": "",
-        "footer_icon": "",
-        "components_v2": {
-            "enabled": false,
-            "accent_color": "0xF47FFF",
-            "sections": [
-                {
-                    "texts": [
-                        "🚀 **{user.name}** boostolta a szervert!"
-                    ],
-                    "accessory_type": "thumbnail",
-                    "accessory_url": "{user.avatar}"
-                }
-            ],
-            "separator": true,
-            "gallery_images": [
-                "https://i.imgur.com/NQW4Hc0.png"
-            ],
-            "gallery_random": true,
-            "bottom_texts": [
-                "Köszönjük a támogatást! 💖 A szerver jelenleg **{boost_count}** boosttal rendelkezik."
-            ],
-            "buttons": [
-                {
-                    "label": "Booster jutalmak",
-                    "url": "",
-                    "emoji": "🎁"
-                }
-            ]
-        }
+        "footer_icon": ""
     },
     "logging": {
         "enabled": true,
