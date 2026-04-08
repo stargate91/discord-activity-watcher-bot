@@ -753,6 +753,8 @@ class AdminCog(commands.Cog):
 
             # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
+                if cmd.name == "help": continue # Skip help as it's the same as info
+                
                 if isinstance(cmd, app_commands.Group):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
@@ -768,13 +770,16 @@ class AdminCog(commands.Cog):
                         
                         categorize_command(full_name, icon_r, role_label, icon_c, chan_label, desc)
                 else:
+                    display_name = cmd.name
+                    if cmd.name == "info": display_name = "info / help"
+                    
                     desc = Config.format_desc(cmd.description, guild)
                     role_label = Messages.HELP_ROLE_ADMIN if cmd.name in admin_cmds else Messages.HELP_ROLE_TESTER if cmd.name in tester_cmds else Messages.HELP_ROLE_EVERYONE
                     icon_r = Icons.ROLE_ADMIN if role_label == Messages.HELP_ROLE_ADMIN else Icons.ROLE_TESTER if role_label == Messages.HELP_ROLE_TESTER else Icons.ROLE_USER
                     chan_label = Messages.HELP_CHAN_STATS if cmd.name in stats_ch_cmds else Messages.HELP_CHAN_ANY
                     icon_c = Icons.CHAN_STATS if chan_label == Messages.HELP_CHAN_STATS else Icons.CHAN_ANY
                     
-                    categorize_command(cmd.name, icon_r, role_label, icon_c, chan_label, desc)
+                    categorize_command(display_name, icon_r, role_label, icon_c, chan_label, desc)
 
             # 3. Build Pages from Categorized Groups
             pages = []
