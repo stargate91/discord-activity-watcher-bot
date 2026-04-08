@@ -162,15 +162,15 @@
             "enabled": true,
             "show_list": false,
             "mode": "buttons",
-            "row_size": 3,
+            "row_size": 5,
             "list_prefix": "▪️",
             "list_quote": true,
             "channel_id": 1443383492091183235,
             "title": "<:bellringinglight:1491245890021753042> Értesítések",
-            "description": "Nem akarsz lemaradni semmiről? Vedd fel az értesítő rangokat, és a rendszerünk azonnal **pingel téged**, amint új tartalom érkezik!\n\n**Free Looter** - Ingyenes játékok értesítései (Epic Games, Steam, GOG)\n**Why Files** - Új Why Files videók a YouTube-on\n**Drinker** - Critical Drinker és Critical Gamer új videói\n**TheVR** - TheVR Podcast, Tech, Shortcut és Gaming+ feltöltései\n**Digger** - Asmongold TV legfrissebb videói\n**Csillagász** - A csillagaszat.hu legújabb cikkei",
+            "description": "Nem akarsz lemaradni semmiről? Vedd fel az értesítő rangokat, és a rendszerünk azonnal **pingel téged**, amint új tartalom érkezik!\n\n**Free Looter** - Ingyenes játékok értesítései (Epic Games, Steam, GOG)\n**Why Files** - Új Why Files videók a YouTube-on\n**Drinker** - Critical Drinker és Critical Gamer új videói\n**TheVR** - TheVR Podcast, Tech, Shortcut és Gaming+ feltöltései\n**Digger** - Asmongold TV legfrissebb videói",
             "thumbnail": "",
             "image": "",
-            "color": "0xE67E22",
+            "color": "0x2B2D31",
             "mappings": [
                 {
                     "emoji": "💸",
@@ -201,12 +201,6 @@
                     "label": "Asmondigger",
                     "style": "secondary",
                     "role_name": "Asmondigger"
-                },
-                {
-                    "emoji": "🌌",
-                    "label": "Csillagász",
-                    "style": "secondary",
-                    "role_name": "Csillagász"
                 }
             ]
         },
@@ -221,9 +215,9 @@
             "channel_id": 1443383492091183235,
             "title": "<:TROPHY:1488659904611745793> Dota 2 Csatakupák",
             "description": "Rendszeresen indulsz a hétvégi összecsapásokon?\nReagálj a lenti zöld pipával, hogy beállj a Battle Cup várólistára, így heti egyszer dedikált értesítést (pinget) kapsz a közelgő versenyek és csapatkeresések kapcsán!",
-            "thumbnail": "",
+            "thumbnail": "https://i.imgur.com/vpG6aY6.png",
             "image": "",
-            "color": "0x1ABC9C",
+            "color": "0x2B2D31",
             "mappings": [
                 {
                     "emoji": "✅",
