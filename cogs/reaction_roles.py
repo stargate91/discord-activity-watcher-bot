@@ -101,8 +101,9 @@ class ReactionRolesCog(commands.Cog):
                         container.add_item(TextDisplay(content_text))
                         
                         mappings = config_data.get("mappings", [])
+                        show_list = config_data.get("show_list", True)
                         
-                        if mappings:
+                        if show_list and mappings:
                             container.add_item(Separator(visible=False))
                             lines = []
                             for mapping in mappings:

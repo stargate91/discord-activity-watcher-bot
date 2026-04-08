@@ -158,48 +158,12 @@
     },
     "reaction_roles": [
         {
-            "identifier": "news_access",
-            "enabled": false,
-            "channel_id": 1443383492091183235,
-            "title": "📰 Hírcsatornák",
-            "description": "Itt kérhetsz hozzáférést a kedvenc tartalomgyártóid dedikált hírfolyamához. Kattints a lenti emojikra, hogy vizuálisan lásd a posztokat!\n*(Megjegyzés: Ezektől a rangoktól még **NEM** kapsz zavaró push értesítéseket, kizárólag a csatornát teszik láthatóvá számodra.)*",
-            "thumbnail": "",
-            "image": "",
-            "color": "0x3498DB",
-            "mappings": [
-                {
-                    "emoji_name": "whyfiles",
-                    "label": "Why Files",
-                    "role_name": "News: Why Files"
-                },
-                {
-                    "emoji_name": "criticaldrinker",
-                    "label": "Critical Drinker",
-                    "role_name": "News: Critical Drinker"
-                },
-                {
-                    "emoji_name": "thevr",
-                    "label": "TheVR",
-                    "role_name": "News: TheVR"
-                },
-                {
-                    "emoji_name": "asmongold",
-                    "label": "Asmongold",
-                    "role_name": "News: Asmongold"
-                },
-                {
-                    "emoji_name": "HappyAlien",
-                    "label": "Csillagászat",
-                    "role_name": "Hírek: Csillagászat"
-                }
-            ]
-        },
-        {
             "identifier": "news_pings",
             "enabled": true,
+            "show_list": false,
             "channel_id": 1443383492091183235,
             "title": "<:bellringinglight:1491245890021753042> Értesítések",
-            "description": "Nem akarsz lemaradni semmiről? Vedd fel az értesítő rangokat, és a rendszerünk azonnal **pingel téged**, amint új tartalom érkezik!\n\n▪️ **Free Looter** - Ingyenes játékok értesítései (Epic Games, Steam, GOG)\n▪️ **Why Files** - Új Why Files videók a YouTube-on\n▪️ **Drinker** - Critical Drinker és Critical Gamer új videói\n▪️ **TheVR** - TheVR Podcast, Tech, Shortcut és Gaming+ feltöltései\n▪️ **Digger** - Asmongold TV legfrissebb videói\n▪️ **Csillagász** - A csillagaszat.hu legújabb cikkei",
+            "description": "Nem akarsz lemaradni semmiről? Vedd fel az értesítő rangokat, és a rendszerünk azonnal **pingel téged**, amint új tartalom érkezik!\n\n**Free Looter** - Ingyenes játékok értesítései (Epic Games, Steam, GOG)\n**Why Files** - Új Why Files videók a YouTube-on\n**Drinker** - Critical Drinker és Critical Gamer új videói\n**TheVR** - TheVR Podcast, Tech, Shortcut és Gaming+ feltöltései\n**Digger** - Asmongold TV legfrissebb videói\n**Csillagász** - A csillagaszat.hu legújabb cikkei",
             "thumbnail": "",
             "image": "",
             "color": "0xE67E22",
