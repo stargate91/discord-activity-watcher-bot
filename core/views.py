@@ -234,32 +234,52 @@ class ModernDevInfoView(discord.ui.LayoutView):
             discord.ui.Separator()
         ]
         
-        # 2. Prefix Commands Section (Grouped into one block)
+        MAX_CHARS = 1800 # Safe limit per TextDisplay block for components
+
+        # 2. Prefix Commands Section
         if prefix_cmds:
             container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_PREFIX.format(suffix=Config.SUFFIX)))
             
-            # We group all prefix commands into one big block of text
             prefix_lines = []
             for name, help_text in prefix_cmds:
                 prefix_lines.append(f"• **{Config.PREFIX}{name}** - *{help_text or '---'}*")
             
-            # If we have too many, we might need to split, but usually they are short
-            container_items.append(discord.ui.TextDisplay("\n".join(prefix_lines)))
+            # Split lines into groups that don't exceed MAX_CHARS
+            current_block = []
+            current_count = 0
+            for line in prefix_lines:
+                if current_count + len(line) + 1 > MAX_CHARS and current_block:
+                    container_items.append(discord.ui.TextDisplay("\n".join(current_block)))
+                    current_block = [line]
+                    current_count = len(line)
+                else:
+                    current_block.append(line)
+                    current_count += len(line) + 1
+            if current_block:
+                container_items.append(discord.ui.TextDisplay("\n".join(current_block)))
+            
             container_items.append(discord.ui.Separator())
 
-        # 3. Slash Commands Section (Grouped into blocks of 8)
+        # 3. Slash Commands Section
         if slash_cmds:
             container_items.append(discord.ui.TextDisplay(Messages.INFO_DEV_SLASH))
             
-            # We group slash commands into blocks so we don't hit the component limit!
-            CHUNK_SIZE = 8
-            for i in range(0, len(slash_cmds), CHUNK_SIZE):
-                chunk = slash_cmds[i:i + CHUNK_SIZE]
-                slash_lines = []
-                for name, desc, access in chunk:
-                    slash_lines.append(f"• **/{name}** - *{desc}*\n╰ {access}")
-                
-                container_items.append(discord.ui.TextDisplay("\n".join(slash_lines)))
+            slash_blocks = []
+            for name, desc, access in slash_cmds:
+                slash_blocks.append(f"• **/{name}** - *{desc}*\n╰ {access}")
+
+            current_block = []
+            current_count = 0
+            for block in slash_blocks:
+                if current_count + len(block) + 1 > MAX_CHARS and current_block:
+                    container_items.append(discord.ui.TextDisplay("\n".join(current_block)))
+                    current_block = [block]
+                    current_count = len(block)
+                else:
+                    current_block.append(block)
+                    current_count += len(block) + 1
+            if current_block:
+                container_items.append(discord.ui.TextDisplay("\n".join(current_block)))
             
             container_items.append(discord.ui.Separator())
 
