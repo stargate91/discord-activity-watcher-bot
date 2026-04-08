@@ -913,7 +913,27 @@ class AdminCog(commands.Cog):
                     # Separator after a channel group within the same role if more content follows
                     current_page_items.append(discord.ui.Separator())
 
-            # Finalize last page
+            # Finalize with Footer
+            if pages or current_page_items:
+                # Build the final thematic footer
+                admin_channel = guild.get_channel(Config.ADMIN_CHANNEL_ID)
+                ch_mention = admin_channel.mention if admin_channel else "#bot-fejlesztés🤖"
+                
+                # We build the footer line by line
+                footer_lines = []
+                
+                # 1. Main observer quote (Handling optional placeholder)
+                obs_quote = Messages.INFO_FOOTER
+                if "{channel}" in obs_quote:
+                    obs_quote = obs_quote.format(channel=ch_mention)
+                footer_lines.append(f"*{obs_quote}*")
+                
+                # 2. Tech notes & Admin quote
+                footer_lines.append(f"*{Messages.INFO_DEV_FOOTER_NOTE}*")
+                footer_lines.append(f"*{Messages.INFO_DEV_FOOTER}*")
+                
+                add_to_page("\n".join(footer_lines), is_new_block=True)
+
             if current_page_items:
                 pages.append(current_page_items)
 

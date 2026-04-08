@@ -212,7 +212,9 @@ class ModernInfoView(discord.ui.LayoutView):
                 Messages.INFO_FEATURES_DESC.format(role=role_mention)
             ),
             discord.ui.Separator(),
-            discord.ui.TextDisplay(f"*{Messages.INFO_FOOTER.format(channel=channel_mention)}*")
+            discord.ui.TextDisplay(
+                f"*{Messages.INFO_FOOTER.format(channel=channel_mention) if '{channel}' in Messages.INFO_FOOTER else Messages.INFO_FOOTER}*"
+            )
         ]
         
         container = discord.ui.Container(*container_items, accent_color=discord.Color(Config.COLOR_PRIMARY))
