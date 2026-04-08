@@ -205,7 +205,7 @@ class EventsCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        # if member.bot: return  # Ideiglenesen kikapcsolva a teszteléshez!
+        if member.bot: return
         log.info(f"Member joined: {member} (ID: {member.id})")
         main_id = Config.get_main_id(member.id)
         # Log event
