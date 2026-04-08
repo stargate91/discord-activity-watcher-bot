@@ -96,6 +96,34 @@ class Config:
     BOOST = _data.get("boost", {})
     LOGGING = _data.get("logging", {})
     
+    # Permission levels for command registry
+    ROLE_ADMIN = "ADMIN"
+    ROLE_TESTER = "TESTER"
+    ROLE_EVERYONE = "EVERYONE"
+
+    CHAN_ADMIN = "ADMIN_ONLY"
+    CHAN_STATS = "STATS_ONLY"
+    CHAN_ANY = "ANYWHERE"
+
+    # Command registry loaded from config
+    COMMAND_SETTINGS = {}
+    _cmd_settings = _data.get("command_settings", {})
+    for cmd, settings in _cmd_settings.items():
+        role = settings.get("role", "EVERYONE")
+        channel = settings.get("channel", "ANYWHERE")
+        ephemeral = settings.get("ephemeral", True)
+        has_toggle = settings.get("has_toggle", False)
+        toggle_role = settings.get("toggle_role", "ADMIN")
+        
+        # Map string to logical key
+        COMMAND_SETTINGS[cmd] = {
+            "role": role,
+            "channel": channel,
+            "ephemeral": ephemeral,
+            "has_toggle": has_toggle,
+            "toggle_role": toggle_role
+        }
+    
     # Backward compatibility for these two specific colors
     COLOR_PRIMARY = int(str(_ui.get("color_primary", "0x3498db")), 16)
     COLOR_SUCCESS = int(str(_ui.get("color_success", "0x2ecc71")), 16)
@@ -205,6 +233,24 @@ class Config:
 
             cls._user_mapping = cls._data.get("user_mapping", {})
             cls.USER_MAPPING = {int(k): int(v) for k, v in cls._user_mapping.items()}
+
+            # Reload command registry from config
+            cls.COMMAND_SETTINGS = {}
+            _cmd_settings = cls._data.get("command_settings", {})
+            for cmd, settings in _cmd_settings.items():
+                role = settings.get("role", "EVERYONE")
+                channel = settings.get("channel", "ANYWHERE")
+                ephemeral = settings.get("ephemeral", True)
+                has_toggle = settings.get("has_toggle", False)
+                toggle_role = settings.get("toggle_role", "ADMIN")
+                
+                cls.COMMAND_SETTINGS[cmd] = {
+                    "role": role,
+                    "channel": channel,
+                    "ephemeral": ephemeral,
+                    "has_toggle": has_toggle,
+                    "toggle_role": toggle_role
+                }
 
             return True
         except Exception as e:

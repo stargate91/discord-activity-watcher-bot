@@ -14,6 +14,29 @@ class StatsCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
         self.engine = bot.engine
+
+    def _can_toggle_command(self, interaction: discord.Interaction, cmd_name: str) -> bool:
+        """Checks if a user has permission to make a specific command's response public."""
+        # Server admins can always toggle visibility
+        if interaction.user.guild_permissions.administrator:
+            return True
+            
+        settings = Config.COMMAND_SETTINGS.get(cmd_name, {})
+        req_role = settings.get("toggle_role", "ADMIN") # Default to ADMIN
+        
+        if req_role == "EVERYONE":
+            return True
+            
+        if req_role == "ADMIN":
+            return Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
+            
+        if req_role == "TESTER":
+            # Admin role also satisfies Tester requirement
+            if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None:
+                return True
+            return Config.TESTER_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.TESTER_ROLE_ID) is not None
+            
+        return False
         
         # Initial format (placeholders to IDs)
         for cmd in self.get_app_commands():
@@ -188,6 +211,12 @@ class StatsCog(commands.Cog):
                         await interaction.response.send_message(Messages.ERR_NO_DATA_PERIOD, ephemeral=True)
                         return
                 elif action == "share":
+                    # Check if the user is allowed to toggle/share this command
+                    cmd_name = "me" if current_tf == "me" else "top"
+                    if not self._can_toggle_command(interaction, cmd_name):
+                        await interaction.response.send_message(Messages.ERR_NO_PERMISSION, ephemeral=True)
+                        return
+
                     # Determine what to share
                     if current_tf == "me":
                         main_id = Config.get_main_id(interaction.user.id)

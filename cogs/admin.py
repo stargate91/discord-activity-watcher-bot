@@ -54,59 +54,6 @@ def is_tester():
         return False
     return commands.check(predicate)
 
-# Permission levels for the command registry
-ROLE_ADMIN = "ADMIN"
-ROLE_TESTER = "TESTER"
-ROLE_EVERYONE = "EVERYONE"
-
-CHAN_ADMIN = "ADMIN_ONLY"
-CHAN_STATS = "STATS_ONLY"
-CHAN_ANY = "ANYWHERE"
-
-# Centralized registry of all commands and their requirements.
-# This makes it easy to change permissions without hunting through the code!
-COMMAND_REGISTRY = {
-    # --- ADMIN COMMANDS ---
-    "membership-logs": (ROLE_ADMIN, CHAN_ANY),
-    "game-role-report": (ROLE_ADMIN, CHAN_ANY),
-    "reset-database": (ROLE_ADMIN, CHAN_ANY),
-    "reset-games": (ROLE_ADMIN, CHAN_ANY),
-    "reset-elites": (ROLE_ADMIN, CHAN_ANY),
-    "reset-reaction-roles": (ROLE_ADMIN, CHAN_ANY),
-    "sync": (ROLE_ADMIN, CHAN_ANY),
-    "link-alt": (ROLE_ADMIN, CHAN_ANY),
-    "add-game": (ROLE_ADMIN, CHAN_ANY),
-    "remove-game": (ROLE_ADMIN, CHAN_ANY),
-    "test-weekly-layout": (ROLE_ADMIN, CHAN_ANY),
-    "elite-force": (ROLE_ADMIN, CHAN_ANY),
-    "list-channels": (ROLE_ADMIN, CHAN_ANY),
-    "list-roles": (ROLE_ADMIN, CHAN_ANY),
-    "emoji add": (ROLE_ADMIN, CHAN_STATS),
-    "emoji delete": (ROLE_ADMIN, CHAN_STATS),
-    "emoji rename": (ROLE_ADMIN, CHAN_STATS),
-    "clear_commands": (ROLE_ADMIN, CHAN_ANY),
-    "clear-help": (ROLE_ADMIN, CHAN_ANY),
-
-    # --- TESTER COMMANDS ---
-    "status-report": (ROLE_TESTER, CHAN_ANY),
-    "game-details": (ROLE_TESTER, CHAN_ANY),
-    "stream-history": (ROLE_TESTER, CHAN_ANY),
-    "list-games": (ROLE_TESTER, CHAN_ANY),
-    "game-stats-report": (ROLE_TESTER, CHAN_ANY),
-    "dev-info": (ROLE_TESTER, CHAN_ANY),
-    "server-analysis": (ROLE_TESTER, CHAN_ANY),
-    "info": (ROLE_TESTER, CHAN_ANY),
-    "help": (ROLE_TESTER, CHAN_ANY),
-
-    # --- PUBLIC COMMANDS WITH RESTRICTIONS ---
-    "emoji enlarge": (ROLE_EVERYONE, CHAN_STATS),
-    "emoji list": (ROLE_EVERYONE, CHAN_ANY),
-    "elite-log": (ROLE_EVERYONE, CHAN_ANY),
-    "weekly-chances": (ROLE_EVERYONE, CHAN_ANY),
-    "me": (ROLE_EVERYONE, CHAN_ANY),
-    "top": (ROLE_EVERYONE, CHAN_ANY)
-}
-
 class AdminCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -122,11 +69,37 @@ class AdminCog(commands.Cog):
              bname = self.bot.user.name if self.bot.user else "Iris"
              cmd.description = Config.format_desc(cmd._raw_desc, bot_name=bname)
 
+    def _can_toggle_command(self, interaction: discord.Interaction, cmd_name: str) -> bool:
+        """Checks if a user has permission to make a specific command's response public."""
+        # Server admins can always toggle visibility
+        if interaction.user.guild_permissions.administrator:
+            return True
+            
+        settings = Config.COMMAND_SETTINGS.get(cmd_name, {})
+        req_role = settings.get("toggle_role", "ADMIN") # Default to ADMIN
+        
+        if req_role == "EVERYONE":
+            return True
+            
+        if req_role == "ADMIN":
+            return Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
+            
+        if req_role == "TESTER":
+            # Admin role also satisfies Tester requirement
+            if Config.ADMIN_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None:
+                return True
+            return Config.TESTER_ROLE_ID != 0 and discord.utils.get(interaction.user.roles, id=Config.TESTER_ROLE_ID) is not None
+            
+        return False
+
     @app_commands.command(name="status-report", description=Messages.CMD_STATUS_REPORT_DESC)
     @is_tester_slash()
     async def status_report(self, interaction: discord.Interaction):
-
-        await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=True)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("status-report", {})
+        is_ephemeral = settings.get("ephemeral", True)
+        
+        await interaction.response.send_message(Messages.REPORT_GEN_STATUS, ephemeral=is_ephemeral)
         
         try:
             # We're starting to build a big text report with everyone's stats!
@@ -204,8 +177,11 @@ class AdminCog(commands.Cog):
         app_commands.Choice(name="All-time", value="alltime")
     ])
     async def server_analysis(self, interaction: discord.Interaction, type: str, timeframe: str):
-        # We tell Discord we're working on it, and it will be a private response
-        await interaction.response.defer(ephemeral=True)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("server-analysis", {})
+        is_ephemeral = settings.get("ephemeral", True)
+        
+        await interaction.response.defer(ephemeral=is_ephemeral)
         
         days = int(timeframe) if timeframe != "alltime" else None
         # Let's make the timeframe name look pretty for the chart title
@@ -294,8 +270,11 @@ class AdminCog(commands.Cog):
     @app_commands.describe(game=Messages.CMD_GAME_DETAILS_GAME_DESC)
     @is_tester_slash()
     async def game_details(self, interaction: discord.Interaction, game: str):
-        # Usable everywhere
-        await interaction.response.defer(ephemeral=True)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("game-details", {})
+        is_ephemeral = settings.get("ephemeral", True)
+        
+        await interaction.response.defer(ephemeral=is_ephemeral)
         
         raw_data = self.db.get_game_top_players(interaction.guild_id, game)
         if not raw_data:
@@ -336,8 +315,11 @@ class AdminCog(commands.Cog):
     @app_commands.describe(days=Messages.CMD_STREAM_HISTORY_DAYS_DESC)
     @is_admin_slash()
     async def stream_history(self, interaction: discord.Interaction, days: int = 7):
-        # Accessible everywhere as per requirements
-        await interaction.response.defer(ephemeral=True)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("stream-history", {})
+        is_ephemeral = settings.get("ephemeral", True)
+        
+        await interaction.response.defer(ephemeral=is_ephemeral)
         
         history = self.db.get_stream_history(interaction.guild_id, days=days)
         if not history:
@@ -383,9 +365,11 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="membership-logs", description=Messages.CMD_MEMBERSHIP_LOGS_DESC)
     @is_admin_slash()
     async def membership_logs(self, interaction: discord.Interaction):
-        # We're creating a list of who joined or left the server recently!
-
-        await interaction.response.send_message(Messages.MEMBERSHIP_LOG_GEN, ephemeral=True)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("membership-logs", {})
+        is_ephemeral = settings.get("ephemeral", True)
+        
+        await interaction.response.send_message(Messages.MEMBERSHIP_LOG_GEN, ephemeral=is_ephemeral)
         
         try:
             logs = self.db.get_membership_logs(interaction.guild_id, limit=Config.REPORT_LOG_LIMIT)
@@ -420,10 +404,11 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="game-role-report", description=Messages.CMD_GAME_ROLE_REPORT_DESC)
     @is_admin_slash()
     async def game_role_report(self, interaction: discord.Interaction):
-        # This command creates a report showing when the bot gave or took away game roles
-        # Usable everywhere
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("game-role-report", {})
+        is_ephemeral = settings.get("ephemeral", True)
         
-        await interaction.response.send_message(Messages.REPORT_GEN_ROLE, ephemeral=True)
+        await interaction.response.send_message(Messages.REPORT_GEN_ROLE, ephemeral=is_ephemeral)
         
         history = self.db.get_role_history(interaction.guild_id, limit=Config.REPORT_LOG_LIMIT)
         if not history:
@@ -447,11 +432,13 @@ class AdminCog(commands.Cog):
     @app_commands.command(name="reset-database", description=Messages.CMD_RESET_DB_DESC)
     @is_admin_slash()
     async def reset_database(self, interaction: discord.Interaction):
-        # DANGER: This command deletes ALL stats from the database!
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("reset-database", {})
+        is_ephemeral = settings.get("ephemeral", True)
             
         try:
             self.db.reset_database()
-            await interaction.response.send_message(Messages.DB_RESET_SUCCESS, ephemeral=True)
+            await interaction.response.send_message(Messages.DB_RESET_SUCCESS, ephemeral=is_ephemeral)
         except Exception as e:
             await interaction.response.send_message(Messages.DB_RESET_ERROR.format(e=e), ephemeral=True)
 
@@ -659,12 +646,11 @@ class AdminCog(commands.Cog):
     @app_commands.describe(mode=Messages.CMD_SYNC_MODE_DESC)
     @is_admin_slash()
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
-        # Refresh descriptions before syncing
-        for cog in self.bot.cogs.values():
-            if hasattr(cog, "refresh_descriptions"):
-                cog.refresh_descriptions(interaction.guild)
+        # Use config for default visibility
+        settings = Config.COMMAND_SETTINGS.get("sync", {})
+        is_ephemeral = settings.get("ephemeral", True)
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=is_ephemeral)
         
         if mode == "global":
             synced = await self.bot.tree.sync()
@@ -705,14 +691,9 @@ class AdminCog(commands.Cog):
         await self._info_logic(interaction, public)
 
     async def _info_logic(self, interaction: discord.Interaction, public: bool):
-        # By default, only the user sees this. But Admins can make it public!
+        # We check if the user is allowed to make this command public based on config
         if public:
-            # Let's double check if they really are an Admin before making it public
-            is_admin = interaction.user.guild_permissions.administrator
-            if not is_admin and Config.ADMIN_ROLE_ID != 0:
-                is_admin = discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
-            
-            if not is_admin:
+            if not self._can_toggle_command(interaction, "info"):
                 public = False
 
         await interaction.response.defer(ephemeral=not public)
@@ -735,10 +716,7 @@ class AdminCog(commands.Cog):
     @is_tester_slash()
     async def info_dev_slash(self, interaction: discord.Interaction, public: bool = False):
         if public:
-            is_admin = interaction.user.guild_permissions.administrator
-            if not is_admin and Config.ADMIN_ROLE_ID != 0:
-                is_admin = discord.utils.get(interaction.user.roles, id=Config.ADMIN_ROLE_ID) is not None
-            if not is_admin:
+            if not self._can_toggle_command(interaction, "dev-info"):
                 public = False
 
         await interaction.response.defer(ephemeral=not public)
@@ -757,24 +735,43 @@ class AdminCog(commands.Cog):
 
             # Structure: categorized[RoleKey][ChanKey] = [Lines]
             categorized = {
-                ROLE_ADMIN: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []},
-                ROLE_TESTER: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []},
-                ROLE_EVERYONE: {CHAN_ADMIN: [], CHAN_STATS: [], CHAN_ANY: []}
+                Config.ROLE_ADMIN: {Config.CHAN_ADMIN: [], Config.CHAN_STATS: [], Config.CHAN_ANY: []},
+                Config.ROLE_TESTER: {Config.CHAN_ADMIN: [], Config.CHAN_STATS: [], Config.CHAN_ANY: []},
+                Config.ROLE_EVERYONE: {Config.CHAN_ADMIN: [], Config.CHAN_STATS: [], Config.CHAN_ANY: []}
             }
 
-            def get_req_keys(name):
-                # Helper to get logical registry keys
-                return COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
+            def get_req_settings(name):
+                # Helper to get logical registry keys from Config
+                return Config.COMMAND_SETTINGS.get(name, {
+                    "role": Config.ROLE_EVERYONE, 
+                    "channel": Config.CHAN_ANY,
+                    "ephemeral": True,
+                    "has_toggle": False
+                })
 
-            def categorize_command(full_name, role_key, chan_key, desc, is_prefix=False):
-                # Use logical keys for the structure
-                if role_key not in categorized: role_key = ROLE_EVERYONE
-                if chan_key not in categorized[role_key]: chan_key = CHAN_ANY
+            def categorize_command(full_name, settings, desc, is_prefix=False):
+                role_key = settings.get("role", Config.ROLE_EVERYONE)
+                chan_key = settings.get("channel", Config.CHAN_ANY)
+                is_ephem = settings.get("ephemeral", True)
+                has_toggle = settings.get("has_toggle", False)
+                toggle_role = settings.get("toggle_role", "ADMIN")
+
+                # Ensure the roles/channels are in our structure
+                if role_key not in categorized: role_key = Config.ROLE_EVERYONE
+                if chan_key not in categorized[role_key]: chan_key = Config.CHAN_ANY
+                
+                # Visibility indicator
+                vis = "🕶️ Private" if is_ephem else "🌐 Publikus"
+                if has_toggle:
+                    # Append toggle role info for clarity
+                    t_label = f"{toggle_role}+" if toggle_role != "EVERYONE" else "Mindenki"
+                    vis += f" (+Kapcsolható: {t_label})"
                 
                 if is_prefix:
                     line = f"• **{Config.PREFIX}{full_name}** - *{desc}*"
                 else:
-                    line = f"• **/{full_name}** - *{desc}*"
+                    line = f"• **/{full_name}** - `{vis}`\n└ *{desc}*"
+                
                 categorized[role_key][chan_key].append(line)
 
             # 1. Gather Prefix Commands
@@ -788,10 +785,13 @@ class AdminCog(commands.Cog):
                 norm_name = base_name.replace("_", "-")
 
                 # Get logical level from registry
-                role_key, _ = get_req_keys(norm_name if norm_name in COMMAND_REGISTRY else base_name)
+                settings = get_req_settings(norm_name if norm_name in Config.COMMAND_SETTINGS else base_name)
                 
                 # Prefix commands are always marked as Admin Channel as per user request
-                categorize_command(cmd.name, role_key, CHAN_ADMIN, help_text, is_prefix=True)
+                # We override the channel to ADMIN_ONLY for display
+                view_settings = settings.copy()
+                view_settings["channel"] = Config.CHAN_ADMIN
+                categorize_command(cmd.name, view_settings, help_text, is_prefix=True)
 
             # 2. Gather Slash Commands
             for cmd in self.bot.tree.get_commands():
@@ -801,15 +801,15 @@ class AdminCog(commands.Cog):
                     for sub in cmd.commands:
                         full_name = f"{cmd.name} {sub.name}"
                         desc = Config.format_desc(sub.description, guild)
-                        role_key, chan_key = get_req_keys(full_name)
-                        categorize_command(full_name, role_key, chan_key, desc)
+                        settings = get_req_settings(full_name)
+                        categorize_command(full_name, settings, desc)
                 else:
                     display_name = cmd.name
                     if cmd.name == "info": display_name = "info / help"
                     
                     desc = Config.format_desc(cmd.description, guild)
-                    role_key, chan_key = get_req_keys(cmd.name)
-                    categorize_command(display_name, role_key, chan_key, desc)
+                    settings = get_req_settings(cmd.name)
+                    categorize_command(display_name, settings, desc)
 
             # 3. Build Pages from Categorized Groups
             pages = []
@@ -846,8 +846,8 @@ class AdminCog(commands.Cog):
             current_page_chars += len(header_text)
 
             # Iterate categorized groups using logical order
-            roles_order = [ROLE_ADMIN, ROLE_TESTER, ROLE_EVERYONE]
-            chans_order = [CHAN_ADMIN, CHAN_STATS, CHAN_ANY]
+            roles_order = [Config.ROLE_ADMIN, Config.ROLE_TESTER, Config.ROLE_EVERYONE]
+            chans_order = [Config.CHAN_ADMIN, Config.CHAN_STATS, Config.CHAN_ANY]
 
             for role_key in roles_order:
                 # Find if this role has ANY commands at all across any channel
@@ -855,17 +855,21 @@ class AdminCog(commands.Cog):
                 if not has_any_role_cmd: continue
                 
                 # Check for space for Role Section Header
-                r_icon = Icons.ROLE_ADMIN if role_key == ROLE_ADMIN else Icons.ROLE_TESTER if role_key == ROLE_TESTER else Icons.ROLE_USER
+                r_icon = Icons.ROLE_ADMIN if role_key == Config.ROLE_ADMIN else Icons.ROLE_TESTER if role_key == Config.ROLE_TESTER else Icons.ROLE_USER
                 
                 # Map logical key to locale label
-                role_label = Messages.HELP_ROLE_ADMIN if role_key == ROLE_ADMIN else Messages.HELP_ROLE_TESTER if role_key == ROLE_TESTER else Messages.HELP_ROLE_EVERYONE
+                role_label = Messages.HELP_ROLE_ADMIN if role_key == Config.ROLE_ADMIN else Messages.HELP_ROLE_TESTER if role_key == Config.ROLE_TESTER else Messages.HELP_ROLE_EVERYONE
                 
+                # Append inheritance indicator for elevated roles
+                if role_key in [Config.ROLE_ADMIN, Config.ROLE_TESTER]:
+                    role_label = f"{role_label}+"
+
                 # Use mentions in ephemeral messages as requested
                 display_role = role_label
                 if is_ephemeral:
-                    if role_key == ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
+                    if role_key == Config.ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
                         display_role = f"<@&{Config.ADMIN_ROLE_ID}>"
-                    elif role_key == ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
+                    elif role_key == Config.ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
                         display_role = f"<@&{Config.TESTER_ROLE_ID}>"
                 
                 role_header = f"## {r_icon} {display_role}"
@@ -876,17 +880,17 @@ class AdminCog(commands.Cog):
                     if not cmd_lines: continue
                     
                     # Map logical key to locale label
-                    chan_label = Messages.HELP_CHAN_ADMIN if chan_key == CHAN_ADMIN else Messages.HELP_CHAN_STATS if chan_key == CHAN_STATS else Messages.HELP_CHAN_ANY
+                    chan_label = Messages.HELP_CHAN_ADMIN if chan_key == Config.CHAN_ADMIN else Messages.HELP_CHAN_STATS if chan_key == Config.CHAN_STATS else Messages.HELP_CHAN_ANY
                     
                     display_chan = chan_label
                     if is_ephemeral:
-                        if chan_key == CHAN_ADMIN and Config.ADMIN_CHANNEL_ID != 0:
+                        if chan_key == Config.CHAN_ADMIN and Config.ADMIN_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.ADMIN_CHANNEL_ID}>"
-                        elif chan_key == CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
+                        elif chan_key == Config.CHAN_STATS and Config.STATS_CHANNEL_ID != 0:
                             display_chan = f"<#{Config.STATS_CHANNEL_ID}>"
                     
                     # Add LOCK icon for restricted categories, or GLOBE for 'Anywhere'
-                    if chan_key in [CHAN_ADMIN, CHAN_STATS]:
+                    if chan_key in [Config.CHAN_ADMIN, Config.CHAN_STATS]:
                         prefix = f"{Icons.LOCK} "
                     else:
                         prefix = f"{Icons.CHAN_ANY} "
@@ -923,15 +927,21 @@ class AdminCog(commands.Cog):
         """This function tells us if a command needs a special role or a specific channel to work!"""
         from core.ui_icons import Icons
         
-        # Look up in registry
-        reqs = COMMAND_REGISTRY.get(name, (ROLE_EVERYONE, CHAN_ANY))
-        role_lv, chan_lv = reqs
+        # Look up in config registry
+        sett = Config.COMMAND_SETTINGS.get(name, {
+                    "role": Config.ROLE_EVERYONE, 
+                    "channel": Config.CHAN_ANY,
+                    "ephemeral": True,
+                    "has_toggle": False
+                })
+        role_lv = sett.get("role", Config.ROLE_EVERYONE)
+        chan_lv = sett.get("channel", Config.CHAN_ANY)
 
         # 1. Map Role Level to Display
-        if role_lv == ROLE_ADMIN:
+        if role_lv == Config.ROLE_ADMIN:
             icon_role = Icons.ROLE_ADMIN
             label_role = Messages.HELP_ROLE_ADMIN
-        elif role_lv == ROLE_TESTER:
+        elif role_lv == Config.ROLE_TESTER:
             icon_role = Icons.ROLE_TESTER
             label_role = Messages.HELP_ROLE_TESTER
         else:
@@ -939,10 +949,10 @@ class AdminCog(commands.Cog):
             label_role = Messages.HELP_ROLE_EVERYONE
             
         # 2. Map Channel Level to Display
-        if chan_lv == CHAN_ADMIN:
+        if chan_lv == Config.CHAN_ADMIN:
             icon_chan = Icons.CHAN_ADMIN
             label_chan = Messages.HELP_CHAN_ADMIN
-        elif chan_lv == CHAN_STATS:
+        elif chan_lv == Config.CHAN_STATS:
             icon_chan = Icons.CHAN_STATS
             label_chan = Messages.HELP_CHAN_STATS
         else:

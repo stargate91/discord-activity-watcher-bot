@@ -373,5 +373,187 @@
                 "channel_id": null
             }
         }
+    },
+    "command_settings": {
+        "membership-logs": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "game-role-report": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "reset-database": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "reset-games": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "reset-elites": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "reset-reaction-roles": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "sync": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "link-alt": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "add-game": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "remove-game": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "test-weekly-layout": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "elite-force": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "list-channels": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "list-roles": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "emoji add": {
+            "role": "ADMIN",
+            "channel": "STATS_ONLY",
+            "ephemeral": true
+        },
+        "emoji delete": {
+            "role": "ADMIN",
+            "channel": "STATS_ONLY",
+            "ephemeral": true
+        },
+        "emoji rename": {
+            "role": "ADMIN",
+            "channel": "STATS_ONLY",
+            "ephemeral": true
+        },
+        "clear_commands": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "clear-help": {
+            "role": "ADMIN",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "status-report": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "game-details": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "stream-history": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "list-games": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "game-stats-report": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "dev-info": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true,
+            "has_toggle": true,
+            "toggle_role": "ADMIN"
+        },
+        "server-analysis": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "info": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true,
+            "has_toggle": true,
+            "toggle_role": "ADMIN"
+        },
+        "help": {
+            "role": "TESTER",
+            "channel": "ANYWHERE",
+            "ephemeral": true,
+            "has_toggle": true,
+            "toggle_role": "ADMIN"
+        },
+        "emoji enlarge": {
+            "role": "EVERYONE",
+            "channel": "STATS_ONLY",
+            "ephemeral": false
+        },
+        "emoji list": {
+            "role": "EVERYONE",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "elite-log": {
+            "role": "EVERYONE",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "weekly-chances": {
+            "role": "EVERYONE",
+            "channel": "ANYWHERE",
+            "ephemeral": true
+        },
+        "me": {
+            "role": "EVERYONE",
+            "channel": "ANYWHERE",
+            "ephemeral": true,
+            "has_toggle": true,
+            "toggle_role": "ADMIN"
+        },
+        "top": {
+            "role": "EVERYONE",
+            "channel": "ANYWHERE",
+            "ephemeral": true,
+            "has_toggle": true,
+            "toggle_role": "ADMIN"
+        }
     }
 }
