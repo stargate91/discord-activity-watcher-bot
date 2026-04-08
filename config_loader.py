@@ -263,11 +263,16 @@ class Config:
             role_obj = guild.get_role(cls.ADMIN_ROLE_ID)
             if role_obj: role_val = role_obj.name
 
-        return text.format(
-            admin_id=admin_val,
-            stats_id=stats_val,
-            role_id=role_val,
-            prefix=cls.PREFIX,
-            suffix=cls.SUFFIX,
-            bot_name=bot_name
-        )
+        try:
+            return text.format(
+                admin_id=admin_val,
+                stats_id=stats_val,
+                role_id=role_val,
+                prefix=cls.PREFIX,
+                suffix=cls.SUFFIX,
+                bot_name=bot_name
+            )
+        except Exception:
+            # If for some reason the description has {} that are NOT our special keys,
+            # .format() will CRASH. We catch that here and just return the string as is.
+            return text

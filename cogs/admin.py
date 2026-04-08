@@ -11,6 +11,7 @@ from core.ui_translate import t
 from core.ui_utils import get_feedback
 from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
+from core.logger import log
 
 def is_admin():
     """This little helper checks if a user is a server Admin or has our special Admin role."""
@@ -688,32 +689,43 @@ class AdminCog(commands.Cog):
                 public = False
 
         await interaction.response.defer(ephemeral=not public)
-        await self._send_dev_help(interaction)
+        try:
+            await self._send_dev_help(interaction)
+        except Exception as e:
+            log.error(f"Error in info_dev_slash: {e}", exc_info=True)
+            await interaction.followup.send(get_feedback('ERR_GENERIC', e=f"DevInfo collection: {e}"), ephemeral=True)
 
     async def _send_dev_help(self, target):
-        prefix_cmds = []
-        for cmd in self.bot.commands:
-            prefix_cmds.append((cmd.name, Config.format_desc(cmd.help or "---", target.guild if hasattr(target, "guild") else target)))
-            
-        # We're building a list of all the slash commands to show in the dev help
-        # We also show what role or channel you need for each one
-        slash_cmds = []
-        for cmd in self.bot.tree.get_commands():
-            if isinstance(cmd, app_commands.Group):
-                for sub in cmd.commands:
-                    full_name = f"{cmd.name} {sub.name}"
-                    access_info = self._get_command_access_info(full_name)
-                    slash_cmds.append((full_name, Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target), access_info))
-            else:
-                access_info = self._get_command_access_info(cmd.name)
-                slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target), access_info))
+        try:
+            prefix_cmds = []
+            for cmd in self.bot.commands:
+                prefix_cmds.append((cmd.name, Config.format_desc(cmd.help or "---", target.guild if hasattr(target, "guild") else target)))
+                
+            # We're building a list of all the slash commands to show in the dev help
+            # We also show what role or channel you need for each one
+            slash_cmds = []
+            for cmd in self.bot.tree.get_commands():
+                if isinstance(cmd, app_commands.Group):
+                    for sub in cmd.commands:
+                        full_name = f"{cmd.name} {sub.name}"
+                        access_info = self._get_command_access_info(full_name)
+                        slash_cmds.append((full_name, Config.format_desc(sub.description, target.guild if hasattr(target, "guild") else target), access_info))
+                else:
+                    access_info = self._get_command_access_info(cmd.name)
+                    slash_cmds.append((cmd.name, Config.format_desc(cmd.description, target.guild if hasattr(target, "guild") else target), access_info))
 
-        view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
-        
-        if isinstance(target, commands.Context):
-            await target.send(view=view)
-        else:
-            await target.followup.send(view=view)
+            view = ModernDevInfoView(target.guild if isinstance(target, commands.Context) else target.guild, prefix_cmds, slash_cmds)
+            
+            if isinstance(target, commands.Context):
+                await target.send(view=view)
+            else:
+                await target.followup.send(view=view)
+        except Exception as e:
+            log.error(f"Error in _send_dev_help: {e}", exc_info=True)
+            if not isinstance(target, commands.Context):
+                await target.followup.send(get_feedback('ERR_GENERIC', e=f"DevHelp builder: {e}"), ephemeral=True)
+            else:
+                await target.send(get_feedback('ERR_GENERIC', e=f"DevHelp builder: {e}"))
 
     def _get_command_access_info(self, name):
         """This function tells us if a command needs a special role or a specific channel to work!"""
