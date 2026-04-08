@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from core.logger import log
 from config_loader import Config
+from core.messages import Messages
 from core.ui_translate import t
 import re
 
@@ -31,21 +32,21 @@ class ReactionRolesCog(commands.Cog):
                     
                     role = guild.get_role(role_id)
                     if not role:
-                        await interaction.response.send_message(t("RR_ERROR_ROLE_NOT_FOUND"), ephemeral=True)
+                        await interaction.response.send_message(Messages.RR_ERROR_ROLE_NOT_FOUND, ephemeral=True)
                         return
                     
                     if role in interaction.user.roles:
                         await interaction.user.remove_roles(role)
-                        await interaction.response.send_message(t("RR_ROLE_REMOVED", role=role.name), ephemeral=True)
+                        await interaction.response.send_message(Messages.RR_ROLE_REMOVED.format(role=role.name), ephemeral=True)
                         log.info(f"ReactionRoleButton: Removed {role.name} from {interaction.user.display_name}")
                     else:
                         await interaction.user.add_roles(role)
-                        await interaction.response.send_message(t("RR_ROLE_ADDED", role=role.name), ephemeral=True)
+                        await interaction.response.send_message(Messages.RR_ROLE_ADDED.format(role=role.name), ephemeral=True)
                         log.info(f"ReactionRoleButton: Added {role.name} to {interaction.user.display_name}")
                 except Exception as e:
                     log.error(f"Error handling reaction role button: {e}")
                     if not interaction.response.is_done():
-                        await interaction.response.send_message(t("RR_ERROR_GENERIC"), ephemeral=True)
+                        await interaction.response.send_message(Messages.RR_ERROR_GENERIC, ephemeral=True)
 
     CLASS_STYLE_MAP = {
         "primary": discord.ButtonStyle.primary,

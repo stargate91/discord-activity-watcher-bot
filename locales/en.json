@@ -161,6 +161,10 @@
     "HELP_CHAN_ADMIN": "Bot Development 🤖",
     "HELP_CHAN_STATS": "Terminal",
     "REPORT_ELITES_EMPTY": "No elites recorded on this server yet.",
+    "INFO_DEV_VIS_PRIVATE": "🕶️ Private",
+    "INFO_DEV_VIS_PUBLIC": "🌐 Public",
+    "INFO_DEV_VIS_TOGGLE": "(+Switchable: {role})",
+    "ROLE_ALL": "Everyone",
     "REPORT_ELITES_TITLE": "GOAT LOG - Grid Legends",
     "ERR_PUBLIC_CHANNELS": "This command can be used in either the Admin (<#{admin_id}>) or Public (<#{stats_id}>) channel.",
     "CMD_ELITE_LOG_DESC": "View weekly Elite statistics.",
@@ -281,8 +285,8 @@
     "ERR_WRONG_GUILD": "This command can only be used on the configured server ({guild_id}).",
     "SUCCESS_ELITES_FORCED": "Success! Weekly Elite ranks have been calculated and distributed.",
     "ERR_LAYOUT_TEST": "Error during layout test: {e}",
-    "RR_ROLE_ADDED": "✅ Added: **{role}**",
-    "RR_ROLE_REMOVED": "✅ Removed: **{role}**",
-    "RR_ERROR_ROLE_NOT_FOUND": "❌ Role not found.",
-    "RR_ERROR_GENERIC": "❌ An error occurred during the operation."
+    "RR_ROLE_ADDED": "Added: **{role}**",
+    "RR_ROLE_REMOVED": "Removed: **{role}**",
+    "RR_ERROR_ROLE_NOT_FOUND": "Role not found.",
+    "RR_ERROR_GENERIC": "An error occurred during the operation."
 }

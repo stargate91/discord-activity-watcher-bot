@@ -761,11 +761,19 @@ class AdminCog(commands.Cog):
                 if chan_key not in categorized[role_key]: chan_key = Config.CHAN_ANY
                 
                 # Visibility indicator
-                vis = "🕶️ Private" if is_ephem else "🌐 Publikus"
+                vis = Messages.INFO_DEV_VIS_PRIVATE if is_ephem else Messages.INFO_DEV_VIS_PUBLIC
                 if has_toggle:
-                    # Append toggle role info for clarity
-                    t_label = f"{toggle_role}+" if toggle_role != "EVERYONE" else "Mindenki"
-                    vis += f" (+Kapcsolható: {t_label})"
+                    # Append toggle role info for clarity (localized)
+                    if toggle_role == "EVERYONE":
+                        t_label = Messages.ROLE_ALL
+                    elif toggle_role == "ADMIN":
+                        t_label = f"{Messages.HELP_ROLE_ADMIN}" # Admin already has + in Messages or our logic
+                    elif toggle_role == "TESTER":
+                        t_label = f"{Messages.HELP_ROLE_TESTER}" # Tester already has + in Messages or our logic
+                    else:
+                        t_label = toggle_role
+                        
+                    vis += f" {Messages.INFO_DEV_VIS_TOGGLE.format(role=t_label)}"
                 
                 if is_prefix:
                     line = f"• **{Config.PREFIX}{full_name}** - *{desc}*"
@@ -860,17 +868,18 @@ class AdminCog(commands.Cog):
                 # Map logical key to locale label
                 role_label = Messages.HELP_ROLE_ADMIN if role_key == Config.ROLE_ADMIN else Messages.HELP_ROLE_TESTER if role_key == Config.ROLE_TESTER else Messages.HELP_ROLE_EVERYONE
                 
-                # Append inheritance indicator for elevated roles
-                if role_key in [Config.ROLE_ADMIN, Config.ROLE_TESTER]:
-                    role_label = f"{role_label}+"
-
-                # Use mentions in ephemeral messages as requested
+                # Determine display text (Mention if ephemeral, otherwise Label)
                 display_role = role_label
                 if is_ephemeral:
                     if role_key == Config.ROLE_ADMIN and Config.ADMIN_ROLE_ID != 0:
                         display_role = f"<@&{Config.ADMIN_ROLE_ID}>"
                     elif role_key == Config.ROLE_TESTER and Config.TESTER_ROLE_ID != 0:
                         display_role = f"<@&{Config.TESTER_ROLE_ID}>"
+                
+                # Append inheritance indicator for elevated roles
+                if role_key in [Config.ROLE_ADMIN, Config.ROLE_TESTER]:
+                    display_role = f"{display_role}+"
+                
                 
                 role_header = f"## {r_icon} {display_role}"
                 add_to_page(role_header, is_new_block=True)

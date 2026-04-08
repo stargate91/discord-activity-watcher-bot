@@ -503,7 +503,7 @@
             "toggle_role": "ADMIN"
         },
         "server-analysis": {
-            "role": "TESTER",
+            "role": "EVERYONE",
             "channel": "ANYWHERE",
             "ephemeral": true
         },

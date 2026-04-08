@@ -161,6 +161,10 @@
     "HELP_CHAN_ADMIN": "bot-fejlesztés🤖",
     "HELP_CHAN_STATS": "terminál",
     "REPORT_ELITES_EMPTY": "Még nincsenek rögzített Elite-ek a szerveren.",
+    "INFO_DEV_VIS_PRIVATE": "🕶️ Privát",
+    "INFO_DEV_VIS_PUBLIC": "🌐 Publikus",
+    "INFO_DEV_VIS_TOGGLE": "(+Kapcsolható: {role})",
+    "ROLE_ALL": "Mindenki",
     "REPORT_ELITES_TITLE": "GOAT LOG - Grid Legends",
     "ERR_PUBLIC_CHANNELS": "Ez a parancs az Admin (<#{admin_id}>) vagy a Publikus (<#{stats_id}>) csatornán használható.",
     "CMD_ELITE_LOG_DESC": "Heti Elite statisztikák megtekintése.",
@@ -173,6 +177,7 @@
     "CAT_MEME": "MemeLord",
     "CMD_LIST_CHANNELS_DESC": "Szerver csatornáinak és típusainak exportálása TXT fájlba.",
     "CMD_LIST_ROLES_DESC": "Szerver rangok és engedélyek exportálása TXT fájlba.",
+    "CMD_WEEKLY_STANDINGS_DESC": "Megmutatja, kik vezetik jelenleg a heti Elite listákat.",
     "WEEKLY_STANDINGS_TITLE": "HETI ELITE ESÉLYEK (Élő Állás)",
     "WEEKLY_STANDINGS_FOOTER": "Ez egy élő előnézet. A végleges Elite osztás hétfő hajnalban történik!",
     "WEEKLY_STANDINGS_YOUR_STAT": "Te itt tartasz: **{value}**",
@@ -280,8 +285,8 @@
     "ERR_WRONG_GUILD": "Ez a parancs csak a kijelölt szerveren ({guild_id}) használható.",
     "SUCCESS_ELITES_FORCED": "Sikerült! A heti Elite rangok kiszámítása és kiosztása megtörtént.",
     "ERR_LAYOUT_TEST": "Hiba a layout tesztelés közben: {e}",
-    "RR_ROLE_ADDED": "✅ Hozzáadva: **{role}**",
-    "RR_ROLE_REMOVED": "✅ Eltávolítva: **{role}**",
-    "RR_ERROR_ROLE_NOT_FOUND": "❌ A szerepkör nem található.",
-    "RR_ERROR_GENERIC": "❌ Hiba történt a művelet közben."
+    "RR_ROLE_ADDED": "Hozzáadva: **{role}**",
+    "RR_ROLE_REMOVED": "Eltávolítva: **{role}**",
+    "RR_ERROR_ROLE_NOT_FOUND": "A szerepkör nem található.",
+    "RR_ERROR_GENERIC": "Hiba történt a művelet közben."
 }

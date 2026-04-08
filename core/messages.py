@@ -195,6 +195,10 @@ class Messages:
     WEEKLY_STANDINGS_GO_FOR_IT = ""
     EMOJI_LIST_INVENTORY_TITLE = ""
     EMOJI_PAGINATION_FOOTER = ""
+    INFO_DEV_VIS_PRIVATE = ""
+    INFO_DEV_VIS_PUBLIC = ""
+    INFO_DEV_VIS_TOGGLE = ""
+    ROLE_ALL = ""
     
     # --- Logging Module ---
     LOG_MSG_DELETE = ""
@@ -276,6 +280,10 @@ class Messages:
     LOG_UI_INIT = ""
     LOG_CONNECTING = ""
     LOG_EXTENSIONS_LOADED = ""
+    RR_ROLE_ADDED = ""
+    RR_ROLE_REMOVED = ""
+    RR_ERROR_ROLE_NOT_FOUND = ""
+    RR_ERROR_GENERIC = ""
 
     @classmethod
     def load_language(cls, lang_code):
@@ -355,7 +363,9 @@ class Messages:
             "ERR_INVALID_ID", "ERR_CONFIG_SAVE", "ERR_NO_PERMISSION", "CMD_ELITES_FORCE_DESC", "CMD_EMOJI_GROUP_DESC",
             "CMD_RESET_GAMES_DESC", "CMD_RESET_ELITES_DESC", "CMD_RESET_RR_DESC",
             "RESET_GAMES_SUCCESS", "RESET_ELITES_SUCCESS", "RESET_RR_SUCCESS",
-            "LOG_BOT_START", "LOG_UI_INIT", "LOG_CONNECTING", "LOG_EXTENSIONS_LOADED"
+            "LOG_BOT_START", "LOG_UI_INIT", "LOG_CONNECTING", "LOG_EXTENSIONS_LOADED",
+            "INFO_DEV_VIS_PRIVATE", "INFO_DEV_VIS_PUBLIC", "INFO_DEV_VIS_TOGGLE", "ROLE_ALL",
+            "RR_ROLE_ADDED", "RR_ROLE_REMOVED", "RR_ERROR_ROLE_NOT_FOUND", "RR_ERROR_GENERIC"
         )
         
         for key in keys:
