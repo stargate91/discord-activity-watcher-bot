@@ -1,4 +1,5 @@
 import io
+import os
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -144,8 +145,8 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     # Put the profile picture inside our pretty ring!
     ring.paste(avatar, (4, 4), avatar)
     
-    # We need some nice fonts to write their name on the card!
-    font_main = None
+    # 4. We choose the fonts. The main text (username) can scale down if it's too long!
+    main_font_path = None
     main_font_paths = [
         'core/fonts/Roboto-Bold.ttf',
         'C:/Windows/Fonts/segoeuib.ttf',
@@ -155,14 +156,56 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
         '/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf'
     ]
     for fp in main_font_paths:
-        try:
-            font_main = ImageFont.truetype(fp, font_size_main)
+        if os.path.exists(fp):
+            main_font_path = fp
             break
+            
+    # Calculate max allowed width with padding (20px on each side)
+    max_allowed_width = inner_width - 40
+    
+    current_font_size = font_size_main
+    font_main = None
+    tw, th = 0, 0
+    
+    # Simple draw object for measurement
+    measure_draw = ImageDraw.Draw(canvas)
+    
+    # Loop to find the best font size for the main text
+    while current_font_size >= 22:
+        if main_font_path:
+            try:
+                font_main = ImageFont.truetype(main_font_path, current_font_size)
+            except:
+                font_main = ImageFont.load_default()
+        else:
+            font_main = ImageFont.load_default()
+            
+        # Measure
+        try:
+            bbox = measure_draw.textbbox((0, 0), main_text, font=font_main)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
         except:
-            pass
-    if not font_main:
-        font_main = ImageFont.load_default()
-        
+            tw = measure_draw.textlength(main_text, font=font_main)
+            th = current_font_size
+            
+        if tw <= max_allowed_width:
+            break
+        current_font_size -= 1
+
+    # If it still doesn't fit at 22px, we truncate with "..."
+    if tw > max_allowed_width:
+        while len(main_text) > 0 and tw > max_allowed_width:
+            main_text = main_text[:-1]
+            display_text = main_text + "..."
+            try:
+                bbox = measure_draw.textbbox((0, 0), display_text, font=font_main)
+                tw = bbox[2] - bbox[0]
+            except:
+                tw = measure_draw.textlength(display_text, font=font_main)
+        main_text += "..."
+
+    # Sub-text remains fixed size (as requested)
     font_sub = None
     sub_font_paths = [
         'core/fonts/Roboto-Regular.ttf',
@@ -181,42 +224,34 @@ async def get_welcome_card(avatar_url: str, main_text: str, sub_text: str, bg_ur
     if not font_sub:
         font_sub = ImageFont.load_default()
 
-    draw = ImageDraw.Draw(canvas)
-    
-    # We do some math here to see how big the text is so we can center it!
+    # Measure sub-text
     try:
-        bbox1 = draw.textbbox((0, 0), main_text, font=font_main)
-        tw = bbox1[2] - bbox1[0]
-        th = bbox1[3] - bbox1[1]
-    except Exception:
-        tw = draw.textlength(main_text, font=font_main)
-        th = font_size_main
-        
-    try:
-        bbox2 = draw.textbbox((0, 0), sub_text, font=font_sub)
+        bbox2 = measure_draw.textbbox((0, 0), sub_text, font=font_sub)
         stw = bbox2[2] - bbox2[0]
         sth = bbox2[3] - bbox2[1]
-    except Exception:
-        stw = draw.textlength(sub_text, font=font_sub)
+    except:
+        stw = measure_draw.textlength(sub_text, font=font_sub)
         sth = font_size_sub
         
-    # We do even more math to make sure everything is perfectly centered vertically!
+    # Vertical centering math
     space1 = style_config.get("text_margin_top", 10)
     space2 = style_config.get("text_spacing", 10)
     total_height = ring_size + space1 + th + space2 + sth
     
-    # Finally, we put the profile picture and text onto our main canvas!
     avatar_x = (width - ring_size) // 2
     avatar_y = (height - total_height) // 2
+    
+    # Composite the components
     canvas.paste(ring, (avatar_x, avatar_y), ring)
+    
     main_color_rgba = hex_to_rgba(main_color_hex, (255, 255, 255, 255))
     sub_color_rgba = hex_to_rgba(sub_color_hex, (200, 200, 200, 255))
     
     main_y = avatar_y + ring_size + space1
-    draw.text(((width - tw) // 2, main_y), main_text, fill=main_color_rgba, font=font_main)
+    measure_draw.text(((width - tw) // 2, main_y), main_text, fill=main_color_rgba, font=font_main)
     
     sub_y = main_y + th + space2
-    draw.text(((width - stw) // 2, sub_y), sub_text, fill=sub_color_rgba, font=font_sub)
+    measure_draw.text(((width - stw) // 2, sub_y), sub_text, fill=sub_color_rgba, font=font_sub)
     
     buffer = io.BytesIO()
     canvas.save(buffer, format="PNG")
