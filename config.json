@@ -224,7 +224,7 @@
                 {
                     "emoji": "✅",
                     "label": "",
-                    "style": "success",
+                    "style": "secondary",
                     "role_name": "BCup Enjoyer"
                 }
             ]
