@@ -555,6 +555,9 @@
             "ephemeral": true,
             "has_toggle": true,
             "toggle_role": "ADMIN"
+        },
+        "workflow": {
+          "api_base_url": "http://localhost:8000"
         }
     }
 }

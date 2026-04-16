@@ -142,6 +142,10 @@ class Config:
     _user_mapping = _data.get("user_mapping", {})
     # This turns the list into numbers so the computer can understand it better
     USER_MAPPING = {int(k): int(v) for k, v in _user_mapping.items()}
+    
+    # Workflow API settings
+    _workflow = _data.get("workflow", {})
+    WORKFLOW_API_BASE_URL = _workflow.get("api_base_url", "http://localhost:8000")
 
     @classmethod
     def reload(cls):

@@ -27,8 +27,13 @@ pip-wheel-metadata/
 # IDEs
 .vscode/
 .idea/
+
 activity_bot.log
 
 # Logging Archive
 message_archive.db
 message_archive.db-journal
+
+# wsl1 specific
+*.Identifier
+
