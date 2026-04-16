@@ -5,6 +5,8 @@ import datetime
 import os
 import math
 import io
+import asyncio
+import aiohttp
 from config_loader import Config
 from core.messages import Messages
 from core.ui_translate import t
@@ -12,6 +14,8 @@ from core.ui_utils import get_feedback
 from core.views import ModernInfoView, ModernDevInfoView, AltAccountModal, ModernPaginatorView
 from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 from core.logger import log
+from core.workflow_client import workflow_client
+from core.workflow_views import WorkflowStreamView
 
 def is_admin():
     """This little helper checks if a user is a server Admin or has our special Admin role."""
@@ -996,12 +1000,215 @@ class AdminCog(commands.Cog):
         # This opens a little popup window where admins can link two accounts together!
         await interaction.response.send_modal(AltAccountModal())
 
+    @app_commands.command(name="ai_admin", description="Start an AI workflow task with real-time output streaming")
+    @is_admin_slash()
+    async def ai_admin(self, interaction: discord.Interaction):
+        """Start an AI workflow task - opens a modal to get the user query."""
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+        
+        # Create and show modal to get user query
+        modal = WorkflowQueryModal()
+        await interaction.response.send_modal(modal)
+
+    @app_commands.command(name="ai_openai_api", description="Configure OpenAI API key for the Workflow service")
+    @is_admin_slash()
+    async def ai_openai_api(self, interaction: discord.Interaction):
+        """Opens a modal to securely configure the OpenAI API key."""
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID), ephemeral=True)
+            return
+        
+        # Show modal for API key input (ephemeral, won't be visible to others)
+        modal = OpenAIKeyModal()
+        await interaction.response.send_modal(modal)
+
+    async def _handle_workflow_stream(
+        self,
+        interaction: discord.Interaction,
+        view: WorkflowStreamView,
+        session_id: str
+    ):
+        """Handle streaming events from the workflow API."""
+        try:
+            def on_event(event: dict):
+                event_type = event.get("type")
+                
+                if event_type == "session_started":
+                    status = event.get("status", "running")
+                    user_query = event.get("user_query", "")
+                    view.set_session_started(status, user_query)
+                    
+                elif event_type == "output":
+                    text = event.get("text", "")
+                    if text:
+                        view.add_output_text(text)
+                
+                elif event_type == "input_needed":
+                    request_data = {
+                        "request_id": event.get("request_id"),
+                        "input_kind": event.get("input_kind"),
+                        "prompt": event.get("prompt"),
+                        "metadata": event.get("metadata", {}),
+                        "options": event.get("options", []),
+                        "allow_free_text": event.get("allow_free_text", False)
+                    }
+                    view.set_input_request(request_data)
+                
+                elif event_type in ["cancelled", "error"]:
+                    message = event.get("message", "Unknown error")
+                    view.close_session(message)
+                
+                elif event_type == "session_closed" or event.get("message") == "Connection closed to AI Bot Service":
+                    view.close_session("Connection closed to AI Bot Service")
+            
+            # Stream the session output
+            await workflow_client.stream_session_output(session_id, on_event)
+            
+        except Exception as e:
+            view.close_session(f"Stream error: {str(e)}")
+        finally:
+            # Final update
+            await view.update_message()
+            workflow_client.remove_session(session_id)
+
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""
         bname = self.bot.user.name if self.bot.user else "Iris"
         for cmd in self.get_app_commands():
              if hasattr(cmd, "_raw_desc"):
                  cmd.description = Config.format_desc(cmd._raw_desc, guild, bot_name=bname)
+
+
+class WorkflowQueryModal(discord.ui.Modal):
+    """Modal to get the user's AI workflow query."""
+    
+    def __init__(self):
+        super().__init__(title="AI Workflow Task")
+        
+        self.query = discord.ui.TextInput(
+            label="What would you like to do?",
+            placeholder="Describe your task here...",
+            min_length=10,
+            max_length=500,
+            style=discord.TextStyle.long,
+            required=True
+        )
+        
+        self.add_item(self.query)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        """Process the submitted query."""
+        user_query = self.query.value.strip()
+        
+        if not user_query:
+            await interaction.response.send_message(
+                "❌ Query cannot be empty!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=False)
+        
+        try:
+            # Get the admin cog to access the stream handler
+            cog = interaction.client.get_cog("AdminCog")
+            if not cog:
+                raise Exception("AdminCog not found")
+            
+            # Create the view
+            view = WorkflowStreamView(interaction.guild, "")
+            
+            # Start the workflow request
+            session_id = await workflow_client.start_new_request(
+                user_query=user_query,
+                guild_id=str(interaction.guild_id),
+                memory_user_id=str(interaction.user.id)
+            )
+            
+            if not session_id:
+                raise Exception("Failed to get session_id from API")
+            
+            # Update view with session ID
+            view.session_id = session_id
+            workflow_client.store_session(session_id, view)
+            
+            # Send initial message with view
+            message = await interaction.followup.send(
+                f"🔄 Starting AI workflow (Session: `{session_id}`)...",
+                view=view,
+                ephemeral=False
+            )
+            view.message = message
+            
+            # Start streaming in background task
+            async def stream_task():
+                await cog._handle_workflow_stream(interaction, view, session_id)
+            
+            asyncio.create_task(stream_task())
+            
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error starting workflow: {str(e)}",
+                ephemeral=True
+            )
+
+
+class OpenAIKeyModal(discord.ui.Modal):
+    """Modal to securely configure the OpenAI API key."""
+    
+    def __init__(self):
+        super().__init__(title="OpenAI API Configuration")
+        
+        self.api_key = discord.ui.TextInput(
+            label="OpenAI API Key",
+            placeholder="sk-...",
+            min_length=20,
+            max_length=200,
+            style=discord.TextStyle.short,
+            required=True
+        )
+        
+        self.add_item(self.api_key)
+    
+    async def on_submit(self, interaction: discord.Interaction):
+        """Send the API key to the Workflow service."""
+        api_key = self.api_key.value.strip()
+        
+        if not api_key:
+            await interaction.response.send_message(
+                "❌ API key cannot be empty!",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            # Send the API key to the Workflow service
+            url = f"{Config.WORKFLOW_API_BASE_URL}/api/config/openai/token"
+            payload = {"api_key": api_key}
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload) as resp:
+                    if resp.status == 200:
+                        await interaction.followup.send(
+                            "✅ OpenAI API key configured successfully!",
+                            ephemeral=True
+                        )
+                    else:
+                        error_msg = await resp.text()
+                        await interaction.followup.send(
+                            f"❌ Failed to configure API key (HTTP {resp.status})",
+                            ephemeral=True
+                        )
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error configuring API key: {str(e)}",
+                ephemeral=True
+            )
+
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
