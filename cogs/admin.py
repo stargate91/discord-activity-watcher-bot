@@ -1117,9 +1117,6 @@ class WorkflowQueryModal(discord.ui.Modal):
             if not cog:
                 raise Exception("AdminCog not found")
             
-            # Create the view
-            view = WorkflowStreamView(interaction.guild, "")
-            
             # Start the workflow request
             session_id = await workflow_client.start_new_request(
                 user_query=user_query,
@@ -1129,14 +1126,13 @@ class WorkflowQueryModal(discord.ui.Modal):
             
             if not session_id:
                 raise Exception("Failed to get session_id from API")
-            
-            # Update view with session ID
-            view.session_id = session_id
+
+            # Create the view now that we have the session_id
+            view = WorkflowStreamView(interaction.guild, session_id)
             workflow_client.store_session(session_id, view)
             
-            # Send initial message with view
+            # Send initial message with view (Modern V2 LayoutView cannot have 'content' field)
             message = await interaction.followup.send(
-                f"🔄 Starting AI workflow (Session: `{session_id}`)...",
                 view=view,
                 ephemeral=False
             )
