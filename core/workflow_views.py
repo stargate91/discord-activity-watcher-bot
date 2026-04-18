@@ -22,6 +22,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
         self.session_id = session_id
         self.is_closed = False
         self.output_text = ""
+        self.input_state = "hidden"
         self.input_request: Optional[Dict[str, Any]] = None
         self.input_prompt_text: Optional[str] = None
         self.input_button_row: Optional[discord.ui.ActionRow] = None
@@ -35,11 +36,18 @@ class WorkflowStreamView(discord.ui.LayoutView):
 
     def has_input_ui(self) -> bool:
         """Return whether the approval button row is currently visible."""
-        return getattr(self, "input_button_row", None) is not None
+        return self.input_state == "awaiting_response" and self.input_button_row is not None
 
     def has_input_section(self) -> bool:
         """Return whether any input-related UI should be rendered."""
-        return bool(getattr(self, "input_prompt_text", None) or self.has_input_ui())
+        return self.input_state != "hidden"
+
+    def _hide_input_section(self):
+        """Clear any input-related UI from the view."""
+        self.input_state = "hidden"
+        self.input_request = None
+        self.input_prompt_text = None
+        self.input_button_row = None
     
     def _build_container(self):
         """Build the main container with current state."""
@@ -101,6 +109,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
     
     def set_input_request(self, request_data: Dict[str, Any]):
         """Create an input selection interface with yes/no buttons."""
+        self._hide_input_section()
         self.input_request = request_data
         
         # Build input section
@@ -150,6 +159,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
         button_row.add_item(btn_yes)
         button_row.add_item(btn_no)
         
+        self.input_state = "awaiting_response"
         self.input_button_row = button_row
         log.info(
             f"WorkflowStreamView: input UI shown session_id={self.session_id} "
@@ -159,6 +169,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
     def mark_input_sent(self):
         """Replace the input buttons with a waiting state after a response was sent."""
         self.input_request = None
+        self.input_state = "response_sent"
         self.input_prompt_text = "## ⏳ Input Sent\nWaiting for the workflow to continue..."
         self.input_button_row = None
         log.info(f"WorkflowStreamView: input UI hidden after send session_id={self.session_id}")
@@ -167,9 +178,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
         """Mark the session as closed."""
         self.session_status = status
         self.is_closed = True
-        self.input_request = None
-        self.input_prompt_text = None
-        self.input_button_row = None
+        self._hide_input_section()
         self.close_reason = reason
         if reason:
             self.add_output_text(f"\n\n---\n**Closed:** {reason}")
