@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import datetime
+import json
 import os
 import math
 import io
@@ -16,6 +17,19 @@ from core.visualizer import draw_peak_heatmap, draw_voice_usage_bars
 from core.logger import log
 from core.workflow_client import workflow_client
 from core.workflow_views import WorkflowStreamView
+
+
+def _format_workflow_log(value, limit: int = 4000) -> str:
+    """Serialize workflow debug payloads while keeping logs readable."""
+    try:
+        serialized = json.dumps(value, ensure_ascii=False)
+    except Exception:
+        serialized = repr(value)
+
+    if len(serialized) <= limit:
+        return serialized
+    return f"{serialized[:limit]}... [truncated {len(serialized) - limit} chars]"
+
 
 def is_admin():
     """This little helper checks if a user is a server Admin or has our special Admin role."""
@@ -1031,47 +1045,159 @@ class AdminCog(commands.Cog):
         session_id: str
     ):
         """Handle streaming events from the workflow API."""
+        log.info(
+            f"AdminCog.ai_admin: stream handler started session_id={session_id} "
+            f"guild_id={interaction.guild_id} channel_id={interaction.channel_id} user_id={interaction.user.id}"
+        )
+        last_view_update = 0.0
+        pending_view_update = None
+        queued_view_update = False
+        queued_force_update = False
+
+        async def run_view_update_loop(force: bool = False):
+            nonlocal last_view_update, pending_view_update, queued_view_update, queued_force_update
+
+            while True:
+                now = asyncio.get_running_loop().time()
+                if not force and (now - last_view_update) < 0.75:
+                    await asyncio.sleep(0.75 - (now - last_view_update))
+
+                last_view_update = asyncio.get_running_loop().time()
+                log.info(
+                    f"AdminCog.ai_admin: running view update session_id={session_id} "
+                    f"force={force} output_len={len(view.output_text)} closed={view.is_closed} "
+                    f"has_input={view.has_input_ui()}"
+                )
+                try:
+                    await view.update_message()
+                finally:
+                    if queued_view_update and view.message:
+                        force = queued_force_update
+                        queued_view_update = False
+                        queued_force_update = False
+                        continue
+
+                    pending_view_update = None
+                    break
+
+        def schedule_view_update(force: bool = False):
+            nonlocal pending_view_update, queued_view_update, queued_force_update
+
+            if not view.message:
+                log.warning(
+                    f"AdminCog.ai_admin: skipped view update session_id={session_id} reason=no_message"
+                )
+                return
+
+            if pending_view_update and not pending_view_update.done():
+                queued_view_update = True
+                queued_force_update = queued_force_update or force
+                log.info(
+                    f"AdminCog.ai_admin: queued view update session_id={session_id} "
+                    f"force={force} output_len={len(view.output_text)} closed={view.is_closed} "
+                    f"has_input={view.has_input_ui()}"
+                )
+                return
+
+            log.info(
+                f"AdminCog.ai_admin: scheduling view update session_id={session_id} "
+                f"force={force} output_len={len(view.output_text)} closed={view.is_closed} "
+                f"has_input={view.has_input_ui()}"
+            )
+            pending_view_update = asyncio.create_task(run_view_update_loop(force=force))
+
         try:
             def on_event(event: dict):
                 event_type = event.get("type")
-                
+                log.info(
+                    f"AdminCog.ai_admin: handling event session_id={session_id} "
+                    f"type={event_type} payload={_format_workflow_log(event)}"
+                )
+
                 if event_type == "session_started":
-                    status = event.get("status", "running")
-                    user_query = event.get("user_query", "")
-                    view.set_session_started(status, user_query)
-                    
+                    view.set_session_started(
+                        event.get("status", "running"),
+                        event.get("user_query", "")
+                    )
+                    schedule_view_update(force=True)
+
                 elif event_type == "output":
                     text = event.get("text", "")
                     if text:
                         view.add_output_text(text)
-                
+                        schedule_view_update()
+
                 elif event_type == "input_needed":
                     request_data = {
                         "request_id": event.get("request_id"),
-                        "input_kind": event.get("input_kind"),
+                        "input_kind": event.get("input_kind"),   # approval | text | choice
                         "prompt": event.get("prompt"),
                         "metadata": event.get("metadata", {}),
                         "options": event.get("options", []),
-                        "allow_free_text": event.get("allow_free_text", False)
+                        "allow_free_text": event.get("allow_free_text", False),
                     }
                     view.set_input_request(request_data)
-                
-                elif event_type in ["cancelled", "error"]:
+                    schedule_view_update(force=True)
+
+                elif event_type == "input_received":
+                    view.mark_input_sent()   # opcionális
+                    schedule_view_update(force=True)
+
+                elif event_type == "heartbeat":
+                    pass  # ignorálható
+
+                elif event_type == "completed":
+                    result = event.get("result", "")
+                    if result:
+                        view.add_output_text(result)
+                    view.close_session("The workflow completed successfully.", status="completed")
+                    schedule_view_update(force=True)
+
+                elif event_type == "cancelled":
                     message = event.get("message", "Unknown error")
-                    view.close_session(message)
-                
-                elif event_type == "session_closed" or event.get("message") == "Connection closed to AI Bot Service":
-                    view.close_session("Connection closed to AI Bot Service")
-            
+                    view.close_session(message, status="cancelled")
+                    schedule_view_update(force=True)
+
+                elif event_type == "error":
+                    message = event.get("message", "Unknown error")
+                    view.close_session(message, status="error")
+                    schedule_view_update(force=True)
+
+                else:
+                    log.info(
+                        f"AdminCog.ai_admin: unhandled event type session_id={session_id} "
+                        f"type={event_type}"
+                    )
             # Stream the session output
             await workflow_client.stream_session_output(session_id, on_event)
+
+            if not view.is_closed:
+                log.warning(
+                    f"AdminCog.ai_admin: stream ended without explicit terminal event "
+                    f"session_id={session_id} last_status={view.session_status}"
+                )
+                view.close_session(
+                    "The workflow stream ended without a terminal event.",
+                    status="finished"
+                )
+                schedule_view_update(force=True)
             
         except Exception as e:
-            view.close_session(f"Stream error: {str(e)}")
+            log.error(
+                f"AdminCog.ai_admin: stream handler error session_id={session_id} error={e}",
+                exc_info=True
+            )
+            view.close_session(f"Stream error: {str(e)}", status="error")
         finally:
+            if pending_view_update and not pending_view_update.done():
+                try:
+                    await pending_view_update
+                except Exception:
+                    pass
             # Final update
             await view.update_message()
             workflow_client.remove_session(session_id)
+            log.info(f"AdminCog.ai_admin: stream handler finished session_id={session_id}")
 
     def refresh_descriptions(self, guild):
         """Re-formats all slash command descriptions using actual names from the guild."""
@@ -1112,6 +1238,11 @@ class WorkflowQueryModal(discord.ui.Modal):
         await interaction.response.defer(ephemeral=False)
         
         try:
+            log.info(
+                f"AdminCog.ai_admin: modal submitted guild_id={interaction.guild_id} "
+                f"channel_id={interaction.channel_id} user_id={interaction.user.id} "
+                f"query={_format_workflow_log(user_query)}"
+            )
             # Get the admin cog to access the stream handler
             cog = interaction.client.get_cog("AdminCog")
             if not cog:
@@ -1130,21 +1261,37 @@ class WorkflowQueryModal(discord.ui.Modal):
             # Create the view now that we have the session_id
             view = WorkflowStreamView(interaction.guild, session_id)
             workflow_client.store_session(session_id, view)
+            log.info(
+                f"AdminCog.ai_admin: workflow session created session_id={session_id} "
+                f"guild_id={interaction.guild_id} user_id={interaction.user.id}"
+            )
             
             # Send initial message with view (Modern V2 LayoutView cannot have 'content' field)
             message = await interaction.followup.send(
                 view=view,
-                ephemeral=False
+                ephemeral=False,
+                wait=True
             )
             view.message = message
+            log.info(
+                f"AdminCog.ai_admin: workflow view message sent session_id={session_id} "
+                f"message_id={message.id if message else None}"
+            )
             
             # Start streaming in background task
             async def stream_task():
                 await cog._handle_workflow_stream(interaction, view, session_id)
             
             asyncio.create_task(stream_task())
+            log.info(
+                f"AdminCog.ai_admin: background stream task created session_id={session_id}"
+            )
             
         except Exception as e:
+            log.error(
+                f"AdminCog.ai_admin: failed to start workflow error={e}",
+                exc_info=True
+            )
             await interaction.followup.send(
                 f"❌ Error starting workflow: {str(e)}",
                 ephemeral=True

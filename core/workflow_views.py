@@ -10,6 +10,7 @@ import asyncio
 from typing import Optional, List, Dict, Any, Callable
 from discord.ui import LayoutView, Container, Section, TextDisplay, Separator, ActionRow, Button
 from config_loader import Config
+from core.logger import log
 
 
 class WorkflowStreamView(discord.ui.LayoutView):
@@ -21,13 +22,24 @@ class WorkflowStreamView(discord.ui.LayoutView):
         self.session_id = session_id
         self.is_closed = False
         self.output_text = ""
-        self.input_section = None
         self.input_request: Optional[Dict[str, Any]] = None
+        self.input_prompt_text: Optional[str] = None
+        self.input_button_row: Optional[discord.ui.ActionRow] = None
         self.message: Optional[discord.Message] = None
-        self.session_info_display: Optional[discord.ui.TextDisplay] = None
+        self.session_status = "initializing"
+        self.user_query = ""
+        self.close_reason: Optional[str] = None
         
         # Build initial container
         self._build_container()
+
+    def has_input_ui(self) -> bool:
+        """Return whether the approval button row is currently visible."""
+        return getattr(self, "input_button_row", None) is not None
+
+    def has_input_section(self) -> bool:
+        """Return whether any input-related UI should be rendered."""
+        return bool(getattr(self, "input_prompt_text", None) or self.has_input_ui())
     
     def _build_container(self):
         """Build the main container with current state."""
@@ -40,8 +52,10 @@ class WorkflowStreamView(discord.ui.LayoutView):
         container.add_item(discord.ui.Separator())
         
         # Session started info (will be updated)
-        self.session_info_display = discord.ui.TextDisplay("⏳ Session initializing...")
-        container.add_item(self.session_info_display)
+        session_text = f"**Status:** {self.session_status}"
+        if self.user_query:
+            session_text += f"\n**Query:** {self.user_query}"
+        container.add_item(discord.ui.TextDisplay(f"## Session Info\n{session_text}"))
         
         container.add_item(discord.ui.Separator())
         
@@ -54,15 +68,23 @@ class WorkflowStreamView(discord.ui.LayoutView):
             container.add_item(discord.ui.TextDisplay("*(Waiting for output...)*"))
         
         # Input section (will be added if needed)
-        if self.input_section:
+        if self.has_input_section():
             container.add_item(discord.ui.Separator())
-            container.add_item(self.input_section)
+            if self.input_prompt_text:
+                container.add_item(discord.ui.TextDisplay(self.input_prompt_text))
+            if self.has_input_ui():
+                container.add_item(self.input_button_row)
         
         # Status footer
         if self.is_closed:
             container.add_item(discord.ui.Separator())
+            footer_text = "🔴 **AI Session Closed**"
+            if self.close_reason:
+                footer_text += f"\n{self.close_reason}"
+            else:
+                footer_text += "\nThe workflow has completed."
             container.add_item(discord.ui.TextDisplay(
-                "🔴 **AI Session Closed**\nThe workflow has completed."
+                footer_text
             ))
         
         self.clear_items()
@@ -70,9 +92,8 @@ class WorkflowStreamView(discord.ui.LayoutView):
     
     def set_session_started(self, status: str, user_query: str):
         """Update the view when session starts."""
-        session_text = f"**Status:** {status}\n**Query:** {user_query}"
-        if self.session_info_display:
-            self.session_info_display = discord.ui.TextDisplay(f"## Session Info\n{session_text}")
+        self.session_status = status
+        self.user_query = user_query
     
     def add_output_text(self, text: str):
         """Append text to the output section (streaming update)."""
@@ -104,7 +125,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
                     opt_str = opt.get("value", opt.get("label", "?"))
                     input_text += f"• {opt_str}\n"
         
-        self.input_section = discord.ui.TextDisplay(input_text)
+        self.input_prompt_text = input_text
         
         # Create button row for yes/no
         button_row = discord.ui.ActionRow()
@@ -129,13 +150,33 @@ class WorkflowStreamView(discord.ui.LayoutView):
         button_row.add_item(btn_yes)
         button_row.add_item(btn_no)
         
-        self.input_section = button_row
+        self.input_button_row = button_row
+        log.info(
+            f"WorkflowStreamView: input UI shown session_id={self.session_id} "
+            f"request_id={request_data.get('request_id')} input_kind={input_kind}"
+        )
+
+    def mark_input_sent(self):
+        """Replace the input buttons with a waiting state after a response was sent."""
+        self.input_request = None
+        self.input_prompt_text = "## ⏳ Input Sent\nWaiting for the workflow to continue..."
+        self.input_button_row = None
+        log.info(f"WorkflowStreamView: input UI hidden after send session_id={self.session_id}")
     
-    def close_session(self, reason: str = "Connection closed to AI Bot Service"):
+    def close_session(self, reason: Optional[str] = "Connection closed to AI Bot Service", status: str = "closed"):
         """Mark the session as closed."""
+        self.session_status = status
         self.is_closed = True
+        self.input_request = None
+        self.input_prompt_text = None
+        self.input_button_row = None
+        self.close_reason = reason
         if reason:
             self.add_output_text(f"\n\n---\n**Closed:** {reason}")
+        log.info(
+            f"WorkflowStreamView: session closed session_id={self.session_id} "
+            f"status={status} reason={reason}"
+        )
     
     async def update_message(self):
         """Rebuild and update the Discord message."""
@@ -143,8 +184,16 @@ class WorkflowStreamView(discord.ui.LayoutView):
             self._build_container()
             try:
                 await self.message.edit(view=self)
+                log.info(
+                    f"WorkflowStreamView: updated message session_id={self.session_id} "
+                    f"message_id={self.message.id} output_len={len(self.output_text)} closed={self.is_closed}"
+                )
             except discord.HTTPException as e:
-                print(f"Failed to update workflow message: {e}")
+                log.error(
+                    f"WorkflowStreamView: failed to update message session_id={self.session_id} "
+                    f"message_id={self.message.id if self.message else None} error={e}",
+                    exc_info=True
+                )
 
 
 class WorkflowInputButton(discord.ui.Button):
@@ -162,6 +211,10 @@ class WorkflowInputButton(discord.ui.Button):
         
         try:
             await interaction.response.defer(ephemeral=True)
+            log.info(
+                f"WorkflowInputButton: clicked session_id={self.session_id} "
+                f"request_id={self.request_id} value={self.value} user_id={interaction.user.id}"
+            )
             
             # Send the input response
             approved = self.value == "yes"
@@ -172,16 +225,29 @@ class WorkflowInputButton(discord.ui.Button):
             )
             
             if success:
+                log.info(
+                    f"WorkflowInputButton: input response sent session_id={self.session_id} "
+                    f"request_id={self.request_id} approved={approved}"
+                )
                 await interaction.followup.send(
                     f"✅ Response sent: {self.label}",
                     ephemeral=True
                 )
             else:
+                log.warning(
+                    f"WorkflowInputButton: input response failed session_id={self.session_id} "
+                    f"request_id={self.request_id} approved={approved}"
+                )
                 await interaction.followup.send(
                     f"❌ Failed to send response",
                     ephemeral=True
                 )
         except Exception as e:
+            log.error(
+                f"WorkflowInputButton: callback error session_id={self.session_id} "
+                f"request_id={self.request_id} error={e}",
+                exc_info=True
+            )
             await interaction.followup.send(
                 f"❌ Error: {str(e)}",
                 ephemeral=True
