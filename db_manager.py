@@ -799,9 +799,9 @@ class DBManager:
             try:
                 if len(val) == 10 and val.count('-') == 2: # YYYY-MM-DD
                     return datetime.datetime.strptime(val, "%Y-%m-%d").date()
-                return datetime.datetime.fromisoformat(val.replace('Z', '+00:00'))
+                dt = datetime.datetime.fromisoformat(val.replace('Z', '+00:00')); return dt.replace(tzinfo=None)
             except:
-                try: return datetime.datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
+                try: dt = datetime.datetime.strptime(val, "%Y-%m-%d %H:%M:%S"); return dt.replace(tzinfo=None)
                 except: return val
 
         if os.path.exists(sqlite_activity):
