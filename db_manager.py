@@ -827,6 +827,9 @@ class DBManager:
                             cols = [d[0] for d in lite_cur.description]
                             log.info(f"  Migrating {len(rows)} rows from {table}...")
                             
+                            # Truncate before migrate to avoid duplicates
+                            await conn.execute(f"TRUNCATE TABLE {table} CASCADE")
+                            
                             # Convert string dates to datetime objects for asyncpg
                             converted_rows = []
                             for row in rows:
@@ -875,6 +878,7 @@ class DBManager:
                         rows = lite_cur.fetchall()
                         if rows:
                             log.info(f"  Converting and migrating {len(rows)} messages...")
+                            await conn.execute("TRUNCATE TABLE messages CASCADE")
                             converted = []
                             for r in rows:
                                 # SQLite row might be: (id, guild, chan, user, name, content, attach, ts, is_bot)
@@ -890,6 +894,7 @@ class DBManager:
                         rows = lite_cur.fetchall()
                         if rows:
                             data = [(default_guild_id, r[0], r[1], bool(r[2])) for r in rows]
+                            await conn.execute("TRUNCATE TABLE channel_sync_state CASCADE")
                             await conn.copy_records_to_table('channel_sync_state', records=data, columns=['guild_id', 'channel_id', 'oldest_message_id', 'is_completed'])
                     except: pass
 
