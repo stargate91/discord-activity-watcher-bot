@@ -142,12 +142,15 @@ class StatsCog(commands.Cog):
                     top_10, u_stats = await self.bot.get_top_data(interaction.guild, interaction.user, action)
                     view = ModernLeaderboardView(top_10, action, interaction.guild, u_stats)
                 elif action == "show_me":
+                    await interaction.response.defer(ephemeral=True)
                     main_id = Config.get_main_id(interaction.user.id)
                     main_member = interaction.guild.get_member(main_id) or interaction.user
                     view, chart_file = await self._prepare_profile(interaction, main_member, main_id)
                     if not view:
-                        await interaction.response.send_message(Messages.ERR_NO_DATA_PERIOD, ephemeral=True)
+                        await interaction.followup.send(Messages.ERR_NO_DATA_PERIOD, ephemeral=True)
                         return
+                    await interaction.followup.send(view=view, file=chart_file, ephemeral=True) if chart_file else await interaction.followup.send(view=view, ephemeral=True)
+                    return
                 elif action == "share":
                     cmd_name = "me" if current_tf == "me" else "top"
                     if not self._can_toggle_command(interaction, cmd_name):
