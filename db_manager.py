@@ -1,24 +1,31 @@
-import sqlite3
+import asyncpg
 import datetime
+import os
+import asyncio
 from config_loader import Config
 
 class DBManager:
-    def __init__(self, db_path="activity.db"):
-        # Tell the bot where the database file is and set up the tables
-        self.db_path = db_path
-        self._create_table()
+    def __init__(self, database_url=None):
+        self.database_url = database_url or Config.DATABASE_URL
+        self.pool = None
 
-    def _get_connection(self):
-        return sqlite3.connect(self.db_path)
+    async def initialize(self):
+        """Initializes the connection pool and creates tables."""
+        if not self.pool:
+            self.pool = await asyncpg.create_pool(self.database_url)
+            await self._create_table()
 
-    def _create_table(self):
-        # This function creates the 'drawers' (tables) in our database if they don't exist yet
-        with self._get_connection() as conn:
+    async def close(self):
+        if self.pool:
+            await self.pool.close()
+
+    async def _create_table(self):
+        async with self.pool.acquire() as conn:
             # user_activity: Stores the overall numbers for each person (messages, voice time, etc.)
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS user_activity (
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     last_active TIMESTAMP,
                     returned_at TIMESTAMP DEFAULT NULL,
                     message_count INTEGER DEFAULT 0,
@@ -33,52 +40,53 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
+
             # daily_stats: Remembers what happened each day so we can make weekly/monthly charts
-            # Updated to track per-channel activity!
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS daily_stats (
-                    user_id INTEGER,
-                    guild_id INTEGER,
-                    channel_id INTEGER DEFAULT 0,
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    channel_id BIGINT DEFAULT 0,
                     date DATE,
                     messages INTEGER DEFAULT 0,
                     reactions INTEGER DEFAULT 0,
                     voice_minutes REAL DEFAULT 0,
                     points REAL DEFAULT 0,
                     stream_minutes REAL DEFAULT 0,
-                    media_count INTEGER DEFAULT 0,
                     game_minutes REAL DEFAULT 0,
+                    media_count INTEGER DEFAULT 0,
                     spotify_minutes REAL DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id, channel_id, date)
                 )
             """)
-            # daily_game_stats: Tracks how much each game is played per day for variety awards
-            conn.execute("""
+
+            # daily_game_stats: Tracks time per specific game per day
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS daily_game_stats (
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     game_name TEXT,
                     date DATE,
                     minutes REAL DEFAULT 0,
                     PRIMARY KEY (user_id, guild_id, game_name, date)
                 )
             """)
-            # role_history: A log of when the bot gave or took away a role from someone
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS role_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     role_name TEXT,
-                    action TEXT DEFAULT 'ADDED',
+                    action TEXT,
                     timestamp TIMESTAMP
                 )
             """)
-            # game_activity: Keeps track of how much time people spend playing specific games
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS game_activity (
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     role_name TEXT,
                     last_played TIMESTAMP,
                     total_minutes REAL DEFAULT 0,
@@ -86,1114 +94,674 @@ class DBManager:
                     PRIMARY KEY (user_id, guild_id, role_name)
                 )
             """)
-            # voice_sessions: Records every time someone joins and leaves a voice channel
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS voice_sessions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    guild_id INTEGER,
-                    channel_id INTEGER,
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    channel_id BIGINT,
                     start_time TIMESTAMP,
                     end_time TIMESTAMP,
                     duration_minutes REAL,
                     stream_detail TEXT
                 )
             """)
-            # reaction_history: Remembers who gave a reaction to which message
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS reaction_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    target_user_id INTEGER,
-                    guild_id INTEGER,
-                    channel_id INTEGER,
-                    message_id INTEGER,
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    target_user_id BIGINT,
+                    guild_id BIGINT,
+                    channel_id BIGINT,
+                    message_id BIGINT,
                     emoji TEXT,
                     timestamp TIMESTAMP
                 )
             """)
-            # membership_history: Logs every join and leave event
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS membership_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    guild_id INTEGER,
-                    action TEXT, -- 'JOIN' or 'LEAVE'
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    action TEXT,
                     timestamp TIMESTAMP
                 )
             """)
-            # tracked_games: A list of games the bot is currently looking for to give out roles
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS tracked_games (
-                    game_substring TEXT PRIMARY KEY,
-                    role_suffix TEXT
-                )
-            """)
-            # active_voice_sessions: Remembers who is currently in a voice channel
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_voice_sessions (
-                    user_id INTEGER,
-                    guild_id INTEGER,
-                    channel_id INTEGER,
+                    user_id BIGINT,
+                    guild_id BIGINT,
+                    channel_id BIGINT,
                     joined_at TIMESTAMP,
-                    multiplier REAL DEFAULT 2.0,
+                    multiplier REAL,
                     is_streaming INTEGER DEFAULT 0,
                     stream_name TEXT,
                     PRIMARY KEY (user_id, guild_id)
                 )
             """)
-            
-            # active_game_sessions: Remembers who is currently playing a game
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS active_game_sessions (
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     game_name TEXT,
                     started_at TIMESTAMP,
                     PRIMARY KEY (user_id, guild_id, game_name)
                 )
             """)
-            # elite_history: Logs weekly elites for role management and log display
-            conn.execute("""
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS elite_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    guild_id INTEGER,
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    guild_id BIGINT,
                     category TEXT,
                     win_date DATE
                 )
             """)
-            
-            # reaction_role_messages: Tracks which static reaction roles have been sent
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS reaction_role_messages (
-                    identifier TEXT PRIMARY KEY,
-                    channel_id INTEGER,
-                    message_id INTEGER
-                )
-            """)
-            
-            # --- INDEXES FOR PERFORMANCE ---
-            
-            # user_activity: guild_id for server-wide lookups
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_guild ON user_activity(guild_id)")
-            
-            # daily_stats: guild_id+date (leaderboard) and user+guild+date (individual stats)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_guild_date ON daily_stats(guild_id, date)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_daily_stats_user_guild_date ON daily_stats(user_id, guild_id, date)")
-            
-            # voice_sessions: user+guild for profile lookups, start_time for history
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_sessions_user_guild ON voice_sessions(user_id, guild_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_sessions_start ON voice_sessions(start_time)")
-            
-            # reaction_history: user+guild and timestamp for social metrics
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_reaction_history_user_guild ON reaction_history(user_id, guild_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_reaction_history_time ON reaction_history(timestamp)")
-            
-            # role_history: user+guild and timestamp for audit logs
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_role_history_user_guild ON role_history(user_id, guild_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_role_history_time ON role_history(timestamp)")
-            
-            # membership_history: user+guild and timestamp for event tracking
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_membership_history_user_guild ON membership_history(user_id, guild_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_membership_history_time ON membership_history(timestamp)")
-            
-            # game_activity: user+guild for profile game-time lookup
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_game_activity_user_guild ON game_activity(user_id, guild_id)")
 
-            # --- VOICE OVERLAPS CACHE ---
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS voice_overlaps (
-                    user_id1 INTEGER,
-                    user_id2 INTEGER,
-                    guild_id INTEGER,
+                    user_id1 BIGINT,
+                    user_id2 BIGINT,
+                    guild_id BIGINT,
                     date DATE,
                     overlap_minutes REAL DEFAULT 0,
                     PRIMARY KEY (user_id1, user_id2, guild_id, date)
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_overlaps_u1_g ON voice_overlaps(user_id1, guild_id)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_voice_overlaps_u2_g ON voice_overlaps(user_id2, guild_id)")
+            
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS tracked_games (
+                    guild_id BIGINT,
+                    game_substring TEXT,
+                    role_suffix TEXT,
+                    PRIMARY KEY (guild_id, game_substring)
+                )
+            """)
+            
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS reaction_role_messages (
+                    guild_id BIGINT,
+                    identifier TEXT,
+                    channel_id BIGINT,
+                    message_id BIGINT,
+                    PRIMARY KEY (guild_id, identifier)
+                )
+            """)
 
-            conn.commit()
+    # --- SETTINGS MGMT ---
+    async def get_guild_settings(self, guild_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT settings FROM guild_settings WHERE guild_id = $1", guild_id)
+            return row['settings'] if row else {}
 
-    def update_activity(self, user_id, guild_id, last_active=None):
-        # This keeps track of when we last saw a user so we know they are still active in the server!
-        if last_active is None:
-            last_active = datetime.datetime.now(datetime.timezone.utc)
-        
-        last_active_str = last_active.isoformat()
-        
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO user_activity (user_id, guild_id, last_active)
-                VALUES (?, ?, ?)
-                ON CONFLICT(user_id, guild_id) DO UPDATE SET last_active = excluded.last_active
-            """, (user_id, guild_id, last_active_str))
-            conn.commit()
+    async def update_guild_settings(self, guild_id, settings):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO guild_settings (guild_id, settings) VALUES ($1, $2)
+                ON CONFLICT (guild_id) DO UPDATE SET settings = EXCLUDED.settings
+            """, guild_id, settings)
 
-    def set_returned_at(self, user_id, guild_id, timestamp=None):
-        # We save the exact time when someone came back to the server after being away for a while!
-        timestamp_str = timestamp.isoformat() if timestamp else None
-        with self._get_connection() as conn:
-            conn.execute("""
-                UPDATE user_activity SET returned_at = ? WHERE user_id = ? AND guild_id = ?
-            """, (timestamp_str, user_id, guild_id))
-            conn.commit()
+    # --- ACTIVITY TRACKING ---
+    async def update_activity(self, user_id, guild_id):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO user_activity (user_id, guild_id, last_active) VALUES ($1, $2, $3)
+                ON CONFLICT(user_id, guild_id) DO UPDATE SET last_active = EXCLUDED.last_active
+            """, user_id, guild_id, now)
 
-    def increment_messages(self, user_id, guild_id, channel_id=0, points=10):
-        # Every time someone sends a message, we add 1 to their score and their daily stats!
+    async def set_returned_at(self, user_id, guild_id, timestamp):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE user_activity SET returned_at = $1 
+                WHERE user_id = $2 AND guild_id = $3
+            """, timestamp, user_id, guild_id)
+
+    async def increment_messages(self, user_id, guild_id, channel_id, points=1):
         today = datetime.date.today()
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # Total
-            conn.execute("""
+            await conn.execute("""
                 UPDATE user_activity SET 
                     message_count = message_count + 1,
-                    points_total = points_total + ?
-                WHERE user_id = ? AND guild_id = ?
-            """, (points, user_id, guild_id))
+                    points_total = points_total + $1
+                WHERE user_id = $2 AND guild_id = $3
+            """, points, user_id, guild_id)
             # Daily
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, messages, points) VALUES (?, ?, ?, ?, 1, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, messages, points) VALUES ($1, $2, $3, $4, 1, $5)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    messages = messages + 1,
-                    points = points + ?
-            """, (user_id, guild_id, channel_id, today, points, points))
-            conn.commit()
+                    messages = daily_stats.messages + 1,
+                    points = daily_stats.points + $6
+            """, user_id, guild_id, channel_id, today, points, points)
 
-    def increment_reactions(self, user_id, guild_id, channel_id=0, points=5):
-        # This adds 1 to the reaction count whenever someone reacts to a message!
+    async def increment_reactions(self, user_id, guild_id, channel_id, points=1):
         today = datetime.date.today()
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # Total
-            conn.execute("""
+            await conn.execute("""
                 UPDATE user_activity SET 
                     reaction_count = reaction_count + 1,
-                    points_total = points_total + ?
-                WHERE user_id = ? AND guild_id = ?
-            """, (points, user_id, guild_id))
+                    points_total = points_total + $1
+                WHERE user_id = $2 AND guild_id = $3
+            """, points, user_id, guild_id)
             # Daily
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, reactions, points) VALUES (?, ?, ?, ?, 1, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, reactions, points) VALUES ($1, $2, $3, $4, 1, $5)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    reactions = reactions + 1,
-                    points = points + ?
-            """, (user_id, guild_id, channel_id, today, points, points))
-            conn.commit()
+                    reactions = daily_stats.reactions + 1,
+                    points = daily_stats.points + $6
+            """, user_id, guild_id, channel_id, today, points, points)
 
-    def increment_media(self, user_id, guild_id, channel_id=0, points=5):
-        # When someone shares a cool picture or video, we give them points and track it here!
+    async def increment_media(self, user_id, guild_id, channel_id=0, points=5):
         today = datetime.date.today()
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # Total
-            conn.execute("""
+            await conn.execute("""
                 UPDATE user_activity SET 
                     media_count = media_count + 1,
-                    points_total = points_total + ?
-                WHERE user_id = ? AND guild_id = ?
-            """, (points, user_id, guild_id))
+                    points_total = points_total + $1
+                WHERE user_id = $2 AND guild_id = $3
+            """, points, user_id, guild_id)
             # Daily
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, media_count, points) VALUES (?, ?, ?, ?, 1, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, media_count, points) VALUES ($1, $2, $3, $4, 1, $5)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    media_count = media_count + 1,
-                    points = points + ?
-            """, (user_id, guild_id, channel_id, today, points, points))
-            conn.commit()
+                    media_count = daily_stats.media_count + 1,
+                    points = daily_stats.points + $6
+            """, user_id, guild_id, channel_id, today, points, points)
 
-    def add_spotify_minutes(self, user_id, guild_id, minutes):
-        # We don't give points for Spotify, it's just for the SpotiVibe role
+    async def add_spotify_minutes(self, user_id, guild_id, minutes):
         today = datetime.date.today()
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # Total
-            conn.execute("""
-                UPDATE user_activity SET spotify_minutes = spotify_minutes + ?
-                WHERE user_id = ? AND guild_id = ?
-            """, (minutes, user_id, guild_id))
+            await conn.execute("""
+                UPDATE user_activity SET spotify_minutes = spotify_minutes + $1
+                WHERE user_id = $2 AND guild_id = $3
+            """, minutes, user_id, guild_id)
             # Daily
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, spotify_minutes) VALUES (?, ?, 0, ?, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, spotify_minutes) VALUES ($1, $2, 0, $3, $4)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    spotify_minutes = spotify_minutes + ?
-            """, (user_id, guild_id, today, minutes, minutes))
-            conn.commit()
+                    spotify_minutes = daily_stats.spotify_minutes + $5
+            """, user_id, guild_id, today, minutes, minutes)
 
-    def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False, is_qualified=False):
-        # This function keeps track of how many minutes someone has been talking or listening in voice!
+    async def add_voice_minutes(self, user_id, guild_id, channel_id, minutes, multiplier=None, is_streaming=False, is_qualified=False):
         today = datetime.date.today()
-        # Use provided multiplier or fall back to config
         rate = multiplier if multiplier is not None else Config.POINTS_VOICE
         points = minutes * rate
         stream_inc = minutes if is_streaming else 0
         qualified_inc = minutes if is_qualified else 0
         
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # Total
-            conn.execute("""
+            await conn.execute("""
                 UPDATE user_activity SET 
-                    voice_minutes = voice_minutes + ?,
-                    qualified_voice_minutes = qualified_voice_minutes + ?,
-                    points_total = points_total + ?,
-                    stream_minutes = stream_minutes + ?
-                WHERE user_id = ? AND guild_id = ?
-            """, (minutes, qualified_inc, points, stream_inc, user_id, guild_id))
+                    voice_minutes = voice_minutes + $1,
+                    qualified_voice_minutes = qualified_voice_minutes + $2,
+                    points_total = points_total + $3,
+                    stream_minutes = stream_minutes + $4
+                WHERE user_id = $5 AND guild_id = $6
+            """, minutes, qualified_inc, points, stream_inc, user_id, guild_id)
             # Daily
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, voice_minutes, points, stream_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, voice_minutes, points, stream_minutes) VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    voice_minutes = voice_minutes + ?,
-                    points = points + ?,
-                    stream_minutes = stream_minutes + ?
-            """, (user_id, guild_id, channel_id, today, minutes, points, stream_inc, minutes, points, stream_inc))
-            conn.commit()
+                    voice_minutes = daily_stats.voice_minutes + $8,
+                    points = daily_stats.points + $9,
+                    stream_minutes = daily_stats.stream_minutes + $10
+            """, user_id, guild_id, channel_id, today, minutes, points, stream_inc, minutes, points, stream_inc)
 
-    def get_leaderboard_data(self, guild_id, days=None, limit=None):
-        # This gets the top players from our database so we can show them on the leaderboard!
-        limit_clause = f" LIMIT {limit}" if limit else ""
-        with self._get_connection() as conn:
-            if days:
-                cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
-                query = f"""
-                    SELECT user_id, SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes), SUM(media_count)
-                    FROM daily_stats WHERE guild_id = ? AND date >= ? 
-                    GROUP BY user_id ORDER BY SUM(points) DESC{limit_clause}
-                """
-                cursor = conn.execute(query, (int(guild_id), cutoff_date))
-            else:
-                query = f"""
-                    SELECT user_id, message_count, reaction_count, voice_minutes, points_total, stream_minutes, media_count
-                    FROM user_activity WHERE guild_id = ? ORDER BY points_total DESC{limit_clause}
-                """
-                cursor = conn.execute(query, (int(guild_id),))
-            
-            rows = cursor.fetchall()
-            # Note: We now return 7 values per user to include streaming and media
-            return {row[0]: {
-                "messages": row[1] or 0, 
-                "reactions": row[2] or 0, 
-                "voice": row[3] or 0, 
-                "points": row[4] or 0,
-                "stream": row[5] or 0,
-                "media": row[6] or 0
-            } for row in rows}
+    # --- RETRIEVAL & LEADERBOARDS ---
+    async def get_user_data(self, user_id, guild_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM user_activity WHERE user_id = $1 AND guild_id = $2", user_id, guild_id)
+            return dict(row) if row else None
 
-
-    def get_user_stats_for_period(self, user_id, guild_id, days):
-        """Gets summed stats for a specific user over a certain number of days."""
+    async def get_user_daily_activity(self, user_id, guild_id, days=7):
         cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT SUM(messages), SUM(reactions), SUM(voice_minutes), SUM(points), SUM(stream_minutes), SUM(media_count)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT date, SUM(points) as points, SUM(voice_minutes) as voice 
                 FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ?
-            """, (int(user_id), int(guild_id), cutoff_date))
-            row = cursor.fetchone()
-            if row:
-                return {
-                    "messages": row[0] or 0,
-                    "reactions": row[1] or 0,
-                    "voice": row[2] or 0,
-                    "points": row[3] or 0,
-                    "stream": row[4] or 0,
-                    "media": row[5] or 0
-                }
-            return {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
-
-    def get_user_data(self, user_id, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes, qualified_voice_minutes
-                FROM user_activity WHERE user_id = ? AND guild_id = ?
-            """, (int(user_id), int(guild_id)))
-            row = cursor.fetchone()
-            if row:
-                last_active = datetime.datetime.fromisoformat(row[0])
-                returned_at = datetime.datetime.fromisoformat(row[1]) if row[1] else None
-                return {
-                    "last_active": last_active, 
-                    "returned_at": returned_at,
-                    "message_count": row[2],
-                    "reaction_count": row[3],
-                    "voice_minutes": row[4],
-                    "media_count": row[5],
-                    "spotify_minutes": row[6],
-                    "points_total": row[7],
-                    "stream_minutes": row[8],
-                    "qualified_voice_minutes": row[9]
-                }
-            return None
-
-    def get_user_daily_points(self, user_id, guild_id, days=7):
-        """This function looks up how many points a user got each day for the last week or so!"""
-        cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT date, SUM(points) as daily_points 
-                FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ?
+                WHERE user_id = $1 AND guild_id = $2 AND date >= $3
                 GROUP BY date ORDER BY date ASC
-            """, (int(user_id), int(guild_id), cutoff_date.isoformat()))
-            
-            rows = cursor.fetchall()
-            
-            # Create a dictionary with all dates in the range, default 0 points
-            result = {}
-            for i in range(days):
-                d = cutoff_date + datetime.timedelta(days=i)
-                result[d.isoformat()] = 0
-            
-            # Update with actual data from DB
-            for date_str, points in rows:
-                result[date_str] = points or 0
-            
-            # Return as sorted list of tuples (date_str, points)
-            return sorted(list(result.items()))
+            """, user_id, guild_id, cutoff_date)
+            return rows
 
-    def get_user_daily_activity(self, user_id, guild_id, days=7):
-        """This gets both the points and voice minutes for a user to make those pretty charts!"""
-        cutoff_date = datetime.date.today() - datetime.timedelta(days=days-1)
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT date, SUM(points) as daily_points, SUM(voice_minutes) as daily_voice
-                FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ?
-                GROUP BY date ORDER BY date ASC
-            """, (int(user_id), int(guild_id), cutoff_date.isoformat()))
-            
-            rows = cursor.fetchall()
-            
-            # Create a dictionary with all dates in the range, default 0
-            result = {}
-            for i in range(days):
-                d = cutoff_date + datetime.timedelta(days=i)
-                result[d.isoformat()] = {"points": 0, "voice": 0}
-            
-            # Update with actual data from DB
-            for date_str, points, voice in rows:
-                result[date_str] = {"points": points or 0, "voice": voice or 0}
-            
-            # Return as sorted list of tuples (date_str, points, voice)
-            return [(d, r["points"], r["voice"]) for d, r in sorted(result.items())]
+    async def get_user_join_date(self, user_id, guild_id):
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval("SELECT joined_at FROM user_activity WHERE user_id = $1 AND guild_id = $2", user_id, guild_id)
+            return val
 
-    def get_all_guild_data(self, guild_id):
-        # [DEPRECATED] Use get_inactive_users or specific queries instead
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT user_id, last_active, returned_at, message_count, reaction_count, voice_minutes, media_count, spotify_minutes, points_total, stream_minutes
-                FROM user_activity WHERE guild_id = ?
-            """, (int(guild_id),))
-            rows = cursor.fetchall()
-            data = {}
-            for row in rows:
-                data[row[0]] = {
-                    "last_active": datetime.datetime.fromisoformat(row[1]),
-                    "returned_at": datetime.datetime.fromisoformat(row[2]) if row[2] else None,
-                    "message_count": row[3],
-                    "reaction_count": row[4],
-                    "voice_minutes": row[5],
-                    "media_count": row[6],
-                    "spotify_minutes": row[7],
-                    "points_total": row[8],
-                    "stream_minutes": row[9]
-                }
-            return data
+    async def update_join_date(self, user_id, guild_id, joined_at):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE user_activity SET joined_at = $1 
+                WHERE user_id = $2 AND guild_id = $3
+            """, joined_at, user_id, guild_id)
 
-    def get_inactive_users(self, guild_id, threshold_days):
-        """This finds users who haven't said anything or been in voice for a long time!"""
-        cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=threshold_days)
-        cutoff_str = cutoff_date.isoformat()
-        
-        with self._get_connection() as conn:
-            # We fetch those whose last_active is old OR they have a returned_at (grace period check)
-            cursor = conn.execute("""
-                SELECT user_id, last_active, returned_at FROM user_activity 
-                WHERE guild_id = ? AND (last_active < ? OR returned_at IS NOT NULL)
-            """, (int(guild_id), cutoff_str))
-            
-            rows = cursor.fetchall()
-            return {row[0]: {
-                "last_active": datetime.datetime.fromisoformat(row[1]),
-                "returned_at": datetime.datetime.fromisoformat(row[2]) if row[2] else None
-            } for row in rows}
-
-    def get_user_rank(self, user_id, guild_id, days=None):
-        """This figures out where a user stands compared to everyone else in the server!"""
-        with self._get_connection() as conn:
+    async def get_user_rank(self, user_id, guild_id, days=None):
+        async with self.pool.acquire() as conn:
             if days:
-                cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
-                # 1. Get user's points for the period
-                cursor = conn.execute("""
-                    SELECT SUM(points) FROM daily_stats 
-                    WHERE user_id = ? AND guild_id = ? AND date >= ?
-                """, (int(user_id), int(guild_id), cutoff_date))
-                user_points = cursor.fetchone()[0] or 0
-                
-                # 2. Count users with more points
-                cursor = conn.execute("""
-                    SELECT COUNT(*) + 1 FROM (
-                        SELECT user_id, SUM(points) as total_pts FROM daily_stats 
-                        WHERE guild_id = ? AND date >= ? 
-                        GROUP BY user_id HAVING total_pts > ?
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                val = await conn.fetchval("""
+                    WITH period_points AS (
+                        SELECT user_id, SUM(points) as total_points 
+                        FROM daily_stats 
+                        WHERE guild_id = $1 AND date >= $2
+                        GROUP BY user_id
                     )
-                """, (int(guild_id), cutoff_date, user_points))
-                return cursor.fetchone()[0]
+                    SELECT rank FROM (
+                        SELECT user_id, RANK() OVER (ORDER BY total_points DESC) as rank 
+                        FROM period_points
+                    ) s WHERE user_id = $3
+                """, guild_id, cutoff, user_id)
             else:
-                # 1. Get user's total points
-                cursor = conn.execute("SELECT points_total FROM user_activity WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
-                row = cursor.fetchone()
-                user_points = row[0] if row else 0
-                
-                # 2. Count users with more points
-                cursor = conn.execute("SELECT COUNT(*) + 1 FROM user_activity WHERE guild_id = ? AND points_total > ?", (int(guild_id), user_points))
-                return cursor.fetchone()[0]
+                val = await conn.fetchval("""
+                    SELECT rank FROM (
+                        SELECT user_id, RANK() OVER (ORDER BY points_total DESC) as rank 
+                        FROM user_activity WHERE guild_id = $1
+                    ) s WHERE user_id = $2
+                """, guild_id, user_id)
+            return val
 
-    def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
-        # We write down in our server log book whenever someone gets or loses a role!
-        if timestamp is None:
-            timestamp = datetime.datetime.now(datetime.timezone.utc)
-        
-        timestamp_str = timestamp.isoformat() if isinstance(timestamp, datetime.datetime) else timestamp
-        
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO role_history (user_id, guild_id, role_name, action, timestamp)
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, guild_id, role_name, action, timestamp_str))
-            conn.commit()
+    async def get_leaderboard_data(self, guild_id, days=None, limit=20):
+        async with self.pool.acquire() as conn:
+            if days:
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                rows = await conn.fetch("""
+                    SELECT user_id, SUM(messages) as messages, SUM(reactions) as reactions, 
+                           SUM(voice_minutes) as voice, SUM(points) as points, 
+                           SUM(stream_minutes) as stream, SUM(media_count) as media
+                    FROM daily_stats 
+                    WHERE guild_id = $1 AND date >= $2
+                    GROUP BY user_id ORDER BY points DESC LIMIT $3
+                """, guild_id, cutoff, limit)
+            else:
+                rows = await conn.fetch("""
+                    SELECT user_id, message_count as messages, reaction_count as reactions, 
+                           voice_minutes as voice, points_total as points, 
+                           stream_minutes as stream, media_count as media
+                    FROM user_activity 
+                    WHERE guild_id = $1 ORDER BY points_total DESC LIMIT $2
+                """, guild_id, limit)
+            
+            return {r['user_id']: dict(r) for r in rows}
 
-    def get_role_history(self, guild_id, limit=300):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
+    async def log_membership_event(self, user_id, guild_id, action, timestamp=None):
+        if timestamp is None: timestamp = datetime.datetime.now(datetime.timezone.utc)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO membership_history (user_id, guild_id, action, timestamp) 
+                VALUES ($1, $2, $3, $4)
+            """, user_id, guild_id, action, timestamp)
+
+    # --- ROLES ---
+    async def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
+        if timestamp is None: timestamp = datetime.datetime.now(datetime.timezone.utc)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO role_history (user_id, guild_id, role_name, action, timestamp) 
+                VALUES ($1, $2, $3, $4, $5)
+            """, user_id, guild_id, role_name, action, timestamp)
+
+    async def get_role_history(self, guild_id, limit=300):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
                 SELECT user_id, role_name, action, timestamp FROM role_history 
-                WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?
-            """, (int(guild_id), limit))
-            return cursor.fetchall()
+                WHERE guild_id = $1 ORDER BY timestamp DESC LIMIT $2
+            """, guild_id, limit)
+            return rows
 
-    def update_game_activity(self, user_id, guild_id, game_name, bot_assigned=False):
-        # This records which games people are playing and if the bot gave them a special role for it!
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO game_activity (user_id, guild_id, role_name, last_played, bot_assigned)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(user_id, guild_id, role_name) DO UPDATE SET 
-                    last_played = excluded.last_played,
-                    bot_assigned = (CASE WHEN excluded.bot_assigned = 1 THEN 1 ELSE game_activity.bot_assigned END)
-            """, (user_id, guild_id, game_name, now, 1 if bot_assigned else 0))
-            conn.commit()
-
-    def get_game_stats_report(self, guild_id, timeframe="alltime"):
-        with self._get_connection() as conn:
-            query = """
-                SELECT 
-                    CASE WHEN role_name LIKE 'Player: %' THEN SUBSTR(role_name, 9) ELSE role_name END as clean_name,
-                    COUNT(DISTINCT user_id) as user_count,
-                    SUM(total_minutes) as total_mins
-                FROM game_activity 
-                WHERE guild_id = ? {time_filter}
-                GROUP BY clean_name 
-                ORDER BY total_mins DESC
-            """
-            
-            if timeframe == "monthly":
-                cutoff = (datetime.datetime.now(datetime.timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)).isoformat()
-                cursor = conn.execute(query.format(time_filter="AND last_played >= ?"), (int(guild_id), cutoff))
-            else:
-                cursor = conn.execute(query.format(time_filter=""), (int(guild_id),))
-            
-            return cursor.fetchall()
-
-    def get_inactive_games(self, guild_id, days=30):
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT user_id, role_name FROM game_activity 
-                WHERE guild_id = ? AND last_played < ? AND bot_assigned = 1
-            """, (int(guild_id), cutoff))
-            return cursor.fetchall()
-
-    def remove_game_activity(self, user_id, guild_id, role_name):
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM game_activity WHERE user_id = ? AND guild_id = ? AND role_name = ?", (int(user_id), int(guild_id), role_name))
-            conn.commit()
-
-    def get_user_recent_games(self, user_id, guild_id, limit=3):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT role_name FROM game_activity 
-                WHERE user_id = ? AND guild_id = ? 
-                ORDER BY last_played DESC LIMIT ?
-            """, (int(user_id), int(guild_id), limit))
-            return [row[0].replace("Player: ", "") for row in cursor.fetchall()]
-
-    def get_user_top_games(self, user_id, guild_id, limit=3):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT role_name, total_minutes FROM game_activity 
-                WHERE user_id = ? AND guild_id = ? 
-                ORDER BY total_minutes DESC LIMIT ?
-            """, (int(user_id), int(guild_id), limit))
-            return cursor.fetchall()
-
-    # --- ADVANCED TRACKING ---
-    # These functions track extra things like who you talk to or who reacts to you
-
-    def _record_overlaps(self, conn, user_id, guild_id, channel_id, start_time, end_time):
-        # Find other sessions in the SAME channel that overlap with this one
-        # Logic: overlap = session2.start < session1.end AND session2.end > session1.start
-        cursor = conn.execute("""
-            SELECT user_id, start_time, end_time 
-            FROM voice_sessions 
-            WHERE guild_id = ? AND channel_id = ? AND user_id != ?
-              AND start_time < ? AND end_time > ?
-        """, (guild_id, channel_id, user_id, end_time.isoformat(), start_time.isoformat()))
-        
-        rows = cursor.fetchall()
-        today = start_time.date()
-        
-        for other_uid, o_start_str, o_end_str in rows:
-            o_start = datetime.datetime.fromisoformat(o_start_str)
-            o_end = datetime.datetime.fromisoformat(o_end_str)
-            
-            # Calculate overlap duration
-            overlap_start = max(start_time, o_start)
-            overlap_end = min(end_time, o_end)
-            overlap_duration = (overlap_end - overlap_start).total_seconds() / 60.0
-            
-            if overlap_duration > 0:
-                # We save who was talking with who! uid1 is always the smaller ID to keep things organized.
-                uid1, uid2 = min(user_id, other_uid), max(user_id, other_uid)
-                conn.execute("""
-                    INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
-                    VALUES (?, ?, ?, ?, ?)
-                    ON CONFLICT(user_id1, user_id2, guild_id, date) DO UPDATE SET 
-                        overlap_minutes = overlap_minutes + excluded.overlap_minutes
-                """, (uid1, uid2, guild_id, today, overlap_duration))
-
-    def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
-        # This function saves all the details when someone finishes a voice call!
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, guild_id, channel_id, start_time.isoformat(), end_time.isoformat(), duration, stream_detail))
-            
-            # Record overlaps for the cache table
-            self._record_overlaps(conn, user_id, guild_id, channel_id, start_time, end_time)
-            
-            conn.commit()
-
-    def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
-        # This remembers who gave a reaction to whose message!
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO reaction_history (user_id, target_user_id, guild_id, channel_id, message_id, emoji, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, target_user_id, guild_id, channel_id, message_id, emoji, now))
-            conn.commit()
-
-    def get_top_voice_partners(self, user_id, guild_id, days=30):
-        # This finds your best friends - the people you spend the most time with in voice!
-        cutoff_date = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).date()
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT partner_id, SUM(overlap_minutes) as total_overlap
-                FROM (
-                    SELECT user_id2 as partner_id, overlap_minutes FROM voice_overlaps
-                    WHERE user_id1 = ? AND guild_id = ? AND date >= ?
-                    UNION ALL
-                    SELECT user_id1 as partner_id, overlap_minutes FROM voice_overlaps
-                    WHERE user_id2 = ? AND guild_id = ? AND date >= ?
-                )
-                GROUP BY partner_id
-                ORDER BY total_overlap DESC
-                LIMIT 5
-            """, (int(user_id), int(guild_id), cutoff_date, int(user_id), int(guild_id), cutoff_date))
-            return cursor.fetchall()
-            
-    def get_reaction_role_message(self, identifier):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT channel_id, message_id FROM reaction_role_messages WHERE identifier = ?", (identifier,))
-            return cursor.fetchone()
-            
-    def save_reaction_role_message(self, identifier, channel_id, message_id):
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO reaction_role_messages (identifier, channel_id, message_id)
-                VALUES (?, ?, ?)
-                ON CONFLICT(identifier) DO UPDATE SET 
-                    channel_id = excluded.channel_id,
-                    message_id = excluded.message_id
-            """, (identifier, int(channel_id), int(message_id)))
-            conn.commit()
-
-    def get_user_social_stats(self, user_id, guild_id, days=30):
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        stats = {"top_channel": None, "top_emoji": None, "top_target": None}
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions
-                WHERE user_id = ? AND guild_id = ? AND start_time >= ?
-                GROUP BY channel_id ORDER BY total DESC LIMIT 1
-            """, (int(user_id), int(guild_id), cutoff))
-            row = cursor.fetchone(); stats["top_channel"] = row[0] if row else None
-            
-            cursor = conn.execute("""
-                SELECT emoji, COUNT(*) as count FROM reaction_history
-                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
-                GROUP BY emoji ORDER BY count DESC LIMIT 1
-            """, (int(user_id), int(guild_id), cutoff))
-            row = cursor.fetchone(); stats["top_emoji"] = row[0] if row else None
-            
-            cursor = conn.execute("""
-                SELECT target_user_id, COUNT(*) as count FROM reaction_history
-                WHERE user_id = ? AND guild_id = ? AND timestamp >= ?
-                GROUP BY target_user_id ORDER BY count DESC LIMIT 1
-            """, (int(user_id), int(guild_id), cutoff))
-            row = cursor.fetchone(); stats["top_target"] = row[0] if row else None
-        return stats
-
-    # --- TRACKED GAMES MGMT ---
-
-    def get_tracked_games(self):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT game_substring, role_suffix FROM tracked_games")
-            return {row[0]: row[1] for row in cursor.fetchall()}
-
-    def add_tracked_game(self, substring, suffix):
-        with self._get_connection() as conn:
-            conn.execute("INSERT OR REPLACE INTO tracked_games (game_substring, role_suffix) VALUES (?, ?)", (substring, suffix))
-            conn.commit()
-
-    def remove_tracked_game(self, substring):
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM tracked_games WHERE game_substring = ?", (substring,))
-            conn.commit()
-
-    # --- VOICE PERSISTENCE ---
-
-    def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier=2.0, is_streaming=False, stream_name=None):
-        # This remembers when someone joins a voice channel so we can calculate their time later!
-        joined_at_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
-        with self._get_connection() as conn:
-            conn.execute("""
+    # --- VOICE SESSIONS ---
+    async def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier, is_streaming, stream_name):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
                 INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at, multiplier, is_streaming, stream_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT(user_id, guild_id) DO UPDATE SET 
-                    joined_at = excluded.joined_at, 
-                    channel_id = excluded.channel_id,
-                    multiplier = excluded.multiplier,
-                    is_streaming = excluded.is_streaming,
-                    stream_name = excluded.stream_name
-            """, (user_id, guild_id, channel_id, joined_at_str, multiplier, 1 if is_streaming else 0, stream_name))
-            conn.commit()
+                    channel_id = EXCLUDED.channel_id,
+                    joined_at = EXCLUDED.joined_at,
+                    multiplier = EXCLUDED.multiplier,
+                    is_streaming = EXCLUDED.is_streaming,
+                    stream_name = EXCLUDED.stream_name
+            """, user_id, guild_id, channel_id, joined_at, multiplier, 1 if is_streaming else 0, stream_name)
 
-    def end_voice_session(self, user_id, guild_id):
-        # When someone leaves, we say "bye!" and calculate how long they stayed in the voice room!
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT joined_at, multiplier, is_streaming, stream_name 
-                FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?
-            """, (int(user_id), int(guild_id)))
-            row = cursor.fetchone()
+    async def end_voice_session(self, user_id, guild_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM active_voice_sessions WHERE user_id = $1 AND guild_id = $2", user_id, guild_id)
             if row:
-                conn.execute("DELETE FROM active_voice_sessions WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
-                conn.commit()
-                joined_at = datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
-                return {
-                    "joined_at": joined_at,
-                    "multiplier": row[1],
-                    "is_streaming": bool(row[2]),
-                    "stream_name": row[3]
-                }
+                await conn.execute("DELETE FROM active_voice_sessions WHERE user_id = $1 AND guild_id = $2", user_id, guild_id)
+                return dict(row)
             return None
 
-    def get_active_voice_sessions(self, guild_id=None):
-        with self._get_connection() as conn:
-            if guild_id:
-                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions WHERE guild_id = ?", (int(guild_id),))
-            else:
-                cursor = conn.execute("SELECT user_id, joined_at, multiplier, is_streaming, stream_name FROM active_voice_sessions")
-            
-            rows = cursor.fetchall()
-            return {row[0]: {
-                "joined_at": (datetime.datetime.fromisoformat(row[1]) if isinstance(row[1], str) else row[1]),
-                "multiplier": row[2],
-                "is_streaming": bool(row[3]),
-                "stream_name": row[4]
-            } for row in rows}
+    async def get_active_voice_sessions(self):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT * FROM active_voice_sessions")
+            return {r['user_id']: dict(r) for r in rows}
+
+    async def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail)
+
+    async def get_voice_overlaps(self, user_id, guild_id, limit=10):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT user_id2 as target_id, SUM(overlap_minutes) as total 
+                FROM voice_overlaps 
+                WHERE user_id1 = $1 AND guild_id = $2
+                GROUP BY user_id2 ORDER BY total DESC LIMIT $3
+            """, user_id, guild_id, limit)
+            return rows
+
+    async def add_voice_overlap(self, u1, u2, guild_id, minutes):
+        today = datetime.date.today()
+        # Sort so we always store (smaller_id, larger_id) to avoid duplicates
+        p1, p2 = min(u1, u2), max(u1, u2)
+        async with self.pool.acquire() as conn:
+            # We insert twice for easy querying (A-B and B-A)
+            for pair in [(p1, p2), (p2, p1)]:
+                await conn.execute("""
+                    INSERT INTO voice_overlaps (user_id1, user_id2, guild_id, date, overlap_minutes)
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT(user_id1, user_id2, guild_id, date) DO UPDATE SET 
+                        overlap_minutes = voice_overlaps.overlap_minutes + $6
+                """, pair[0], pair[1], guild_id, today, minutes, minutes)
 
     # --- GAME PERSISTENCE ---
+    async def start_game_session(self, user_id, guild_id, game_name, started_at):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO active_game_sessions (user_id, guild_id, game_name, started_at)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT(user_id, guild_id, game_name) DO UPDATE SET started_at = EXCLUDED.started_at
+            """, user_id, guild_id, game_name, started_at)
 
-    def start_game_session(self, user_id, guild_id, game_name, started_at):
-        ts = started_at.isoformat() if isinstance(started_at, datetime.datetime) else started_at
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT OR REPLACE INTO active_game_sessions (user_id, guild_id, game_name, started_at)
-                VALUES (?, ?, ?, ?)
-            """, (user_id, guild_id, game_name, ts))
-            conn.commit()
-
-    def end_game_session(self, user_id, guild_id, game_name):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT started_at FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (int(user_id), int(guild_id), game_name))
-            row = cursor.fetchone()
+    async def end_game_session(self, user_id, guild_id, game_name):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT started_at FROM active_game_sessions WHERE user_id = $1 AND guild_id = $2 AND game_name = $3", user_id, guild_id, game_name)
             if row:
-                conn.execute("DELETE FROM active_game_sessions WHERE user_id = ? AND guild_id = ? AND game_name = ?", (int(user_id), int(guild_id), game_name))
-                conn.commit()
-                return datetime.datetime.fromisoformat(row[0]) if isinstance(row[0], str) else row[0]
+                await conn.execute("DELETE FROM active_game_sessions WHERE user_id = $1 AND guild_id = $2 AND game_name = $3", user_id, guild_id, game_name)
+                return row['started_at']
             return None
 
-    def get_active_game_sessions(self):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT user_id, guild_id, game_name, started_at FROM active_game_sessions")
-            return {(row[0], row[1], row[2]): (datetime.datetime.fromisoformat(row[3]) if isinstance(row[3], str) else row[3]) for row in cursor.fetchall()}
+    async def get_active_game_sessions(self):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT user_id, guild_id, game_name, started_at FROM active_game_sessions")
+            return {(r['user_id'], r['guild_id'], r['game_name']): r['started_at'] for r in rows}
 
-    def add_game_minutes(self, user_id, guild_id, game_name, minutes):
+    async def add_game_minutes(self, user_id, guild_id, game_name, minutes):
         today = datetime.date.today()
-        with self._get_connection() as conn:
+        async with self.pool.acquire() as conn:
             # 1. Total (per game)
-            conn.execute("""
-                UPDATE game_activity SET total_minutes = total_minutes + ? 
-                WHERE user_id = ? AND guild_id = ? AND role_name = ?
-            """, (minutes, int(user_id), int(guild_id), game_name))
+            await conn.execute("""
+                UPDATE game_activity SET total_minutes = total_minutes + $1 
+                WHERE user_id = $2 AND guild_id = $3 AND role_name = $4
+            """, minutes, user_id, guild_id, game_name)
             
             # 2. Daily Summary
-            conn.execute("""
-                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, game_minutes) VALUES (?, ?, 0, ?, ?)
+            await conn.execute("""
+                INSERT INTO daily_stats (user_id, guild_id, channel_id, date, game_minutes) VALUES ($1, $2, 0, $3, $4)
                 ON CONFLICT(user_id, guild_id, channel_id, date) DO UPDATE SET 
-                    game_minutes = game_minutes + ?
-            """, (int(user_id), int(guild_id), today, minutes, minutes))
+                    game_minutes = daily_stats.game_minutes + $5
+            """, user_id, guild_id, today, minutes, minutes)
             
-            # 3. Daily Per-Game (for Variety)
-            conn.execute("""
-                INSERT INTO daily_game_stats (user_id, guild_id, game_name, date, minutes) VALUES (?, ?, ?, ?, ?)
+            # 3. Daily Per-Game
+            await conn.execute("""
+                INSERT INTO daily_game_stats (user_id, guild_id, game_name, date, minutes) VALUES ($1, $2, $3, $4, $5)
                 ON CONFLICT(user_id, guild_id, game_name, date) DO UPDATE SET 
-                    minutes = minutes + ?
-            """, (int(user_id), int(guild_id), game_name, today, minutes, minutes))
-            
-            conn.commit()
+                    minutes = daily_game_stats.minutes + $6
+            """, user_id, guild_id, game_name, today, minutes, minutes)
 
-    def get_weekly_elite_stats(self, guild_id, start_date, end_date):
-        # Fetches top performers for each category in the given timeframe
-        # Fetches top performers for each category in the given timeframe
-        with self._get_connection() as conn:
-            # 1. Spotify
-            spotify_top = conn.execute("""
-                SELECT user_id, SUM(spotify_minutes) as total FROM daily_stats 
-                WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 50
-            """, (guild_id, start_date, end_date)).fetchall()
-            
-            # 2. Hardcore Gamer (Total Minutes)
-            game_top = conn.execute("""
-                SELECT user_id, SUM(game_minutes) as total FROM daily_stats 
-                WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 50
-            """, (guild_id, start_date, end_date)).fetchall()
+    async def get_game_stats_report(self, guild_id, timeframe="alltime"):
+        async with self.pool.acquire() as conn:
+            if timeframe == "monthly":
+                cutoff = datetime.date.today() - datetime.timedelta(days=30)
+                rows = await conn.fetch("""
+                    SELECT game_name as display_name, COUNT(DISTINCT user_id) as user_count, SUM(minutes) as total_minutes 
+                    FROM daily_game_stats WHERE guild_id = $1 AND date >= $2
+                    GROUP BY game_name ORDER BY total_minutes DESC
+                """, guild_id, cutoff)
+            else:
+                rows = await conn.fetch("""
+                    SELECT role_name as display_name, COUNT(DISTINCT user_id) as user_count, SUM(total_minutes) as total_minutes 
+                    FROM game_activity WHERE guild_id = $1
+                    GROUP BY role_name ORDER BY total_minutes DESC
+                """, guild_id)
+            return rows
 
-            # 3. Variety Gamer (Most unique games played for >= X mins)
-            variety_top = conn.execute(f"""
-                SELECT user_id, COUNT(DISTINCT game_name) as variety FROM daily_game_stats
-                WHERE guild_id = ? AND date >= ? AND date <= ? AND minutes >= {Config.VARIETY_MIN_MINUTES}
-                GROUP BY user_id ORDER BY variety DESC LIMIT 50
-            """, (guild_id, start_date, end_date)).fetchall()
-            
-            # 4. Streamer
-            stream_top = conn.execute("""
-                SELECT user_id, SUM(stream_minutes) as total FROM daily_stats 
-                WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 50
-            """, (guild_id, start_date, end_date)).fetchall()
-            
-            # 5. Media (MemeLord)
-            media_top = conn.execute("""
-                SELECT user_id, SUM(media_count) as total FROM daily_stats 
-                WHERE guild_id = ? AND date >= ? AND date <= ?
-                GROUP BY user_id ORDER BY total DESC LIMIT 50
-            """, (guild_id, start_date, end_date)).fetchall()
-            
-            return {
-                "spotify": spotify_top,
-                "gamer_total": game_top,
-                "gamer_variety": variety_top,
-                "streamer": stream_top,
-                "media": media_top
-            }
+    # --- TRACKED GAMES ---
+    async def get_tracked_games(self, guild_id):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT game_substring, role_suffix FROM tracked_games WHERE guild_id = $1", guild_id)
+            return {r['game_substring']: r['role_suffix'] for r in rows}
 
-    def get_user_weekly_elite_stats(self, user_id, guild_id, start_date, end_date):
-        # Fetches performance for a specific user in each category
-        # Fetches performance for a specific user in each category
-        with self._get_connection() as conn:
-            # 1. Spotify
-            spotify = conn.execute("""
-                SELECT SUM(spotify_minutes) FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
-            """, (user_id, guild_id, start_date, end_date)).fetchone()
-            
-            # 2. Hardcore Gamer
-            game = conn.execute("""
-                SELECT SUM(game_minutes) FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
-            """, (user_id, guild_id, start_date, end_date)).fetchone()
+    async def add_tracked_game(self, guild_id, substring, suffix):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO tracked_games (guild_id, game_substring, role_suffix) VALUES ($1, $2, $3)
+                ON CONFLICT(guild_id, game_substring) DO UPDATE SET role_suffix = EXCLUDED.role_suffix
+            """, guild_id, substring, suffix)
 
-            # 3. Variety Gamer
-            variety = conn.execute(f"""
-                SELECT COUNT(DISTINCT game_name) FROM daily_game_stats
-                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ? AND minutes >= {Config.VARIETY_MIN_MINUTES}
-            """, (user_id, guild_id, start_date, end_date)).fetchone()
-            
-            # 4. Streamer
-            stream = conn.execute("""
-                SELECT SUM(stream_minutes) FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
-            """, (user_id, guild_id, start_date, end_date)).fetchone()
-            
-            # 5. Media
-            media = conn.execute("""
-                SELECT SUM(media_count) FROM daily_stats 
-                WHERE user_id = ? AND guild_id = ? AND date >= ? AND date <= ?
-            """, (user_id, guild_id, start_date, end_date)).fetchone()
+    async def remove_tracked_game(self, guild_id, substring):
+        async with self.pool.acquire() as conn:
+            await conn.execute("DELETE FROM tracked_games WHERE guild_id = $1 AND game_substring = $2", guild_id, substring)
+
+    # --- INTERACTIONS & REACTION ROLE MESSAGES ---
+    async def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO reaction_history (user_id, target_user_id, guild_id, channel_id, message_id, emoji, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """, user_id, target_user_id, guild_id, channel_id, message_id, emoji, now)
+
+    async def get_reaction_role_message(self, guild_id, identifier):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT channel_id, message_id FROM reaction_role_messages WHERE guild_id = $1 AND identifier = $2", guild_id, identifier)
+            return (row['channel_id'], row['message_id']) if row else None
+
+    async def save_reaction_role_message(self, guild_id, identifier, channel_id, message_id):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO reaction_role_messages (guild_id, identifier, channel_id, message_id) VALUES ($1, $2, $3, $4)
+                ON CONFLICT(guild_id, identifier) DO UPDATE SET channel_id = EXCLUDED.channel_id, message_id = EXCLUDED.message_id
+            """, guild_id, identifier, channel_id, message_id)
+
+    # --- ELITE STATS ---
+    async def get_weekly_elite_stats(self, guild_id, start_date, end_date):
+        async with self.pool.acquire() as conn:
+            spotify = await conn.fetch("SELECT user_id, SUM(spotify_minutes) as total FROM daily_stats WHERE guild_id = $1 AND date >= $2 AND date <= $3 GROUP BY user_id ORDER BY total DESC LIMIT 50", guild_id, start_date, end_date)
+            game_total = await conn.fetch("SELECT user_id, SUM(game_minutes) as total FROM daily_stats WHERE guild_id = $1 AND date >= $2 AND date <= $3 GROUP BY user_id ORDER BY total DESC LIMIT 50", guild_id, start_date, end_date)
+            variety = await conn.fetch(f"SELECT user_id, COUNT(DISTINCT game_name) as variety FROM daily_game_stats WHERE guild_id = $1 AND date >= $2 AND date <= $3 AND minutes >= {Config.VARIETY_MIN_MINUTES} GROUP BY user_id ORDER BY variety DESC LIMIT 50", guild_id, start_date, end_date)
+            stream = await conn.fetch("SELECT user_id, SUM(stream_minutes) as total FROM daily_stats WHERE guild_id = $1 AND date >= $2 AND date <= $3 GROUP BY user_id ORDER BY total DESC LIMIT 50", guild_id, start_date, end_date)
+            media = await conn.fetch("SELECT user_id, SUM(media_count) as total FROM daily_stats WHERE guild_id = $1 AND date >= $2 AND date <= $3 GROUP BY user_id ORDER BY total DESC LIMIT 50", guild_id, start_date, end_date)
             
             return {
-                "spotify": spotify[0] if spotify and spotify[0] is not None else 0,
-                "gamer_total": game[0] if game and game[0] is not None else 0,
-                "gamer_variety": variety[0] if variety and variety[0] is not None else 0,
-                "streamer": stream[0] if stream and stream[0] is not None else 0,
-                "media": media[0] if media and media[0] is not None else 0
+                "spotify": spotify,
+                "gamer_total": game_total,
+                "gamer_variety": variety,
+                "streamer": stream,
+                "media": media
             }
 
-    def log_elite_win(self, user_id, guild_id, category, win_date):
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO elite_history (user_id, guild_id, category, win_date)
-                VALUES (?, ?, ?, ?)
-            """, (user_id, guild_id, category, win_date))
-            conn.commit()
+    async def log_elite_win(self, user_id, guild_id, category, win_date):
+        async with self.pool.acquire() as conn:
+            await conn.execute("INSERT INTO elite_history (user_id, guild_id, category, win_date) VALUES ($1, $2, $3, $4)", user_id, guild_id, category, win_date)
 
-    def get_elite_wins(self, user_id, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT category, COUNT(*) FROM elite_history 
-                WHERE user_id = ? AND guild_id = ?
-                GROUP BY category
-            """, (int(user_id), int(guild_id)))
-            return dict(cursor.fetchall())
+    async def get_last_elites(self, guild_id):
+        async with self.pool.acquire() as conn:
+            # Get winners from the most recent date
+            rows = await conn.fetch("""
+                WITH last_date AS (SELECT MAX(win_date) FROM elite_history WHERE guild_id = $1)
+                SELECT category, user_id FROM elite_history WHERE guild_id = $1 AND win_date = (SELECT * FROM last_date)
+            """, guild_id)
+            return {r['category']: r['user_id'] for r in rows}
 
-    def get_last_elites_run_date(self, guild_id):
-        # Finds the most recent run date for the elite system
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT MAX(win_date) FROM elite_history WHERE guild_id = ?", (int(guild_id),))
-            row = cursor.fetchone()
-            if row and row[0]:
-                return datetime.datetime.strptime(row[0], "%Y-%m-%d").date()
-            return None
+    async def get_last_elites_run_date(self, guild_id):
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval("SELECT MAX(win_date) FROM elite_history WHERE guild_id = $1", guild_id)
 
-    def get_last_elites(self, guild_id):
-        # Finds the winners from the most recent win_date in the history
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT category, user_id FROM elite_history 
-                WHERE guild_id = ? AND win_date = (SELECT MAX(win_date) FROM elite_history WHERE guild_id = ?)
-            """, (int(guild_id), int(guild_id)))
-            return dict(cursor.fetchall())
+    async def get_elite_wins(self, user_id, guild_id):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("SELECT category, COUNT(*) as count FROM elite_history WHERE user_id = $1 AND guild_id = $2 GROUP BY category", user_id, guild_id)
+            return {r['category']: r['count'] for r in rows}
 
-    def reset_database(self):
-        # DANGER: This wipes everything clean! All stats will be gone.
-        tables = [
-            "user_activity", "daily_stats", "role_history", "game_activity", 
-            "voice_sessions", "reaction_history", "active_voice_sessions", 
-            "active_game_sessions", "membership_history", "elite_history", 
-            "tracked_games", "daily_game_stats", "reaction_role_messages",
-            "voice_overlaps"
-        ]
-        with self._get_connection() as conn:
-            for table in tables:
-                try:
-                    conn.execute(f"DELETE FROM {table}")
-                except:
-                    pass # Table might not exist yet
-            conn.commit()
-
-    def reset_tracked_games(self):
-        # Clears all tracked games from the automated system
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM tracked_games")
-            conn.execute("DELETE FROM game_activity")
-            conn.execute("DELETE FROM daily_game_stats")
-            conn.execute("DELETE FROM active_game_sessions")
-            conn.commit()
-
-    def reset_elite_history_data(self):
-        # Clears the history of weekly elites
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM elite_history")
-            conn.commit()
-
-    def reset_reaction_role_messages(self):
-        # Forgets sent reaction roll messages so they can be re-sent
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM reaction_role_messages")
-            conn.commit()
-
-    def log_membership_event(self, user_id, guild_id, action, timestamp=None):
-        if timestamp is None:
-            timestamp = datetime.datetime.now(datetime.timezone.utc)
-        ts_str = timestamp.isoformat() if isinstance(timestamp, datetime.datetime) else timestamp
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO membership_history (user_id, guild_id, action, timestamp)
-                VALUES (?, ?, ?, ?)
-            """, (user_id, guild_id, action, ts_str))
-            conn.commit()
-
-    def update_join_date(self, user_id, guild_id, joined_at):
-        ts_str = joined_at.isoformat() if isinstance(joined_at, datetime.datetime) else joined_at
-        with self._get_connection() as conn:
-            conn.execute("""
-                UPDATE user_activity SET joined_at = ? WHERE user_id = ? AND guild_id = ?
-            """, (ts_str, int(user_id), int(guild_id)))
-            conn.commit()
-
-    def get_user_join_date(self, user_id, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT joined_at FROM user_activity WHERE user_id = ? AND guild_id = ?", (int(user_id), int(guild_id)))
-            row = cursor.fetchone()
-            return datetime.datetime.fromisoformat(row[0]) if row and row[0] else None
-
-    def get_membership_logs(self, guild_id, limit=300):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT user_id, action, timestamp FROM membership_history 
-                WHERE guild_id = ? ORDER BY timestamp DESC LIMIT ?
-            """, (int(guild_id), limit))
-            return cursor.fetchall()
-
-    # --- VISUAL ANALYSIS QUERIES ---
-    
-    def get_peak_activity_raw(self, guild_id, days=None):
-        cutoff = None
-        if days:
-            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        
-        with self._get_connection() as conn:
-            # Reactions count by day and hour
-            react_query = "SELECT strftime('%w', timestamp) as d, strftime('%H', timestamp) as h, COUNT(*) FROM reaction_history WHERE guild_id = ?"
-            react_params = [guild_id]
-            if cutoff:
-                react_query += " AND timestamp >= ?"
-                react_params.append(cutoff)
-            react_query += " GROUP BY d, h"
+    async def get_user_weekly_elite_stats(self, user_id, guild_id, start_date, end_date):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT SUM(spotify_minutes) as spotify, SUM(game_minutes) as game_total, 
+                       SUM(stream_minutes) as streamer, SUM(media_count) as media
+                FROM daily_stats WHERE user_id = $1 AND guild_id = $2 AND date >= $3 AND date <= $4
+            """, user_id, guild_id, start_date, end_date)
             
-            # Voice start counts by day and hour
-            voice_query = "SELECT strftime('%w', start_time) as d, strftime('%H', start_time) as h, COUNT(*) FROM voice_sessions WHERE guild_id = ?"
-            voice_params = [guild_id]
-            if cutoff:
-                voice_query += " AND start_time >= ?"
-                voice_params.append(cutoff)
-            voice_query += " GROUP BY d, h"
+            variety = await conn.fetchval(f"SELECT COUNT(DISTINCT game_name) FROM daily_game_stats WHERE user_id = $1 AND guild_id = $2 AND date >= $3 AND date <= $4 AND minutes >= {Config.VARIETY_MIN_MINUTES}", user_id, guild_id, start_date, end_date)
             
-            r_data = conn.execute(react_query, react_params).fetchall()
-            v_data = conn.execute(voice_query, voice_params).fetchall()
-            
-            # Combine them: List of (day, hour, count)
-            return r_data + v_data
+            return {
+                "spotify": row['spotify'] or 0 if row else 0,
+                "gamer_total": row['game_total'] or 0 if row else 0,
+                "gamer_variety": variety or 0,
+                "streamer": row['streamer'] or 0 if row else 0,
+                "media": row['media'] or 0 if row else 0
+            }
 
-    def get_voice_usage_raw(self, guild_id, days=None):
-        query = "SELECT channel_id, SUM(duration_minutes) as total FROM voice_sessions WHERE guild_id = ?"
-        params = [guild_id]
-        if days:
-            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-            query += " AND start_time >= ?"
-            params.append(cutoff)
-        query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
-        with self._get_connection() as conn:
-            return conn.execute(query, params).fetchall()
+    async def get_top_voice_partners(self, user_id, guild_id, days=30):
+        cutoff_date = datetime.date.today() - datetime.timedelta(days=days)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT user_id2 as partner_id, SUM(overlap_minutes) as overlap
+                FROM voice_overlaps 
+                WHERE user_id1 = $1 AND guild_id = $2 AND date >= $3
+                GROUP BY user_id2 ORDER BY overlap DESC LIMIT 10
+            """, user_id, guild_id, cutoff_date)
+            return rows
 
-    def get_user_average_voice_duration(self, user_id, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT AVG(duration_minutes) FROM voice_sessions 
-                WHERE user_id = ? AND guild_id = ?
-            """, (user_id, guild_id))
-            row = cursor.fetchone()
-            return row[0] if row and row[0] else 0
+    async def get_top_game_buddies(self, user_id, guild_id, game_name, limit=10):
+        async with self.pool.acquire() as conn:
+            # Note: This is a complex query to estimate overlap based on daily activity 
+            # (simplified: people who played the same game on the same day)
+            rows = await conn.fetch("""
+                SELECT t2.user_id as partner_id, SUM(LEAST(t1.minutes, t2.minutes)) as common_minutes
+                FROM daily_game_stats t1
+                JOIN daily_game_stats t2 ON t1.game_name = t2.game_name AND t1.date = t2.date AND t1.guild_id = t2.guild_id
+                WHERE t1.user_id = $1 AND t1.guild_id = $2 AND t1.game_name = $3 AND t2.user_id != $1
+                GROUP BY t2.user_id ORDER BY common_minutes DESC LIMIT $4
+            """, user_id, guild_id, game_name, limit)
+            return rows
 
-    def get_top_average_voice_duration(self, guild_id, days=None):
-        query = """
-            SELECT user_id, AVG(duration_minutes) as avg_dur 
-            FROM voice_sessions 
-            WHERE guild_id = ? {time_filter}
-            GROUP BY user_id 
-            HAVING COUNT(*) >= 3
-            ORDER BY avg_dur DESC 
-            LIMIT 10
-        """
-        params = [guild_id]
-        if days:
-            cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-            query = query.replace("{time_filter}", "AND start_time >= ?")
-            params.append(cutoff)
-        else:
-            query = query.replace("{time_filter}", "")
-            
-        with self._get_connection() as conn:
-            return conn.execute(query, params).fetchall()
+    async def get_inactive_users(self, guild_id, days):
+        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT user_id, last_active, returned_at FROM user_activity 
+                WHERE guild_id = $1 AND last_active < $2
+            """, guild_id, cutoff)
+            return {r['user_id']: dict(r) for r in rows}
 
-    def get_game_top_players(self, guild_id, game_name):
-        with self._get_connection() as conn:
-            # Matches both direct name and 'Player: Name' format
-            query = """
-                SELECT user_id, total_minutes, last_played 
+    async def get_user_recent_games(self, user_id, guild_id, limit=3):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT role_name as name, last_played, total_minutes as minutes 
                 FROM game_activity 
-                WHERE guild_id = ? AND (role_name = ? OR role_name = ?)
-                ORDER BY total_minutes DESC
-            """
-            alt_name = f"Player: {game_name}" if not game_name.startswith("Player: ") else game_name
-            raw_name = game_name.replace("Player: ", "")
+                WHERE user_id = $1 AND guild_id = $2 
+                ORDER BY last_played DESC LIMIT $3
+            """, user_id, guild_id, limit)
+            return rows
+
+    async def get_user_stats_for_period(self, user_id, guild_id, days):
+        cutoff = datetime.date.today() - datetime.timedelta(days=days)
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                SELECT SUM(messages) as messages, SUM(reactions) as reactions, 
+                       SUM(voice_minutes) as voice, SUM(points) as points, 
+                       SUM(stream_minutes) as stream, SUM(media_count) as media
+                FROM daily_stats 
+                WHERE user_id = $1 AND guild_id = $2 AND date >= $3
+            """, user_id, guild_id, cutoff)
             
-            return conn.execute(query, (int(guild_id), raw_name, alt_name)).fetchall()
+            if row and row['points'] is not None:
+                return dict(row)
+            return {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
 
-    def get_all_unique_games(self, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT DISTINCT 
-                CASE WHEN role_name LIKE 'Player: %' THEN SUBSTR(role_name, 9) ELSE role_name END as clean_name
+    async def update_game_activity(self, user_id, guild_id, role_name, bot_assigned=False):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO game_activity (user_id, guild_id, role_name, last_played, bot_assigned)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT(user_id, guild_id, role_name) DO UPDATE SET 
+                    last_played = EXCLUDED.last_played,
+                    bot_assigned = EXCLUDED.bot_assigned
+            """, user_id, guild_id, role_name, now, 1 if bot_assigned else 0)
+
+    async def get_inactive_games(self, guild_id, days):
+        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT user_id, role_name FROM game_activity 
+                WHERE guild_id = $1 AND last_played < $2 AND bot_assigned = 1
+            """, guild_id, cutoff)
+            return [(r['user_id'], r['role_name']) for r in rows]
+
+    async def remove_game_activity(self, user_id, guild_id, role_name):
+        async with self.pool.acquire() as conn:
+            await conn.execute("DELETE FROM game_activity WHERE user_id = $1 AND guild_id = $2 AND role_name = $3", user_id, guild_id, role_name)
+
+    async def get_user_social_stats(self, user_id, guild_id, days=30):
+        cutoff = datetime.date.today() - datetime.timedelta(days=days)
+        async with self.pool.acquire() as conn:
+            # Top emoji
+            emoji_row = await conn.fetchrow("""
+                SELECT emoji, COUNT(*) as count FROM reaction_history 
+                WHERE user_id = $1 AND guild_id = $2 AND timestamp >= $3
+                GROUP BY emoji ORDER BY count DESC LIMIT 1
+            """, user_id, guild_id, cutoff)
+            
+            # Most reacted to person
+            target_row = await conn.fetchrow("""
+                SELECT target_user_id, COUNT(*) as count FROM reaction_history 
+                WHERE user_id = $1 AND guild_id = $2 AND timestamp >= $3
+                GROUP BY target_user_id ORDER BY count DESC LIMIT 1
+            """, user_id, guild_id, cutoff)
+            
+            return {
+                "top_emoji": emoji_row['emoji'] if emoji_row else None,
+                "top_target": target_row['target_user_id'] if target_row else None
+            }
+
+    async def get_user_top_games(self, user_id, guild_id, limit=3):
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch("""
+                SELECT role_name as name, total_minutes as minutes 
                 FROM game_activity 
-                WHERE guild_id = ?
-            """, (guild_id,))
-            return [row[0] for row in cursor.fetchall() if row[0]]
+                WHERE user_id = $1 AND guild_id = $2 
+                ORDER BY total_minutes DESC LIMIT $3
+            """, user_id, guild_id, limit)
+            return rows
 
-    def get_channel_activity_raw(self, guild_id, days=None):
-        query = "SELECT channel_id, SUM(messages) as total FROM daily_stats WHERE guild_id = ? AND channel_id != 0"
-        params = [int(guild_id)]
-        if days:
-            cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
-            query += " AND date >= ?"
-            params.append(cutoff)
-        query += " GROUP BY channel_id ORDER BY total DESC LIMIT 10"
-        with self._get_connection() as conn:
-            return conn.execute(query, params).fetchall()
-
-    def get_stream_history(self, guild_id, days=7):
-        # Get a list of recent voice sessions that included streaming
-        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)).isoformat()
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
-                SELECT user_id, start_time, duration_minutes, stream_detail, channel_id
-                FROM voice_sessions 
-                WHERE guild_id = ? AND stream_detail IS NOT NULL AND start_time >= ?
-                ORDER BY start_time DESC
-            """, (int(guild_id), cutoff))
-            return cursor.fetchall()
-
-    def get_user_average_voice_duration(self, user_id, guild_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("""
+    async def get_user_average_voice_duration(self, user_id, guild_id):
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval("""
                 SELECT AVG(duration_minutes) FROM voice_sessions 
-                WHERE user_id = ? AND guild_id = ?
-            """, (int(user_id), int(guild_id)))
-            row = cursor.fetchone()
-            return row[0] if row and row[0] is not None else 0
+                WHERE user_id = $1 AND guild_id = $2
+            """, user_id, guild_id)
+            return val or 0
+
+
+
+
+
+
+
+
 

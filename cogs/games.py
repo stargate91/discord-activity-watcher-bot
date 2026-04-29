@@ -7,9 +7,6 @@ from config_loader import Config
 from core.messages import Messages
 from cogs.admin import is_admin_slash, is_tester_slash
 
-
-
-
 class GamesCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -33,39 +30,43 @@ class GamesCog(commands.Cog):
     @is_admin_slash()
     async def add_game(self, interaction: discord.Interaction, search_name: str, role_suffix: str):
         # This command tells the bot to start watching a new game!
-        self.db.add_tracked_game(search_name, role_suffix)
+        await self.db.add_tracked_game(interaction.guild_id, search_name, role_suffix)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_ADDED.format(name=search_name, suffix=role_suffix), ephemeral=True)
+
 
     @app_commands.command(name="remove-game", description=Messages.CMD_REMOVE_GAME_DESC)
     @app_commands.describe(search_name=Messages.CMD_REMOVE_GAME_NAME_DESC)
     @is_admin_slash()
     async def remove_game(self, interaction: discord.Interaction, search_name: str):
         # This command tells the bot to stop watching a specific game
-        self.db.remove_tracked_game(search_name)
+        await self.db.remove_tracked_game(interaction.guild_id, search_name)
         await self.tracker.load_franchises()
         await interaction.response.send_message(Messages.GAME_REMOVED.format(name=search_name), ephemeral=True)
 
+
     @remove_game.autocomplete("search_name")
     async def remove_game_autocomplete(self, interaction: discord.Interaction, current: str):
-        games = self.db.get_tracked_games()
+        games = await self.db.get_tracked_games(interaction.guild_id)
         return [
             app_commands.Choice(name=name, value=name)
             for name in games.keys() if current.lower() in name.lower()
         ][:25]
 
+
     @app_commands.command(name="list-games", description=Messages.CMD_LIST_GAMES_DESC)
     @is_tester_slash()
     async def list_games(self, interaction: discord.Interaction):
         # This command shows a list of every game the bot is currently keeping an eye on!
-        games = self.db.get_tracked_games()
+        games = await self.db.get_tracked_games(interaction.guild_id)
         if not games:
             await interaction.response.send_message(Messages.GAME_LIST_EMPTY, ephemeral=True)
             return
         
-        desc = "\n".join([f"• `{sub}` ➔ `Player: {suf}`" for sub, suf in self.tracker.franchises.items()])
+        desc = "\n".join([f"• `{sub}` ➔ `Player: {suf}`" for sub, suf in games.items()])
         embed = discord.Embed(title=Messages.GAME_LIST_TITLE, description=desc, color=Config.COLOR_SUCCESS)
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
     @app_commands.command(name="game-stats-report", description=Messages.CMD_GAME_REPORT_DESC)
     @app_commands.describe(timeframe=Messages.CMD_GAME_REPORT_TF_DESC)
@@ -73,7 +74,7 @@ class GamesCog(commands.Cog):
     async def game_stats_report(self, interaction: discord.Interaction, timeframe: str = "alltime"):
         # We're making a text file that shows which games are the most popular in the server!
         await interaction.response.send_message(Messages.GAME_REPORT_GEN, ephemeral=True)
-        stats = self.db.get_game_stats_report(interaction.guild_id, timeframe)
+        stats = await self.db.get_game_stats_report(interaction.guild_id, timeframe)
         if not stats:
             await interaction.followup.send(Messages.GAME_REPORT_EMPTY, ephemeral=True)
             return
@@ -84,7 +85,10 @@ class GamesCog(commands.Cog):
         lines.append(Messages.GAME_POP_HEADER)
         lines.append("-" * 60)
 
-        for display_name, user_count, total_mins in stats:
+        for row in stats:
+            display_name = row['display_name']
+            user_count = row['user_count']
+            total_mins = row['total_minutes']
             lines.append(f"{display_name[:35]:<35} | {user_count:<5} | {int(total_mins or 0):<10}")
         
         filename = f"game_stats_{timeframe}_{interaction.guild_id}.txt"

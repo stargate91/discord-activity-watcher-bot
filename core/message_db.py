@@ -1,134 +1,103 @@
-import sqlite3
+import asyncpg
 import datetime
 import os
+from config_loader import Config
 
 class MessageArchiveDB:
-    def __init__(self, db_path="message_archive.db"):
-        self.db_path = db_path
-        # This part makes sure our message storage is ready to use!
-        self._create_table()
+    def __init__(self, database_url=None):
+        self.database_url = database_url or Config.DATABASE_URL
+        self.pool = None
 
-    def _get_connection(self):
-        return sqlite3.connect(self.db_path)
+    async def initialize(self):
+        """Initializes the connection pool and creates tables."""
+        if not self.pool:
+            self.pool = await asyncpg.create_pool(self.database_url)
+            await self._create_table()
 
-    def _create_table(self):
-        # This is where we create the tables that will hold all our messages.
-        with self._get_connection() as conn:
-            conn.execute("""
+    async def close(self):
+        if self.pool:
+            await self.pool.close()
+
+    async def _create_table(self):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
-                    message_id INTEGER PRIMARY KEY,
-                    guild_id INTEGER,
-                    channel_id INTEGER,
-                    user_id INTEGER,
+                    message_id BIGINT PRIMARY KEY,
+                    guild_id BIGINT,
+                    channel_id BIGINT,
+                    user_id BIGINT,
                     username TEXT,
                     content TEXT,
                     attachments TEXT,
-                    timestamp TIMESTAMP
+                    timestamp TIMESTAMP,
+                    is_bot BOOLEAN DEFAULT FALSE
                 )
             """)
-            # We check if the 'is_bot' column exists, and add it if it doesn't!
-            try:
-                conn.execute("ALTER TABLE messages ADD COLUMN is_bot BOOLEAN DEFAULT 0")
-            except sqlite3.OperationalError:
-                pass
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_guild ON messages(guild_id)")
             
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS channel_sync_state (
-                    channel_id INTEGER PRIMARY KEY,
-                    oldest_message_id INTEGER,
-                    is_completed BOOLEAN DEFAULT 0
+                    guild_id BIGINT,
+                    channel_id BIGINT,
+                    oldest_message_id BIGINT,
+                    is_completed BOOLEAN DEFAULT FALSE,
+                    PRIMARY KEY (guild_id, channel_id)
                 )
             """)
-            conn.commit()
 
-    def get_sync_state(self, channel_id):
-        # This checks if we have already looked through the messages in this channel before.
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT oldest_message_id, is_completed FROM channel_sync_state WHERE channel_id = ?", (channel_id,))
-            row = cursor.fetchone()
+    async def get_sync_state(self, guild_id, channel_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT oldest_message_id, is_completed FROM channel_sync_state WHERE guild_id = $1 AND channel_id = $2", guild_id, channel_id)
             if row:
-                return {"oldest_message_id": row[0], "is_completed": bool(row[1])}
+                return {"oldest_message_id": row['oldest_message_id'], "is_completed": bool(row['is_completed'])}
             return {"oldest_message_id": None, "is_completed": False}
 
-    def update_sync_state(self, channel_id, oldest_message_id, is_completed):
-        # This saves our progress when we are syncing messages from a channel.
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT INTO channel_sync_state (channel_id, oldest_message_id, is_completed)
-                VALUES (?, ?, ?)
-                ON CONFLICT(channel_id) DO UPDATE SET 
-                oldest_message_id = excluded.oldest_message_id,
-                is_completed = excluded.is_completed
-            """, (channel_id, oldest_message_id, int(is_completed)))
-            conn.commit()
+    async def update_sync_state(self, guild_id, channel_id, oldest_message_id, is_completed):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO channel_sync_state (guild_id, channel_id, oldest_message_id, is_completed)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT(guild_id, channel_id) DO UPDATE SET 
+                oldest_message_id = EXCLUDED.oldest_message_id,
+                is_completed = EXCLUDED.is_completed
+            """, guild_id, channel_id, oldest_message_id, is_completed)
 
-    def insert_message(self, message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp):
-        # This function saves a brand new message into our database!
-        with self._get_connection() as conn:
-            conn.execute("""
-                INSERT OR IGNORE INTO messages (message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (message_id, guild_id, channel_id, user_id, username, int(is_bot), content, attachments, timestamp.isoformat()))
-            conn.commit()
+    async def insert_message(self, message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp):
+        async with self.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO messages (message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (message_id) DO NOTHING
+            """, message_id, guild_id, channel_id, user_id, username, bool(is_bot), content, attachments, timestamp)
 
-    def update_message_content(self, message_id, new_content):
-        with self._get_connection() as conn:
-            conn.execute("UPDATE messages SET content = ? WHERE message_id = ?", (new_content, message_id))
-            conn.commit()
+    async def update_message_content(self, message_id, new_content):
+        async with self.pool.acquire() as conn:
+            await conn.execute("UPDATE messages SET content = $1 WHERE message_id = $2", new_content, message_id)
 
-    def get_message(self, message_id):
-        with self._get_connection() as conn:
-            cursor = conn.execute("SELECT user_id, username, is_bot, content, attachments, timestamp FROM messages WHERE message_id = ?", (message_id,))
-            row = cursor.fetchone()
+    async def get_message(self, message_id):
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT user_id, username, is_bot, content, attachments, timestamp FROM messages WHERE message_id = $1", message_id)
             if row:
                 return {
-                    "user_id": row[0],
-                    "username": row[1],
-                    "is_bot": bool(row[2]),
-                    "content": row[3],
-                    "attachments": row[4],
-                    "timestamp": datetime.datetime.fromisoformat(row[5])
+                    "user_id": row['user_id'],
+                    "username": row['username'],
+                    "is_bot": bool(row['is_bot']),
+                    "content": row['content'],
+                    "attachments": row['attachments'],
+                    "timestamp": row['timestamp']
                 }
             return None
 
-    def get_db_size_mb(self):
-        # This tells us how much space the message database is taking up on the disk (in MegaBytes).
-        if not os.path.exists(self.db_path):
-            return 0
-        return os.path.getsize(self.db_path) / (1024 * 1024)
-
-    def prune_database(self, retention_days=None, max_size_mb=None):
-        # This function cleans up old messages so our database doesn't get too giant!
+    async def prune_database(self, retention_days=None):
         deleted_count = 0
-        
-        # 1. First, we delete messages that are older than the number of days we set.
         if retention_days and retention_days > 0:
-            with self._get_connection() as conn:
-                cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=retention_days)
-                cursor = conn.execute("DELETE FROM messages WHERE timestamp < ?", (cutoff_date.isoformat(),))
-                deleted_count += cursor.rowcount
-                conn.commit()
-
-        # 2. Next, if the database is still too big, we delete some more.
-        if max_size_mb and max_size_mb > 0:
-            if self.get_db_size_mb() > max_size_mb:
-                with self._get_connection() as conn:
-                    cursor = conn.execute("SELECT COUNT(*) FROM messages")
-                    count = cursor.fetchone()[0]
-                    if count > 0:
-                        # We delete the oldest 20% of messages to make some breathing room.
-                        limit = max(1, int(count * 0.2))
-                        cursor = conn.execute(f"""
-                            DELETE FROM messages WHERE message_id IN (
-                                SELECT message_id FROM messages ORDER BY timestamp ASC LIMIT {limit}
-                            )
-                        """)
-                        deleted_count += cursor.rowcount
-                        conn.commit()
-                        
-                # This part officially tidies up the file on the computer to reclaim space.
-                with self._get_connection() as conn:
-                    conn.execute("VACUUM")
-        
+            cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=retention_days)
+            async with self.pool.acquire() as conn:
+                res = await conn.execute("DELETE FROM messages WHERE timestamp < $1", cutoff_date)
+                # asyncpg returns 'DELETE N'
+                try:
+                    deleted_count = int(res.split(' ')[1])
+                except:
+                    deleted_count = 0
         return deleted_count

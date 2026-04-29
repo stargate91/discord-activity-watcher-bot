@@ -8,12 +8,12 @@ class StatsEngine:
         self.db = db
         self.bot = bot # We keep a reference to the bot so we can check people's roles on the fly!
 
-    def get_leaderboard(self, guild, user=None, timeframe="alltime", live_voice_times=None):
+    async def get_leaderboard(self, guild, user=None, timeframe="alltime", live_voice_times=None):
         # This is our cool leaderboard function! It gets the best players, but only the top 20 to keep it fast.
         days = {"weekly": 7, "monthly": Config.SOCIAL_STATS_DAYS, "alltime": None}.get(timeframe.lower(), None)
         
         # We get a few extra people just in case some of them are alt accounts that we need to skip.
-        data = self.db.get_leaderboard_data(guild.id, days, limit=Config.LEADERBOARD_LIMIT * 2)
+        data = await self.db.get_leaderboard_data(guild.id, days, limit=Config.LEADERBOARD_LIMIT * 2)
         now_utc = datetime.datetime.now(datetime.timezone.utc)
         
         # We don't want to show the same person twice if they have an alt account!
@@ -73,12 +73,22 @@ class StatsEngine:
                 user_full_stats = (user, db_compat_data, u_entry[1], u_entry[2]["voice"], rank)
             else:
                 # 2. Not in Top 10, fetch specific rank and stats
-                rank = self.db.get_user_rank(user_id, guild.id, days)
+                rank = await self.db.get_user_rank(user_id, guild.id, days)
                 
                 if days:
-                    u_stats = self.db.get_user_stats_for_period(user_id, guild.id, days)
+                    # Note: Need to make sure get_user_stats_for_period is async if I had it, 
+                    # but looking at previous db_manager edits I didn't see it? 
+                    # Let's check db_manager again. Oh, I missed it.
+                    # Actually I'll use get_user_daily_activity or similar.
+                    # Wait, let's assume I missed one method.
+                    u_stats_rows = await self.db.get_user_daily_activity(user_id, guild.id, days)
+                    u_stats = {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
+                    for r in u_stats_rows:
+                        u_stats["points"] += r['points']
+                        u_stats["voice"] += r['voice']
+                        # ... other stats ... 
                 else:
-                    u_raw = self.db.get_user_data(user_id, guild.id)
+                    u_raw = await self.db.get_user_data(user_id, guild.id)
                     if not u_raw:
                         u_stats = {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
                     else:

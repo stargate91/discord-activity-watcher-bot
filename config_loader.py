@@ -12,6 +12,8 @@ class Config:
 
     # Get the special bot token from the .env file (shhh, it's a secret!)
     TOKEN = os.getenv("DISCORD_TOKEN")
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
     
     # Read all the other settings from the config.json file
     _data: dict = {}

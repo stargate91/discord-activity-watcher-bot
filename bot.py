@@ -47,8 +47,12 @@ class IrisBot(commands.Bot):
         self.voice_multipliers = {}
 
     async def setup_hook(self):
+        # Initializing our asynpg database pool!
+        await self.db.initialize()
+        
         # We clear any old or double commands from Discord's memory so everything starts fresh!
         self.tree.clear_commands(guild=None)
+
 
         # Go through the 'cogs' folder and turn on every feature file we find
         for filename in os.listdir("./cogs"):
@@ -65,8 +69,9 @@ class IrisBot(commands.Bot):
 
 
     # These are handy little shortcuts that help other parts of the bot get data quickly!
-    def get_top_data(self, guild, user=None, timeframe="alltime"):
-        return self.engine.get_leaderboard(guild, user, timeframe, self.voice_start_times)
+    async def get_top_data(self, guild, user=None, timeframe="alltime"):
+        return await self.engine.get_leaderboard(guild, user, timeframe, self.voice_start_times)
+
 
     async def load_game_franchises(self):
         await self.tracker.load_franchises()
