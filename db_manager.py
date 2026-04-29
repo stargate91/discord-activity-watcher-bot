@@ -5,6 +5,7 @@ import asyncio
 import json
 import sqlite3
 from config_loader import Config
+from core.logger import log
 
 class DBManager:
     def __init__(self, database_url=None):
