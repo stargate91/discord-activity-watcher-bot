@@ -101,6 +101,14 @@ def _split_markdown_chunks(text: str, limit: int = 1900) -> list[str]:
     return chunks
 
 
+def _ensure_utc(value):
+    if value is None or not isinstance(value, datetime.datetime):
+        return value
+    if value.tzinfo is None:
+        return value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(datetime.timezone.utc)
+
+
 def is_admin():
     """This little helper checks if a user is a server Admin or has our special Admin role."""
     async def predicate(ctx):
@@ -216,7 +224,7 @@ class AdminCog(commands.Cog):
                 
                 voice_mins = d['voice_minutes']
                 if main_id in self.bot.voice_start_times:
-                    voice_mins += (now - self.bot.voice_start_times[main_id]).total_seconds() / 60
+                    voice_mins += (now - _ensure_utc(self.bot.voice_start_times[main_id])).total_seconds() / 60
                     
                 s = Messages.REPORT_STAGE_NORMAL
                 if r1 in m.roles: s = Messages.REPORT_STAGE_1
@@ -225,13 +233,13 @@ class AdminCog(commands.Cog):
                 if s == Messages.REPORT_STAGE_1:
                     det = Messages.REPORT_INACTIVE
                 elif s == Messages.REPORT_STAGE_2 and d["returned_at"]:
-                    diff = (now - d['returned_at'].astimezone(datetime.timezone.utc)).total_seconds()
+                    diff = (now - _ensure_utc(d['returned_at'])).total_seconds()
                     days_left = math.ceil((Config.STAGE_2_GRACE_DAYS * 86400 - diff) / 86400)
                     det = Messages.REPORT_S2_RETURN.format(days=max(0, days_left))
                 else:
                     last_active = d.get('last_active')
                     if last_active:
-                        diff = (now - last_active.astimezone(datetime.timezone.utc)).total_seconds()
+                        diff = (now - _ensure_utc(last_active)).total_seconds()
                         days_left = math.ceil((Config.STAGE_1_DAYS * 86400 - diff) / 86400)
                         det = Messages.REPORT_S1_LIMIT.format(days=max(0, days_left))
                     else:
@@ -1102,6 +1110,7 @@ class AdminCog(commands.Cog):
         try:
             summary_text = await workflow_client.fetch_daily_summary(
                 guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                hours=750
             )
             chunks = _split_markdown_chunks(summary_text)
             if not chunks:
