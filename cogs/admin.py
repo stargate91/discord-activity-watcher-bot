@@ -143,10 +143,7 @@ def is_tester():
     return commands.check(predicate)
 
 class AdminCog(commands.Cog):
-    ai_daily_group = app_commands.Group(
-        name="ai_daily",
-        description="AI-powered daily summary commands"
-    )
+
 
     def __init__(self, bot):
         self.bot = bot
@@ -1089,7 +1086,7 @@ class AdminCog(commands.Cog):
         # This opens a little popup window where admins can link two accounts together!
         await interaction.response.send_modal(AltAccountModal())
 
-    @ai_daily_group.command(name="summary", description="Post the AI daily summary into this channel")
+    @app_commands.command(name="daily-summary", description="Post the AI daily summary into this channel")
     @is_admin_slash()
     async def ai_daily_summary(self, interaction: discord.Interaction):
         """Fetch the daily AI summary and post it into the current control room."""
@@ -1478,3 +1475,4 @@ class OpenAIKeyModal(discord.ui.Modal):
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
+
