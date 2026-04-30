@@ -6,11 +6,64 @@ Handles real-time streaming output, input requests, and session state.
 import discord
 import json
 import os
-import asyncio
-from typing import Optional, List, Dict, Any, Callable
-from discord.ui import LayoutView, Container, Section, TextDisplay, Separator, ActionRow, Button
+from typing import Optional, Dict, Any
 from config_loader import Config
 from core.logger import log
+
+
+def _normalize_input_kind(value: Any) -> str:
+    """Return a lowercase input kind for resilient workflow UI matching."""
+    return str(value or "").strip().lower()
+
+
+def _normalize_option_value(option: Dict[str, Any]) -> str:
+    """Extract a comparable option value from workflow option payloads."""
+    raw = option.get("value", option.get("label", ""))
+    return str(raw or "").strip().lower()
+
+
+def _is_binary_input_request(request_data: Dict[str, Any]) -> bool:
+    """
+    Detect whether the workflow is asking for a boolean approval or for a
+    free-form textual response.
+    """
+    if request_data.get("allow_free_text"):
+        return False
+
+    options = request_data.get("options", [])
+    if options:
+        if len(options) != 2:
+            return False
+
+        option_values = {_normalize_option_value(option) for option in options}
+        return option_values in (
+            {"yes", "no"},
+            {"y", "n"},
+            {"true", "false"},
+            {"igen", "nem"},
+        )
+
+    input_kind = _normalize_input_kind(request_data.get("input_kind"))
+    return input_kind in {"approval", "confirmation", "confirm"}
+
+
+def _build_response_placeholder(
+    prompt: str,
+    options: list[Dict[str, Any]],
+    allow_free_text: bool,
+) -> str:
+    """Build a short placeholder that fits Discord modal limits."""
+    if options:
+        option_values = [
+            str(option.get("value", option.get("label", "?"))).strip()
+            for option in options
+            if str(option.get("value", option.get("label", ""))).strip()
+        ]
+        if option_values:
+            return f"Allowed values: {', '.join(option_values)}"[:100]
+    if allow_free_text and prompt:
+        return prompt[:100]
+    return "Enter your response here..."[:100]
 
 
 class WorkflowStreamView(discord.ui.LayoutView):
@@ -35,7 +88,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
         self._build_container()
 
     def has_input_ui(self) -> bool:
-        """Return whether the approval button row is currently visible."""
+        """Return whether interactive response controls are currently visible."""
         return self.input_state == "awaiting_response" and self.input_button_row is not None
 
     def has_input_section(self) -> bool:
@@ -108,7 +161,7 @@ class WorkflowStreamView(discord.ui.LayoutView):
         self.output_text += text
     
     def set_input_request(self, request_data: Dict[str, Any]):
-        """Create an input selection interface with yes/no buttons."""
+        """Create the correct input UI for approval or text-based requests."""
         self._hide_input_section()
         self.input_request = request_data
         
@@ -117,13 +170,22 @@ class WorkflowStreamView(discord.ui.LayoutView):
         
         prompt = request_data.get("prompt", "User input required")
         input_kind = request_data.get("input_kind", "text")
+        options = request_data.get("options", [])
+        allow_free_text = request_data.get("allow_free_text", False)
+        is_binary = _is_binary_input_request(request_data)
         
         input_text = f"## ❓ Input Needed\n**Type:** {input_kind}\n**Prompt:** {prompt}"
+
+        if is_binary:
+            input_text += "\n\n**How to reply:** Use the Yes/No buttons below."
+        elif options:
+            input_text += "\n\n**How to reply:** Click the response button and enter one of the listed option values."
+        else:
+            input_text += "\n\n**How to reply:** Click the response button and enter the requested text."
         
         # Show metadata and options only in debug mode
         if debug_mode:
             metadata = request_data.get("metadata", {})
-            options = request_data.get("options", [])
             
             if metadata:
                 input_text += f"\n\n**Metadata:**\n```json\n{json.dumps(metadata, indent=2, ensure_ascii=False)}\n```"
@@ -136,38 +198,52 @@ class WorkflowStreamView(discord.ui.LayoutView):
         
         self.input_prompt_text = input_text
         
-        # Create button row for yes/no
         button_row = discord.ui.ActionRow()
-        
-        btn_yes = WorkflowInputButton(
-            label="✅ Yes",
-            style=discord.ButtonStyle.success,
-            custom_id=f"workflow_input:{self.session_id}:yes",
-            session_id=self.session_id,
-            request_id=request_data.get("request_id"),
-            value="yes"
-        )
-        btn_no = WorkflowInputButton(
-            label="❌ No",
-            style=discord.ButtonStyle.danger,
-            custom_id=f"workflow_input:{self.session_id}:no",
-            session_id=self.session_id,
-            request_id=request_data.get("request_id"),
-            value="no"
-        )
-        
-        button_row.add_item(btn_yes)
-        button_row.add_item(btn_no)
+
+        if is_binary:
+            btn_yes = WorkflowInputButton(
+                label="✅ Yes",
+                style=discord.ButtonStyle.success,
+                custom_id=f"workflow_input:{self.session_id}:yes",
+                session_id=self.session_id,
+                request_id=request_data.get("request_id"),
+                value="yes"
+            )
+            btn_no = WorkflowInputButton(
+                label="❌ No",
+                style=discord.ButtonStyle.danger,
+                custom_id=f"workflow_input:{self.session_id}:no",
+                session_id=self.session_id,
+                request_id=request_data.get("request_id"),
+                value="no"
+            )
+
+            button_row.add_item(btn_yes)
+            button_row.add_item(btn_no)
+        else:
+            btn_respond = WorkflowOpenInputModalButton(
+                label="✍️ Respond",
+                style=discord.ButtonStyle.primary,
+                custom_id=f"workflow_input:{self.session_id}:respond",
+                session_id=self.session_id,
+                request_id=request_data.get("request_id"),
+                prompt=prompt,
+                input_kind=input_kind,
+                options=options,
+                allow_free_text=allow_free_text,
+            )
+            button_row.add_item(btn_respond)
         
         self.input_state = "awaiting_response"
         self.input_button_row = button_row
         log.info(
             f"WorkflowStreamView: input UI shown session_id={self.session_id} "
-            f"request_id={request_data.get('request_id')} input_kind={input_kind}"
+            f"request_id={request_data.get('request_id')} input_kind={input_kind} "
+            f"is_binary={is_binary} allow_free_text={allow_free_text}"
         )
 
     def mark_input_sent(self):
-        """Replace the input buttons with a waiting state after a response was sent."""
+        """Replace the input controls with a waiting state after a response was sent."""
         self.input_request = None
         self.input_state = "response_sent"
         self.input_prompt_text = "## ⏳ Input Sent\nWaiting for the workflow to continue..."
@@ -255,6 +331,127 @@ class WorkflowInputButton(discord.ui.Button):
             log.error(
                 f"WorkflowInputButton: callback error session_id={self.session_id} "
                 f"request_id={self.request_id} error={e}",
+                exc_info=True
+            )
+            await interaction.followup.send(
+                f"❌ Error: {str(e)}",
+                ephemeral=True
+            )
+
+
+class WorkflowOpenInputModalButton(discord.ui.Button):
+    """Button that opens a modal for text or choice-style workflow input."""
+
+    def __init__(
+        self,
+        *args,
+        session_id: str,
+        request_id: str,
+        prompt: str,
+        input_kind: str,
+        options: list[Dict[str, Any]],
+        allow_free_text: bool,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.session_id = session_id
+        self.request_id = request_id
+        self.prompt = prompt
+        self.input_kind = input_kind
+        self.options = list(options)
+        self.allow_free_text = allow_free_text
+
+    async def callback(self, interaction: discord.Interaction):
+        """Open the response modal so the user can submit text."""
+        modal = WorkflowTextInputModal(
+            session_id=self.session_id,
+            request_id=self.request_id,
+            prompt=self.prompt,
+            input_kind=self.input_kind,
+            options=self.options,
+            allow_free_text=self.allow_free_text,
+        )
+        await interaction.response.send_modal(modal)
+
+
+class WorkflowTextInputModal(discord.ui.Modal):
+    """Modal for sending a textual workflow response back to the API."""
+
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        request_id: str,
+        prompt: str,
+        input_kind: str,
+        options: list[Dict[str, Any]],
+        allow_free_text: bool,
+    ):
+        super().__init__(title="Workflow Response")
+        self.session_id = session_id
+        self.request_id = request_id
+        self.prompt = prompt
+        self.input_kind = input_kind
+        self.options = list(options)
+        self.allow_free_text = allow_free_text
+
+        self.response_value = discord.ui.TextInput(
+            label="Response",
+            placeholder=_build_response_placeholder(prompt, self.options, allow_free_text),
+            style=discord.TextStyle.long if allow_free_text or len(prompt) > 80 else discord.TextStyle.short,
+            required=True,
+            max_length=4000,
+        )
+        self.add_item(self.response_value)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        """Send the user-entered response to the workflow API."""
+        from core.workflow_client import workflow_client
+
+        response_value = self.response_value.value.strip()
+        if not response_value:
+            await interaction.response.send_message(
+                "❌ Response cannot be empty.",
+                ephemeral=True
+            )
+            return
+
+        try:
+            await interaction.response.defer(ephemeral=True)
+            log.info(
+                f"WorkflowTextInputModal: submitted session_id={self.session_id} "
+                f"request_id={self.request_id} input_kind={self.input_kind} "
+                f"user_id={interaction.user.id} value_len={len(response_value)}"
+            )
+
+            success = await workflow_client.send_input_response(
+                session_id=self.session_id,
+                request_id=self.request_id,
+                value=response_value,
+            )
+
+            if success:
+                log.info(
+                    f"WorkflowTextInputModal: input response sent session_id={self.session_id} "
+                    f"request_id={self.request_id} input_kind={self.input_kind}"
+                )
+                await interaction.followup.send(
+                    "✅ Text response sent.",
+                    ephemeral=True
+                )
+            else:
+                log.warning(
+                    f"WorkflowTextInputModal: input response failed session_id={self.session_id} "
+                    f"request_id={self.request_id} input_kind={self.input_kind}"
+                )
+                await interaction.followup.send(
+                    "❌ Failed to send response.",
+                    ephemeral=True
+                )
+        except Exception as e:
+            log.error(
+                f"WorkflowTextInputModal: submit error session_id={self.session_id} "
+                f"request_id={self.request_id} input_kind={self.input_kind} error={e}",
                 exc_info=True
             )
             await interaction.followup.send(

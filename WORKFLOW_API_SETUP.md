@@ -51,7 +51,7 @@ The bot will automatically load the AI Admin cog with the new `/ai_admin` comman
 3. User enters their request (10-500 characters)
 4. The bot sends the request to the Workflow API and creates a streaming view
 5. Real-time output from the AI service appears in the Discord message
-6. If the API requests user input, Yes/No buttons appear for confirmation
+6. If the API requests user input, the bot detects whether it is a Yes/No approval or a text response and shows the matching UI
 
 ### Example Query
 
@@ -69,10 +69,10 @@ The bot handles the following event types from the Workflow API:
 |-----------|-------------|
 | `session_started` | Session initialized with status and query |
 | `output` | Text output from the AI service |
-| `input_needed` | API requests user confirmation (yes/no buttons) |
+| `input_needed` | API requests approval or another user response (buttons or text modal) |
 | `cancelled` | Session cancelled by the API |
 | `error` | An error occurred during processing |
-| `session_closed` | Session completed normally |
+| `completed` | Session completed normally |
 
 ### Event Examples
 
@@ -99,11 +99,24 @@ The bot handles the following event types from the Workflow API:
 {
   "type": "input_needed",
   "request_id": "req_123",
-  "input_kind": "confirmation",
+  "input_kind": "approval",
   "prompt": "Continue with analysis?",
   "metadata": {},
   "options": [],
   "allow_free_text": false
+}
+```
+
+#### Text Input Needed
+```json
+{
+  "type": "input_needed",
+  "request_id": "req_456",
+  "input_kind": "text",
+  "prompt": "Which playlist should I use?",
+  "metadata": {},
+  "options": [],
+  "allow_free_text": true
 }
 ```
 
@@ -123,8 +136,8 @@ The bot handles the following event types from the Workflow API:
 
 3. **WorkflowStreamView** (`core/workflow_views.py`)
    - Displays streaming output in a Discord embed
-   - Manages UI state (session info, output, input buttons)
-   - Handles user interactions with input buttons
+   - Manages UI state (session info, output, approval buttons, text response modal)
+   - Handles user interactions for both boolean confirmations and text input
 
 ## Debug Mode
 
@@ -165,8 +178,9 @@ If the API is unreachable or returns an error:
 - Very large responses may take time to appear
 - Check bot permissions in the channel
 
-### Input buttons not working
-- Ensure the Yes/No buttons are visible in the Discord message
+### Input controls not working
+- Ensure the response controls are visible in the Discord message
+- For text input, click the response button and submit the modal
 - User must click within the 15-minute interaction timeout window
 - Check bot logs for detailed error messages
 
