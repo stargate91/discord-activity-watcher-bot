@@ -31,6 +31,76 @@ def _format_workflow_log(value, limit: int = 4000) -> str:
     return f"{serialized[:limit]}... [truncated {len(serialized) - limit} chars]"
 
 
+def _split_markdown_chunks(text: str, limit: int = 1900) -> list[str]:
+    """Split markdown text into Discord-sized message chunks."""
+    normalized = text.replace("\r\n", "\n").strip()
+    if not normalized:
+        return []
+
+    chunks: list[str] = []
+    current = ""
+
+    def flush_current():
+        nonlocal current
+        if current.strip():
+            chunks.append(current.rstrip())
+        current = ""
+
+    def append_piece(piece: str):
+        nonlocal current
+        piece = piece.rstrip()
+        if not piece:
+            return
+        if not current:
+            current = piece
+            return
+
+        candidate = f"{current}\n{piece}"
+        if len(candidate) <= limit:
+            current = candidate
+            return
+
+        flush_current()
+        current = piece
+
+    for line in normalized.split("\n"):
+        if line == "":
+            if not current:
+                continue
+            if len(current) + 1 <= limit:
+                current += "\n"
+            else:
+                flush_current()
+            continue
+
+        if len(line) <= limit:
+            append_piece(line)
+            continue
+
+        words = line.split(" ")
+        piece = ""
+        for word in words:
+            token = word if not piece else f" {word}"
+            if len(piece) + len(token) <= limit:
+                piece += token
+                continue
+
+            if piece:
+                append_piece(piece)
+                piece = ""
+
+            while len(word) > limit:
+                append_piece(word[:limit])
+                word = word[limit:]
+            piece = word
+
+        if piece:
+            append_piece(piece)
+
+    flush_current()
+    return chunks
+
+
 def is_admin():
     """This little helper checks if a user is a server Admin or has our special Admin role."""
     async def predicate(ctx):
@@ -73,6 +143,11 @@ def is_tester():
     return commands.check(predicate)
 
 class AdminCog(commands.Cog):
+    ai_daily_group = app_commands.Group(
+        name="ai_daily",
+        description="AI-powered daily summary commands"
+    )
+
     def __init__(self, bot):
         self.bot = bot
         self.db = bot.db
@@ -1013,6 +1088,54 @@ class AdminCog(commands.Cog):
     async def link_alt(self, interaction: discord.Interaction):
         # This opens a little popup window where admins can link two accounts together!
         await interaction.response.send_modal(AltAccountModal())
+
+    @ai_daily_group.command(name="summary", description="Post the AI daily summary into this channel")
+    @is_admin_slash()
+    async def ai_daily_summary(self, interaction: discord.Interaction):
+        """Fetch the daily AI summary and post it into the current control room."""
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(
+                Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID),
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            summary_text = await workflow_client.fetch_daily_summary(
+                guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                channel_id=str(interaction.channel_id) if interaction.channel_id else None,
+                user_id=str(interaction.user.id) if interaction.user else None,
+            )
+            chunks = _split_markdown_chunks(summary_text)
+            if not chunks:
+                raise Exception("The daily summary endpoint returned an empty response.")
+
+            channel = interaction.channel
+            if channel is None:
+                raise Exception("Could not resolve the target channel for the summary post.")
+
+            for chunk in chunks:
+                await channel.send(
+                    chunk,
+                    allowed_mentions=discord.AllowedMentions.none()
+                )
+
+            await interaction.followup.send(
+                f"Posted daily summary in {len(chunks)} message(s).",
+                ephemeral=True
+            )
+        except Exception as e:
+            log.error(
+                f"AdminCog.ai_daily_summary: failed guild_id={interaction.guild_id} "
+                f"channel_id={interaction.channel_id} user_id={interaction.user.id} error={e}",
+                exc_info=True
+            )
+            await interaction.followup.send(
+                f"❌ Error posting daily summary: {str(e)}",
+                ephemeral=True
+            )
 
     @app_commands.command(name="ai_admin", description="Start an AI workflow task with real-time output streaming")
     @is_admin_slash()

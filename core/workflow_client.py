@@ -7,7 +7,7 @@ import aiohttp
 import asyncio
 import json
 import discord
-from typing import Callable, Optional, Dict, Any, AsyncIterator
+from typing import Callable, Optional, Dict, Any
 from config_loader import Config
 from core.logger import log
 from core.workflow_views import WorkflowStreamView
@@ -32,6 +32,44 @@ def _format_for_log(value: Any) -> str:
         return json.dumps(_truncate_for_log(value), ensure_ascii=False)
     except Exception:
         return repr(value)
+
+
+def _extract_text_payload(value: Any) -> Optional[str]:
+    """Pull the most likely markdown/text payload out of a response body."""
+    if isinstance(value, str):
+        text = value.strip()
+        return text or None
+
+    if isinstance(value, list):
+        for item in value:
+            extracted = _extract_text_payload(item)
+            if extracted:
+                return extracted
+        return None
+
+    if isinstance(value, dict):
+        priority_keys = (
+            "markdown",
+            "summary",
+            "content",
+            "text",
+            "message",
+            "result",
+            "response",
+            "data",
+        )
+        for key in priority_keys:
+            if key in value:
+                extracted = _extract_text_payload(value.get(key))
+                if extracted:
+                    return extracted
+
+        for item in value.values():
+            extracted = _extract_text_payload(item)
+            if extracted:
+                return extracted
+
+    return None
 
 
 class WorkflowAPIClient:
@@ -128,6 +166,86 @@ class WorkflowAPIClient:
                     exc_info=True
                 )
                 return False
+
+    async def fetch_daily_summary(
+        self,
+        guild_id: Optional[str] = None,
+        channel_id: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> str:
+        """
+        Fetch the rendered daily summary markdown from the Workflow API.
+        Supports plain text/markdown responses and simple JSON wrappers.
+        """
+        url = f"{self.base_url}/api/daily/summary"
+        payload = {}
+        if guild_id:
+            payload["guild_id"] = guild_id
+        if channel_id:
+            payload["channel_id"] = channel_id
+        if user_id:
+            payload["user_id"] = user_id
+
+        headers = {
+            "Accept": "text/markdown, text/plain, application/json"
+        }
+        timeout = aiohttp.ClientTimeout(total=60)
+        last_error = None
+
+        log.info(
+            f"WorkflowAPIClient: fetch_daily_summary start url={url} "
+            f"payload={_format_for_log(payload)}"
+        )
+
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            for method_name, request_kwargs in (
+                ("GET", {"params": payload}),
+                ("POST", {"json": payload}),
+            ):
+                try:
+                    log.info(
+                        f"WorkflowAPIClient: fetch_daily_summary -> {method_name} {url} "
+                        f"payload={_format_for_log(payload)}"
+                    )
+                    async with session.request(method_name, url, **request_kwargs) as resp:
+                        response_text = await resp.text()
+                        content_type = (resp.headers.get("Content-Type") or "").lower()
+                        log.info(
+                            f"WorkflowAPIClient: fetch_daily_summary <- method={method_name} "
+                            f"status={resp.status} content_type={content_type or None} "
+                            f"body={_format_for_log(response_text)}"
+                        )
+
+                        if resp.status != 200:
+                            last_error = Exception(
+                                f"API returned status {resp.status} for {method_name}"
+                            )
+                            continue
+
+                        summary_text: Optional[str] = None
+                        if "application/json" in content_type:
+                            try:
+                                summary_text = _extract_text_payload(
+                                    json.loads(response_text) if response_text else {}
+                                )
+                            except json.JSONDecodeError as exc:
+                                raise Exception(f"Invalid JSON in daily summary response: {exc}")
+                        else:
+                            summary_text = response_text.strip()
+
+                        if not summary_text:
+                            raise Exception("Daily summary response was empty")
+
+                        return summary_text
+                except Exception as e:
+                    last_error = e
+                    log.error(
+                        f"WorkflowAPIClient: fetch_daily_summary failed method={method_name} "
+                        f"payload={_format_for_log(payload)} error={e}",
+                        exc_info=True
+                    )
+
+        raise Exception(f"Failed to fetch daily summary: {last_error}")
     
     async def stream_session_output(
         self,

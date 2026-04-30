@@ -110,6 +110,8 @@ class Config:
     COMMAND_SETTINGS = {}
     _cmd_settings = _data.get("command_settings", {})
     for cmd, settings in _cmd_settings.items():
+        if cmd == "workflow" and isinstance(settings, dict) and "api_base_url" in settings:
+            continue
         role = settings.get("role", "EVERYONE")
         channel = settings.get("channel", "ANYWHERE")
         ephemeral = settings.get("ephemeral", True)
@@ -146,7 +148,7 @@ class Config:
     USER_MAPPING = {int(k): int(v) for k, v in _user_mapping.items()}
     
     # Workflow API settings
-    _workflow = _data.get("workflow", {})
+    _workflow = _data.get("workflow", _data.get("command_settings", {}).get("workflow", {}))
     WORKFLOW_API_BASE_URL = _workflow.get("api_base_url", "http://localhost:8000")
 
     @classmethod
@@ -242,6 +244,8 @@ class Config:
             cls.COMMAND_SETTINGS = {}
             _cmd_settings = cls._data.get("command_settings", {})
             for cmd, settings in _cmd_settings.items():
+                if cmd == "workflow" and isinstance(settings, dict) and "api_base_url" in settings:
+                    continue
                 role = settings.get("role", "EVERYONE")
                 channel = settings.get("channel", "ANYWHERE")
                 ephemeral = settings.get("ephemeral", True)
@@ -255,6 +259,9 @@ class Config:
                     "has_toggle": has_toggle,
                     "toggle_role": toggle_role
                 }
+
+            cls._workflow = cls._data.get("workflow", cls._data.get("command_settings", {}).get("workflow", {}))
+            cls.WORKFLOW_API_BASE_URL = cls._workflow.get("api_base_url", "http://localhost:8000")
 
             return True
         except Exception as e:
