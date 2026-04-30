@@ -1102,8 +1102,6 @@ class AdminCog(commands.Cog):
         try:
             summary_text = await workflow_client.fetch_daily_summary(
                 guild_id=str(interaction.guild_id) if interaction.guild_id else None,
-                channel_id=str(interaction.channel_id) if interaction.channel_id else None,
-                user_id=str(interaction.user.id) if interaction.user else None,
             )
             chunks = _split_markdown_chunks(summary_text)
             if not chunks:

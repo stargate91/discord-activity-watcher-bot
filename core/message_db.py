@@ -3,6 +3,16 @@ import datetime
 import os
 from config_loader import Config
 
+
+def _to_naive_utc(value):
+    """Normalize aware datetimes to naive UTC for PostgreSQL TIMESTAMP columns."""
+    if value is None or not isinstance(value, datetime.datetime):
+        return value
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+
 class MessageArchiveDB:
     def __init__(self, database_url=None):
         self.database_url = database_url or Config.DATABASE_URL
@@ -64,6 +74,7 @@ class MessageArchiveDB:
             """, guild_id, channel_id, oldest_message_id, is_completed)
 
     async def insert_message(self, message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp):
+        timestamp = _to_naive_utc(timestamp)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO messages (message_id, guild_id, channel_id, user_id, username, is_bot, content, attachments, timestamp)
@@ -92,7 +103,7 @@ class MessageArchiveDB:
     async def prune_database(self, retention_days=None):
         deleted_count = 0
         if retention_days and retention_days > 0:
-            cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=retention_days)
+            cutoff_date = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=retention_days))
             async with self.pool.acquire() as conn:
                 res = await conn.execute("DELETE FROM messages WHERE timestamp < $1", cutoff_date)
                 # asyncpg returns 'DELETE N'

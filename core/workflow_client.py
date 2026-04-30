@@ -170,8 +170,8 @@ class WorkflowAPIClient:
     async def fetch_daily_summary(
         self,
         guild_id: Optional[str] = None,
-        channel_id: Optional[str] = None,
-        user_id: Optional[str] = None
+        hours: Optional[int] = None,
+        message_limit: Optional[int] = None,
     ) -> str:
         """
         Fetch the rendered daily summary markdown from the Workflow API.
@@ -181,16 +181,15 @@ class WorkflowAPIClient:
         payload = {}
         if guild_id:
             payload["guild_id"] = guild_id
-        if channel_id:
-            payload["channel_id"] = channel_id
-        if user_id:
-            payload["user_id"] = user_id
+        if hours is not None:
+            payload["hours"] = hours
+        if message_limit is not None:
+            payload["message_limit"] = message_limit
 
         headers = {
-            "Accept": "text/markdown, text/plain, application/json"
+            "Accept": "application/json, text/markdown, text/plain"
         }
         timeout = aiohttp.ClientTimeout(total=60)
-        last_error = None
 
         log.info(
             f"WorkflowAPIClient: fetch_daily_summary start url={url} "
@@ -198,54 +197,45 @@ class WorkflowAPIClient:
         )
 
         async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
-            for method_name, request_kwargs in (
-                ("GET", {"params": payload}),
-                ("POST", {"json": payload}),
-            ):
-                try:
+            try:
+                log.info(
+                    f"WorkflowAPIClient: fetch_daily_summary -> POST {url} "
+                    f"params={_format_for_log(payload)}"
+                )
+                async with session.post(url, params=payload) as resp:
+                    response_text = await resp.text()
+                    content_type = (resp.headers.get("Content-Type") or "").lower()
                     log.info(
-                        f"WorkflowAPIClient: fetch_daily_summary -> {method_name} {url} "
-                        f"payload={_format_for_log(payload)}"
+                        f"WorkflowAPIClient: fetch_daily_summary <- method=POST "
+                        f"status={resp.status} content_type={content_type or None} "
+                        f"body={_format_for_log(response_text)}"
                     )
-                    async with session.request(method_name, url, **request_kwargs) as resp:
-                        response_text = await resp.text()
-                        content_type = (resp.headers.get("Content-Type") or "").lower()
-                        log.info(
-                            f"WorkflowAPIClient: fetch_daily_summary <- method={method_name} "
-                            f"status={resp.status} content_type={content_type or None} "
-                            f"body={_format_for_log(response_text)}"
-                        )
 
-                        if resp.status != 200:
-                            last_error = Exception(
-                                f"API returned status {resp.status} for {method_name}"
+                    if resp.status != 200:
+                        raise Exception(f"API returned status {resp.status} for POST")
+
+                    summary_text: Optional[str] = None
+                    if "application/json" in content_type:
+                        try:
+                            summary_text = _extract_text_payload(
+                                json.loads(response_text) if response_text else {}
                             )
-                            continue
+                        except json.JSONDecodeError as exc:
+                            raise Exception(f"Invalid JSON in daily summary response: {exc}")
+                    else:
+                        summary_text = response_text.strip()
 
-                        summary_text: Optional[str] = None
-                        if "application/json" in content_type:
-                            try:
-                                summary_text = _extract_text_payload(
-                                    json.loads(response_text) if response_text else {}
-                                )
-                            except json.JSONDecodeError as exc:
-                                raise Exception(f"Invalid JSON in daily summary response: {exc}")
-                        else:
-                            summary_text = response_text.strip()
+                    if not summary_text:
+                        raise Exception("Daily summary response was empty")
 
-                        if not summary_text:
-                            raise Exception("Daily summary response was empty")
-
-                        return summary_text
-                except Exception as e:
-                    last_error = e
-                    log.error(
-                        f"WorkflowAPIClient: fetch_daily_summary failed method={method_name} "
-                        f"payload={_format_for_log(payload)} error={e}",
-                        exc_info=True
-                    )
-
-        raise Exception(f"Failed to fetch daily summary: {last_error}")
+                    return summary_text
+            except Exception as e:
+                log.error(
+                    f"WorkflowAPIClient: fetch_daily_summary failed "
+                    f"params={_format_for_log(payload)} error={e}",
+                    exc_info=True
+                )
+                raise Exception(f"Failed to fetch daily summary: {e}")
     
     async def stream_session_output(
         self,

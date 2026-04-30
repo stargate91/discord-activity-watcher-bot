@@ -7,6 +7,16 @@ import sqlite3
 from config_loader import Config
 from core.logger import log
 
+
+def _to_naive_utc(value):
+    """Normalize aware datetimes to naive UTC for PostgreSQL TIMESTAMP columns."""
+    if value is None or not isinstance(value, datetime.datetime):
+        return value
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+
+
 class DBManager:
     def __init__(self, database_url=None):
         self.database_url = database_url or Config.DATABASE_URL
@@ -239,7 +249,7 @@ class DBManager:
 
     # --- ACTIVITY TRACKING ---
     async def update_activity(self, user_id, guild_id):
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc))
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO user_activity (user_id, guild_id, last_active) VALUES ($1, $2, $3)
@@ -247,6 +257,7 @@ class DBManager:
             """, user_id, guild_id, now)
 
     async def set_returned_at(self, user_id, guild_id, timestamp):
+        timestamp = _to_naive_utc(timestamp)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 UPDATE user_activity SET returned_at = $1 
@@ -371,6 +382,7 @@ class DBManager:
             return val
 
     async def update_join_date(self, user_id, guild_id, joined_at):
+        joined_at = _to_naive_utc(joined_at)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 UPDATE user_activity SET joined_at = $1 
@@ -426,7 +438,9 @@ class DBManager:
             return {r['user_id']: dict(r) for r in rows}
 
     async def log_membership_event(self, user_id, guild_id, action, timestamp=None):
-        if timestamp is None: timestamp = datetime.datetime.now(datetime.timezone.utc)
+        if timestamp is None:
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
+        timestamp = _to_naive_utc(timestamp)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO membership_history (user_id, guild_id, action, timestamp) 
@@ -435,7 +449,9 @@ class DBManager:
 
     # --- ROLES ---
     async def log_role(self, user_id, guild_id, role_name, action='ADDED', timestamp=None):
-        if timestamp is None: timestamp = datetime.datetime.now(datetime.timezone.utc)
+        if timestamp is None:
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
+        timestamp = _to_naive_utc(timestamp)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO role_history (user_id, guild_id, role_name, action, timestamp) 
@@ -452,6 +468,7 @@ class DBManager:
 
     # --- VOICE SESSIONS ---
     async def start_voice_session(self, user_id, guild_id, channel_id, joined_at, multiplier, is_streaming, stream_name):
+        joined_at = _to_naive_utc(joined_at)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO active_voice_sessions (user_id, guild_id, channel_id, joined_at, multiplier, is_streaming, stream_name)
@@ -478,6 +495,8 @@ class DBManager:
             return {r['user_id']: dict(r) for r in rows}
 
     async def log_voice_session(self, user_id, guild_id, channel_id, start_time, end_time, duration, stream_detail=None):
+        start_time = _to_naive_utc(start_time)
+        end_time = _to_naive_utc(end_time)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO voice_sessions (user_id, guild_id, channel_id, start_time, end_time, duration_minutes, stream_detail)
@@ -510,6 +529,7 @@ class DBManager:
 
     # --- GAME PERSISTENCE ---
     async def start_game_session(self, user_id, guild_id, game_name, started_at):
+        started_at = _to_naive_utc(started_at)
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO active_game_sessions (user_id, guild_id, game_name, started_at)
@@ -589,7 +609,7 @@ class DBManager:
 
     # --- INTERACTIONS & REACTION ROLE MESSAGES ---
     async def log_reaction_interaction(self, user_id, target_user_id, guild_id, channel_id, message_id, emoji):
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc))
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO reaction_history (user_id, target_user_id, guild_id, channel_id, message_id, emoji, timestamp)
@@ -690,7 +710,7 @@ class DBManager:
             return rows
 
     async def get_inactive_users(self, guild_id, days):
-        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+        cutoff = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days))
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT user_id, last_active, returned_at FROM user_activity 
@@ -724,7 +744,7 @@ class DBManager:
             return {"messages":0, "reactions":0, "voice":0, "points":0, "stream":0, "media":0}
 
     async def update_game_activity(self, user_id, guild_id, role_name, bot_assigned=False):
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc))
         async with self.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO game_activity (user_id, guild_id, role_name, last_played, bot_assigned)
@@ -735,7 +755,7 @@ class DBManager:
             """, user_id, guild_id, role_name, now, 1 if bot_assigned else 0)
 
     async def get_inactive_games(self, guild_id, days):
-        cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days)
+        cutoff = _to_naive_utc(datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days))
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT user_id, role_name FROM game_activity 
@@ -903,7 +923,6 @@ class DBManager:
                 log.info("Message migration complete.")
             except Exception as e:
                 log.error(f"Error migrating message DB: {e}")
-
 
 
 
