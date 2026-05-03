@@ -49,7 +49,7 @@ class IrisBot(commands.Bot):
     async def setup_hook(self):
         # Initializing our asynpg database pool!
         await self.db.initialize()
-        await self.db.migrate_from_sqlite(Config.GUILD_ID)
+        # await self.db.migrate_from_sqlite(Config.GUILD_ID)
         
         # We clear any old or double commands from Discord's memory so everything starts fresh!
         self.tree.clear_commands(guild=None)
