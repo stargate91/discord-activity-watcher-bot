@@ -3,7 +3,6 @@ import datetime
 import os
 import asyncio
 import json
-import sqlite3
 from config_loader import Config
 from core.logger import log
 
@@ -807,122 +806,6 @@ class DBManager:
             """, user_id, guild_id)
             return val or 0
 
-    async def migrate_from_sqlite(self, default_guild_id):
-        """Checks for legacy SQLite databases and migrates them to PostgreSQL if found."""
-        sqlite_activity = "activity.db"
-        sqlite_messages = "message_archive.db"
-
-        def parse_sqlite_val(val):
-            if val is None: return None
-            if not isinstance(val, str): return val
-            # Try to parse as datetime
-            try:
-                if len(val) == 10 and val.count('-') == 2: # YYYY-MM-DD
-                    return datetime.datetime.strptime(val, "%Y-%m-%d").date()
-                dt = datetime.datetime.fromisoformat(val.replace('Z', '+00:00')); return dt.replace(tzinfo=None)
-            except:
-                try: dt = datetime.datetime.strptime(val, "%Y-%m-%d %H:%M:%S"); return dt.replace(tzinfo=None)
-                except: return val
-
-        if os.path.exists(sqlite_activity):
-            log.info(f"Found legacy SQLite activity database: {sqlite_activity}. Starting migration...")
-            try:
-                lite_conn = sqlite3.connect(sqlite_activity)
-                lite_cur = lite_conn.cursor()
-                
-                tables = [
-                    "user_activity", "daily_stats", "daily_game_stats", "role_history", 
-                    "game_activity", "voice_sessions", "reaction_history", "membership_history",
-                    "active_voice_sessions", "active_game_sessions", "elite_history", 
-                    "voice_overlaps"
-                ]
-
-                async with self.pool.acquire() as conn:
-                    for table in tables:
-                        try:
-                            lite_cur.execute(f"SELECT * FROM {table}")
-                            rows = lite_cur.fetchall()
-                            if not rows: continue
-                            
-                            cols = [d[0] for d in lite_cur.description]
-                            log.info(f"  Migrating {len(rows)} rows from {table}...")
-                            
-                            # Truncate before migrate to avoid duplicates
-                            await conn.execute(f"TRUNCATE TABLE {table} CASCADE")
-                            
-                            # Convert string dates to datetime objects for asyncpg
-                            converted_rows = []
-                            for row in rows:
-                                converted_rows.append(tuple(parse_sqlite_val(v) for v in row))
-                            
-                            await conn.copy_records_to_table(table, records=converted_rows, columns=cols)
-                        except Exception as te:
-                            log.error(f"    Failed to migrate table {table}: {te}")
-                    
-                    # Tracked Games
-                    try:
-                        lite_cur.execute("SELECT * FROM tracked_games")
-                        rows = lite_cur.fetchall()
-                        if rows:
-                            data = [(default_guild_id, r[0], r[1]) for r in rows]
-                            await conn.copy_records_to_table('tracked_games', records=data, columns=['guild_id', 'game_substring', 'role_suffix'])
-                    except: pass
-                    
-                    # RR Messages
-                    try:
-                        lite_cur.execute("SELECT * FROM reaction_role_messages")
-                        rows = lite_cur.fetchall()
-                        if rows:
-                            data = [(default_guild_id, r[0], r[1], r[2]) for r in rows]
-                            await conn.copy_records_to_table('reaction_role_messages', records=data, columns=['guild_id', 'identifier', 'channel_id', 'message_id'])
-                    except: pass
-
-                lite_conn.close()
-                os.rename(sqlite_activity, f"{sqlite_activity}.migrated")
-                log.info("Activity migration complete.")
-            except Exception as e:
-                log.error(f"Error migrating activity DB: {e}")
-
-        if os.path.exists(sqlite_messages):
-            log.info(f"Found legacy SQLite message database: {sqlite_messages}. Starting migration...")
-            try:
-                lite_conn = sqlite3.connect(sqlite_messages)
-                lite_cur = lite_conn.cursor()
-
-                async with self.pool.acquire() as conn:
-                    # Messages
-                    try:
-                        lite_cur.execute("SELECT * FROM messages")
-                        log.info("  Reading messages from SQLite...")
-                        # Map SQLite columns to PG: message_id, guild_id, channel_id, user_id, username, content, attachments, timestamp, is_bot
-                        rows = lite_cur.fetchall()
-                        if rows:
-                            log.info(f"  Converting and migrating {len(rows)} messages...")
-                            await conn.execute("TRUNCATE TABLE messages CASCADE")
-                            converted = []
-                            for r in rows:
-                                # SQLite row might be: (id, guild, chan, user, name, content, attach, ts, is_bot)
-                                # OR if it's an older version: (id, chan, user, name, content, attach, ts, is_bot) - but we hope it matches
-                                converted.append(tuple(parse_sqlite_val(v) if i == 7 else (bool(v) if i == 8 else v) for i, v in enumerate(r)))
-                            await conn.copy_records_to_table('messages', records=converted, columns=['message_id', 'guild_id', 'channel_id', 'user_id', 'username', 'content', 'attachments', 'timestamp', 'is_bot'])
-                    except Exception as me:
-                        log.error(f"    Failed to migrate messages: {me}")
-
-                    # Sync state
-                    try:
-                        lite_cur.execute("SELECT * FROM channel_sync_state")
-                        rows = lite_cur.fetchall()
-                        if rows:
-                            data = [(default_guild_id, r[0], r[1], bool(r[2])) for r in rows]
-                            await conn.execute("TRUNCATE TABLE channel_sync_state CASCADE")
-                            await conn.copy_records_to_table('channel_sync_state', records=data, columns=['guild_id', 'channel_id', 'oldest_message_id', 'is_completed'])
-                    except: pass
-
-                lite_conn.close()
-                os.rename(sqlite_messages, f"{sqlite_messages}.migrated")
-                log.info("Message migration complete.")
-            except Exception as e:
-                log.error(f"Error migrating message DB: {e}")
 
 
 

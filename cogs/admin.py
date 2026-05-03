@@ -286,7 +286,7 @@ class AdminCog(commands.Cog):
         tf_name = timeframe if timeframe == "alltime" else f"{timeframe}d"
         
         if type == "peak":
-            data = self.db.get_peak_activity_raw(interaction.guild_id, days)
+            data = await self.db.get_peak_activity_raw(interaction.guild_id, days)
             if not data:
                 await interaction.followup.send(Messages.LB_EMPTY)
                 return
@@ -302,7 +302,7 @@ class AdminCog(commands.Cog):
             
         elif type == "voice":
             # Let's see which voice channels are the most popular!
-            raw_data = self.db.get_voice_usage_raw(interaction.guild_id, days)
+            raw_data = await self.db.get_voice_usage_raw(interaction.guild_id, days)
             if not raw_data:
                 await interaction.followup.send(Messages.LB_EMPTY)
                 return
@@ -324,7 +324,7 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(file=discord.File(output))
             
         elif type == "dedication":
-            raw_data = self.db.get_top_average_voice_duration(interaction.guild_id, days)
+            raw_data = await self.db.get_top_average_voice_duration(interaction.guild_id, days)
             if not raw_data:
                 await interaction.followup.send(Messages.LB_EMPTY)
                 return
@@ -345,7 +345,7 @@ class AdminCog(commands.Cog):
             await interaction.followup.send(file=discord.File(output))
             
         elif type == "text_channels":
-            raw_data = self.db.get_channel_activity_raw(interaction.guild_id, days)
+            raw_data = await self.db.get_channel_activity_raw(interaction.guild_id, days)
             if not raw_data:
                 await interaction.followup.send(Messages.LB_EMPTY)
                 return

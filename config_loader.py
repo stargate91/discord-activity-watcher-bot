@@ -94,6 +94,7 @@ class Config:
     EMOJIS = _data.get("emojis", {})
     REACTION_ROLES = _data.get("reaction_roles", [])
     WELCOME = _data.get("welcome", {})
+    LEAVE = _data.get("leave", {})
     BOOST = _data.get("boost", {})
     LOGGING = _data.get("logging", {})
     
@@ -221,6 +222,7 @@ class Config:
             cls.EMOJIS = cls._data.get("emojis", {})
             cls.REACTION_ROLES = cls._data.get("reaction_roles", [])
             cls.WELCOME = cls._data.get("welcome", {})
+            cls.LEAVE = cls._data.get("leave", {})
             cls.BOOST = cls._data.get("boost", {})
             cls.LOGGING = cls._data.get("logging", {})
             

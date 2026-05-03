@@ -75,7 +75,7 @@ class PresenceCog(commands.Cog):
                 # We show off who the most active 'Elites' are on the server!
                 elites = {}
                 for guild in self.bot.guilds:
-                    guild_elites = self.db.get_last_elites(guild.id)
+                    guild_elites = await self.db.get_last_elites(guild.id)
                     elites.update(guild_elites)
                 
                 if elites:
@@ -101,7 +101,7 @@ class PresenceCog(commands.Cog):
             elif category == "games":
                 # We find out what everyone's favorite game is this month and show it in our status!
                 if self.bot.guilds:
-                    stats = self.db.get_game_stats_report(self.bot.guilds[0].id, timeframe="monthly")
+                    stats = await self.db.get_game_stats_report(self.bot.guilds[0].id, timeframe="monthly")
                     if stats:
                         top_game = stats[0][0] # Clean name
                         activity = discord.Activity(

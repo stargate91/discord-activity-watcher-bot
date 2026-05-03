@@ -193,44 +193,8 @@ class EventsCog(commands.Cog):
         if member.joined_at:
             await self.db.update_join_date(main_id, member.guild.id, member.joined_at)
 
-        if Config.WELCOME and Config.WELCOME.get("enabled", False):
-            try:
-                channel_id = Config.WELCOME.get("channel_id")
-                if channel_id:
-                    welcome_channel = member.guild.get_channel(channel_id)
-                    if welcome_channel:
-                        greeting_template = Config.WELCOME.get("greeting", "Hello {user.mention}, üdv a {guild.name} csatornáján!")
-                        greeting = greeting_template.replace("{guild.name}", member.guild.name).replace("{user.name}", member.name).replace("{user.mention}", member.mention)
-                        bg_urls = Config.WELCOME.get("images", [])
-                        if not bg_urls and Config.WELCOME.get("image"):
-                            bg_urls = [Config.WELCOME.get("image")]
-
-                        main_text_template = Config.WELCOME.get("card_main_text", "{user.name} csatlakozott a szerverhez!")
-                        main_text = main_text_template.replace("{guild.name}", member.guild.name).replace("{user.name}", member.name)
-                        
-                        member_count = len([m for m in member.guild.members if not m.bot])
-                        sub_text_template = Config.WELCOME.get("card_sub_text", "Ő a {member_count}. tag")
-                        sub_text = sub_text_template.replace("{member_count}", str(member_count))
-                        
-                        avatar_url = member.display_avatar.url if member.display_avatar else None
-                        
-                        try:
-                            image_buffer = await get_welcome_card(
-                                avatar_url=avatar_url,
-                                main_text=main_text,
-                                sub_text=sub_text,
-                                bg_urls=bg_urls,
-                                style_config=Config.WELCOME
-                            )
-                            file = discord.File(fp=image_buffer, filename="welcome.png")
-                            await welcome_channel.send(content=greeting, file=file)
-                        except Exception as e:
-                            log.error(f"Image generation failed, falling back to text: {e}")
-                            embed = discord.Embed(color=0x3498DB)
-                            if avatar_url: embed.set_thumbnail(url=avatar_url)
-                            await welcome_channel.send(content=member.mention, embed=embed)
-            except Exception as e:
-                log.error(f"Failed to send welcome message: {e}")
+        from core.notifications import NotificationService
+        await NotificationService.send_notification(member, Config.WELCOME)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member):
@@ -238,6 +202,9 @@ class EventsCog(commands.Cog):
         log.info(f"Member left: {member} (ID: {member.id})")
         main_id = Config.get_main_id(member.id)
         await self.db.log_membership_event(main_id, member.guild.id, "LEAVE")
+
+        from core.notifications import NotificationService
+        await NotificationService.send_notification(member, Config.LEAVE)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
