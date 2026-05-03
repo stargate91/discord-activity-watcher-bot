@@ -23,6 +23,11 @@ def draw_peak_heatmap(data, title, x_label, y_label, day_names, cbar_label="Even
     # We add up all the reactions and voice events so we can see the total activity!
     df = df.groupby(['day', 'hour'])['count'].sum().reset_index()
     
+    # Normalize to a 0-100 scale (Intensity Index)
+    max_count = df['count'].max()
+    if max_count > 0:
+        df['count'] = (df['count'] / max_count * 100).round().astype(int)
+    
     # We make sure we have a spot for every hour of every day, even if no one was active then!
     full_index = pd.MultiIndex.from_product([range(7), range(24)], names=['day', 'hour'])
     df = df.set_index(['day', 'hour']).reindex(full_index, fill_value=0).reset_index()
