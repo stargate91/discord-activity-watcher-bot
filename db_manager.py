@@ -806,6 +806,81 @@ class DBManager:
             """, user_id, guild_id)
             return val or 0
 
+    async def get_peak_activity_raw(self, guild_id, days=None):
+        async with self.pool.acquire() as conn:
+            if days:
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                rows = await conn.fetch("""
+                    SELECT EXTRACT(DOW FROM timestamp) as day, EXTRACT(HOUR FROM timestamp) as hour, COUNT(*) as count 
+                    FROM messages 
+                    WHERE guild_id = $1 AND timestamp >= $2
+                    GROUP BY day, hour
+                """, guild_id, cutoff)
+            else:
+                rows = await conn.fetch("""
+                    SELECT EXTRACT(DOW FROM timestamp) as day, EXTRACT(HOUR FROM timestamp) as hour, COUNT(*) as count 
+                    FROM messages 
+                    WHERE guild_id = $1
+                    GROUP BY day, hour
+                """, guild_id)
+            return [[r['day'], r['hour'], r['count']] for r in rows]
+
+    async def get_voice_usage_raw(self, guild_id, days=None):
+        async with self.pool.acquire() as conn:
+            if days:
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                rows = await conn.fetch("""
+                    SELECT channel_id, SUM(duration_minutes) as minutes 
+                    FROM voice_sessions 
+                    WHERE guild_id = $1 AND start_time >= $2
+                    GROUP BY channel_id ORDER BY minutes DESC LIMIT 10
+                """, guild_id, cutoff)
+            else:
+                rows = await conn.fetch("""
+                    SELECT channel_id, SUM(duration_minutes) as minutes 
+                    FROM voice_sessions 
+                    WHERE guild_id = $1
+                    GROUP BY channel_id ORDER BY minutes DESC LIMIT 10
+                """, guild_id)
+            return [[r['channel_id'], r['minutes']] for r in rows]
+
+    async def get_top_average_voice_duration(self, guild_id, days=None):
+        async with self.pool.acquire() as conn:
+            if days:
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                rows = await conn.fetch("""
+                    SELECT user_id, AVG(duration_minutes) as avg_mins 
+                    FROM voice_sessions 
+                    WHERE guild_id = $1 AND start_time >= $2
+                    GROUP BY user_id ORDER BY avg_mins DESC LIMIT 10
+                """, guild_id, cutoff)
+            else:
+                rows = await conn.fetch("""
+                    SELECT user_id, AVG(duration_minutes) as avg_mins 
+                    FROM voice_sessions 
+                    WHERE guild_id = $1
+                    GROUP BY user_id ORDER BY avg_mins DESC LIMIT 10
+                """, guild_id)
+            return [[r['user_id'], r['avg_mins']] for r in rows]
+
+    async def get_channel_activity_raw(self, guild_id, days=None):
+        async with self.pool.acquire() as conn:
+            if days:
+                cutoff = datetime.date.today() - datetime.timedelta(days=days)
+                rows = await conn.fetch("""
+                    SELECT channel_id, COUNT(*) as total 
+                    FROM messages 
+                    WHERE guild_id = $1 AND timestamp >= $2
+                    GROUP BY channel_id ORDER BY total DESC LIMIT 10
+                """, guild_id, cutoff)
+            else:
+                rows = await conn.fetch("""
+                    SELECT channel_id, COUNT(*) as total 
+                    FROM messages 
+                    WHERE guild_id = $1
+                    GROUP BY channel_id ORDER BY total DESC LIMIT 10
+                """, guild_id)
+            return [[r['channel_id'], r['total']] for r in rows]
 
 
 
