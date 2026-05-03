@@ -99,11 +99,33 @@ The bot handles the following event types from the Workflow API:
 {
   "type": "input_needed",
   "request_id": "req_123",
+  "source": "langchain_hitl",
+  "kind": "yes_no",
   "input_kind": "approval",
-  "prompt": "Continue with analysis?",
-  "metadata": {},
+  "prompt": "This tool call needs approval.\n\nTool: send_private_message\nArgs: {\"message\": \"szia!\", \"userId\": \"321300698245365761\"}",
+  "metadata": {
+    "source": "langchain_hitl",
+    "kind": "yes_no",
+    "action_count": 1,
+    "action_requests": [
+      {
+        "name": "send_private_message",
+        "args": {
+          "userId": "321300698245365761",
+          "message": "szia!"
+        }
+      }
+    ],
+    "review_configs": [
+      {
+        "action_name": "send_private_message",
+        "allowed_decisions": ["approve", "reject"]
+      }
+    ]
+  },
   "options": [],
-  "allow_free_text": false
+  "allow_free_text": false,
+  "action_count": 1
 }
 ```
 

@@ -1303,11 +1303,20 @@ class AdminCog(commands.Cog):
                 elif event_type == "input_needed":
                     request_data = {
                         "request_id": event.get("request_id"),
+                        "source": event.get("source"),
+                        "kind": event.get("kind"),
                         "input_kind": event.get("input_kind"),   # approval | text | choice
                         "prompt": event.get("prompt"),
                         "metadata": event.get("metadata", {}),
+                        "payload": event.get("payload", {}),
                         "options": event.get("options", []),
                         "allow_free_text": event.get("allow_free_text", False),
+                        "action_count": event.get("action_count"),
+                        "action_requests": event.get("action_requests", []),
+                        "review_configs": event.get("review_configs", []),
+                        "event_session_id": event.get("session_id"),
+                        "event_ts": event.get("ts"),
+                        "event_sequence": event.get("sequence"),
                     }
                     view.set_input_request(request_data)
                     schedule_view_update(force=True)
@@ -1528,4 +1537,3 @@ class OpenAIKeyModal(discord.ui.Modal):
 
 async def setup(bot):
     await bot.add_cog(AdminCog(bot))
-

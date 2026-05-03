@@ -16,10 +16,153 @@ def _normalize_input_kind(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
+def _normalize_decision_value(value: Any) -> str:
+    """Normalize approval-style decisions to a comparable value."""
+    normalized = str(value or "").strip().lower()
+    if normalized in {"approve", "approved", "yes", "y", "true", "igen"}:
+        return "approve"
+    if normalized in {"reject", "rejected", "no", "n", "false", "nem"}:
+        return "reject"
+    return normalized
+
+
 def _normalize_option_value(option: Dict[str, Any]) -> str:
     """Extract a comparable option value from workflow option payloads."""
     raw = option.get("value", option.get("label", ""))
     return str(raw or "").strip().lower()
+
+
+def _extract_action_requests(request_data: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Return action requests regardless of whether they are top-level or nested."""
+    metadata = request_data.get("metadata", {}) or {}
+    payload = request_data.get("payload", {}) or {}
+    metadata_payload = metadata.get("payload", {}) if isinstance(metadata, dict) else {}
+
+    for candidate in (
+        request_data.get("action_requests"),
+        payload.get("action_requests") if isinstance(payload, dict) else None,
+        metadata.get("action_requests") if isinstance(metadata, dict) else None,
+        metadata_payload.get("action_requests") if isinstance(metadata_payload, dict) else None,
+    ):
+        if isinstance(candidate, list) and candidate:
+            return [item for item in candidate if isinstance(item, dict)]
+    return []
+
+
+def _extract_review_configs(request_data: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Return review configs regardless of whether they are top-level or nested."""
+    metadata = request_data.get("metadata", {}) or {}
+    payload = request_data.get("payload", {}) or {}
+    metadata_payload = metadata.get("payload", {}) if isinstance(metadata, dict) else {}
+
+    for candidate in (
+        request_data.get("review_configs"),
+        payload.get("review_configs") if isinstance(payload, dict) else None,
+        metadata.get("review_configs") if isinstance(metadata, dict) else None,
+        metadata_payload.get("review_configs") if isinstance(metadata_payload, dict) else None,
+    ):
+        if isinstance(candidate, list) and candidate:
+            return [item for item in candidate if isinstance(item, dict)]
+    return []
+
+
+def _extract_allowed_decisions(request_data: Dict[str, Any]) -> list[str]:
+    """Return normalized allowed decisions from options or review configs."""
+    options = request_data.get("options", [])
+    if isinstance(options, list) and options:
+        decisions: list[str] = []
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            value = _normalize_decision_value(
+                option.get("value", option.get("label", ""))
+            )
+            if value and value not in decisions:
+                decisions.append(value)
+        if decisions:
+            return decisions
+
+    decisions = []
+    for config in _extract_review_configs(request_data):
+        for decision in config.get("allowed_decisions", []) or []:
+            normalized = _normalize_decision_value(decision)
+            if normalized and normalized not in decisions:
+                decisions.append(normalized)
+    return decisions
+
+
+def _truncate_text(value: str, limit: int) -> str:
+    """Keep long debug/details blocks readable inside Discord UI limits."""
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit]}... [truncated {len(value) - limit} chars]"
+
+
+def _build_metadata_preview(request_data: Dict[str, Any]) -> Optional[str]:
+    """Build a concise debug preview for rich input-needed payloads."""
+    preview: Dict[str, Any] = {}
+
+    for key in ("source", "kind", "input_kind", "action_count", "event_sequence"):
+        value = request_data.get(key)
+        if value not in (None, "", []):
+            preview[key] = value
+
+    action_requests = _extract_action_requests(request_data)
+    if action_requests:
+        preview["action_requests"] = [
+            {
+                "name": action.get("name"),
+                "args": action.get("args", {}),
+            }
+            for action in action_requests[:3]
+        ]
+        if len(action_requests) > 3:
+            preview["action_requests_more"] = len(action_requests) - 3
+
+    review_configs = _extract_review_configs(request_data)
+    if review_configs:
+        preview["review_configs"] = review_configs[:3]
+        if len(review_configs) > 3:
+            preview["review_configs_more"] = len(review_configs) - 3
+
+    if not preview:
+        return None
+
+    return _truncate_text(
+        json.dumps(preview, indent=2, ensure_ascii=False),
+        limit=1200,
+    )
+
+
+def _build_action_summary(action_requests: list[Dict[str, Any]]) -> Optional[str]:
+    """Create a human-readable summary for approval/tool-call prompts."""
+    if not action_requests:
+        return None
+
+    if len(action_requests) == 1:
+        action = action_requests[0]
+        name = str(action.get("name") or "unknown_action")
+        lines = [f"**Requested action:** `{name}`"]
+        args = action.get("args", {})
+        if isinstance(args, dict) and args:
+            args_text = _truncate_text(
+                json.dumps(args, indent=2, ensure_ascii=False),
+                limit=700,
+            )
+            lines.append(f"```json\n{args_text}\n```")
+        return "\n".join(lines)
+
+    action_names = [
+        f"`{str(action.get('name') or 'unknown_action')}`"
+        for action in action_requests[:5]
+    ]
+    summary = (
+        f"**Requested actions ({len(action_requests)}):** "
+        f"{', '.join(action_names)}"
+    )
+    if len(action_requests) > 5:
+        summary += f", and {len(action_requests) - 5} more"
+    return summary
 
 
 def _is_binary_input_request(request_data: Dict[str, Any]) -> bool:
@@ -32,19 +175,29 @@ def _is_binary_input_request(request_data: Dict[str, Any]) -> bool:
 
     options = request_data.get("options", [])
     if options:
-        if len(options) != 2:
-            return False
+        if len(options) == 2:
+            option_values = {_normalize_decision_value(_normalize_option_value(option)) for option in options}
+            if option_values == {"approve", "reject"}:
+                return True
 
-        option_values = {_normalize_option_value(option) for option in options}
-        return option_values in (
-            {"yes", "no"},
-            {"y", "n"},
-            {"true", "false"},
-            {"igen", "nem"},
-        )
+    kind = _normalize_input_kind(request_data.get("kind"))
+    if kind in {"yes_no", "boolean", "binary"}:
+        return True
+
+    allowed_decisions = set(_extract_allowed_decisions(request_data))
+    if allowed_decisions == {"approve", "reject"}:
+        return True
 
     input_kind = _normalize_input_kind(request_data.get("input_kind"))
     return input_kind in {"approval", "confirmation", "confirm"}
+
+
+def _get_binary_button_config(request_data: Dict[str, Any]) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Return labels/values for binary approval buttons."""
+    allowed_decisions = set(_extract_allowed_decisions(request_data))
+    if allowed_decisions == {"approve", "reject"}:
+        return ("✅ Approve", "approve"), ("❌ Reject", "reject")
+    return ("✅ Yes", "yes"), ("❌ No", "no")
 
 
 def _build_response_placeholder(
@@ -173,49 +326,72 @@ class WorkflowStreamView(discord.ui.LayoutView):
         options = request_data.get("options", [])
         allow_free_text = request_data.get("allow_free_text", False)
         is_binary = _is_binary_input_request(request_data)
-        
-        input_text = f"## ❓ Input Needed\n**Type:** {input_kind}\n**Prompt:** {prompt}"
+
+        action_requests = _extract_action_requests(request_data)
+        action_summary = _build_action_summary(action_requests)
+        input_source = request_data.get("source") or request_data.get("metadata", {}).get("source")
+        input_kind_detail = request_data.get("kind") or request_data.get("metadata", {}).get("kind")
+
+        sections = [f"## ❓ Input Needed\n**Type:** {input_kind}\n**Prompt:** {prompt}"]
+        if action_summary:
+            sections.append(action_summary)
 
         if is_binary:
-            input_text += "\n\n**How to reply:** Use the Yes/No buttons below."
+            binary_labels = _get_binary_button_config(request_data)
+            sections.append(
+                f"**How to reply:** Use the {binary_labels[0][0]} / {binary_labels[1][0]} buttons below."
+            )
         elif options:
-            input_text += "\n\n**How to reply:** Click the response button and enter one of the listed option values."
+            sections.append(
+                "**How to reply:** Click the response button and enter one of the listed option values."
+            )
         else:
-            input_text += "\n\n**How to reply:** Click the response button and enter the requested text."
-        
-        # Show metadata and options only in debug mode
+            sections.append(
+                "**How to reply:** Click the response button and enter the requested text."
+            )
+
         if debug_mode:
-            metadata = request_data.get("metadata", {})
-            
-            if metadata:
-                input_text += f"\n\n**Metadata:**\n```json\n{json.dumps(metadata, indent=2, ensure_ascii=False)}\n```"
-            
+            debug_lines = []
+            if input_source:
+                debug_lines.append(f"**Source:** `{input_source}`")
+            if input_kind_detail:
+                debug_lines.append(f"**Kind:** `{input_kind_detail}`")
+
+            metadata_preview = _build_metadata_preview(request_data)
+            if metadata_preview:
+                debug_lines.append(f"**Metadata:**\n```json\n{metadata_preview}\n```")
+
             if options:
-                input_text += f"\n\n**Options:**\n"
+                options_lines = ["**Options:**"]
                 for opt in options:
                     opt_str = opt.get("value", opt.get("label", "?"))
-                    input_text += f"• {opt_str}\n"
-        
-        self.input_prompt_text = input_text
+                    options_lines.append(f"• {opt_str}")
+                debug_lines.append("\n".join(options_lines))
+
+            if debug_lines:
+                sections.extend(debug_lines)
+
+        self.input_prompt_text = _truncate_text("\n\n".join(sections), limit=3500)
         
         button_row = discord.ui.ActionRow()
 
         if is_binary:
+            yes_button, no_button = _get_binary_button_config(request_data)
             btn_yes = WorkflowInputButton(
-                label="✅ Yes",
+                label=yes_button[0],
                 style=discord.ButtonStyle.success,
-                custom_id=f"workflow_input:{self.session_id}:yes",
+                custom_id=f"workflow_input:{self.session_id}:{yes_button[1]}",
                 session_id=self.session_id,
                 request_id=request_data.get("request_id"),
-                value="yes"
+                value=yes_button[1]
             )
             btn_no = WorkflowInputButton(
-                label="❌ No",
+                label=no_button[0],
                 style=discord.ButtonStyle.danger,
-                custom_id=f"workflow_input:{self.session_id}:no",
+                custom_id=f"workflow_input:{self.session_id}:{no_button[1]}",
                 session_id=self.session_id,
                 request_id=request_data.get("request_id"),
-                value="no"
+                value=no_button[1]
             )
 
             button_row.add_item(btn_yes)
@@ -302,7 +478,7 @@ class WorkflowInputButton(discord.ui.Button):
             )
             
             # Send the input response
-            approved = self.value == "yes"
+            approved = _normalize_decision_value(self.value) == "approve"
             success = await workflow_client.send_input_response(
                 session_id=self.session_id,
                 request_id=self.request_id,
