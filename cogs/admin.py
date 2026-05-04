@@ -1187,6 +1187,54 @@ class AdminCog(commands.Cog):
                 ephemeral=True
             )
 
+    @app_commands.command(name="daily_recommendations", description="Post the AI month summary into this channel")
+    @is_admin_slash()
+    async def daily_recommendations(self, interaction: discord.Interaction):
+        """Fetch the monthly AI summary and post it into the current control room."""
+        if interaction.channel_id != Config.ADMIN_CHANNEL_ID:
+            await interaction.response.send_message(
+                Messages.ERR_ADMIN_ONLY.format(id=Config.ADMIN_CHANNEL_ID),
+                ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            summary_text = await workflow_client.fetch_daily_recommendation(
+                guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+                hours=750
+            )
+            chunks = _split_markdown_chunks(summary_text)
+            if not chunks:
+                raise Exception("The monthly summary endpoint returned an empty response.")
+
+            channel = interaction.channel
+            if channel is None:
+                raise Exception("Could not resolve the target channel for the summary post.")
+
+            for chunk in chunks:
+                await channel.send(
+                    chunk,
+                    allowed_mentions=discord.AllowedMentions.none()
+                )
+
+            await interaction.followup.send(
+                f"Posted daily summary in {len(chunks)} message(s).",
+                ephemeral=True
+            )
+        except Exception as e:
+            log.error(
+                f"AdminCog.ai_daily_summary: failed guild_id={interaction.guild_id} "
+                f"channel_id={interaction.channel_id} user_id={interaction.user.id} error={e}",
+                exc_info=True
+            )
+            await interaction.followup.send(
+                f"❌ Error posting daily summary: {str(e)}",
+                ephemeral=True
+            )
+            
+
     @app_commands.command(name="ai_admin", description="Start an AI workflow task with real-time output streaming")
     @is_admin_slash()
     async def ai_admin(self, interaction: discord.Interaction):

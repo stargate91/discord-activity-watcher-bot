@@ -236,7 +236,77 @@ class WorkflowAPIClient:
                     exc_info=True
                 )
                 raise Exception(f"Failed to fetch daily summary: {e}")
-    
+
+    async def fetch_daily_recommendation(
+        self,
+        guild_id: Optional[str] = None,
+        hours: Optional[int] = None,
+        message_limit: Optional[int] = None,
+    ) -> str:
+        """
+        Fetch the rendered daily summary markdown from the Workflow API.
+        Supports plain text/markdown responses and simple JSON wrappers.
+        """
+        url = f"{self.base_url}/api/daily/summary_recommendations"
+        payload = {}
+        if guild_id:
+            payload["guild_id"] = guild_id
+        if hours is not None:
+            payload["hours"] = hours
+        if message_limit is not None:
+            payload["message_limit"] = message_limit
+
+        headers = {
+            "Accept": "application/json, text/markdown, text/plain"
+        }
+        timeout = aiohttp.ClientTimeout(total=60)
+
+        log.info(
+            f"WorkflowAPIClient: fetch_daily_summary_recommendation start url={url} "
+            f"payload={_format_for_log(payload)}"
+        )
+
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            try:
+                log.info(
+                    f"WorkflowAPIClient: fetch_daily_summary_recommendation -> POST {url} "
+                    f"params={_format_for_log(payload)}"
+                )
+                async with session.post(url, params=payload) as resp:
+                    response_text = await resp.text()
+                    content_type = (resp.headers.get("Content-Type") or "").lower()
+                    log.info(
+                        f"WorkflowAPIClient: fetch_daily_summary_recommendation <- method=POST "
+                        f"status={resp.status} content_type={content_type or None} "
+                        f"body={_format_for_log(response_text)}"
+                    )
+
+                    if resp.status != 200:
+                        raise Exception(f"API returned status {resp.status} for POST")
+
+                    summary_text: Optional[str] = None
+                    if "application/json" in content_type:
+                        try:
+                            summary_text = _extract_text_payload(
+                                json.loads(response_text) if response_text else {}
+                            )
+                        except json.JSONDecodeError as exc:
+                            raise Exception(f"Invalid JSON in daily summary response: {exc}")
+                    else:
+                        summary_text = response_text.strip()
+
+                    if not summary_text:
+                        raise Exception("Daily summary recommendation response was empty")
+
+                    return summary_text
+            except Exception as e:
+                log.error(
+                    f"WorkflowAPIClient: fetch_daily_summary_recommendation failed "
+                    f"params={_format_for_log(payload)} error={e}",
+                    exc_info=True
+                )
+                raise Exception(f"Failed to fetch daily summary: {e}")
+      
     async def stream_session_output(
         self,
         session_id: str,
