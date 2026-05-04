@@ -272,7 +272,7 @@ class WorkflowAPIClient:
                     f"WorkflowAPIClient: fetch_daily_summary_recommendation -> POST {url} "
                     f"params={_format_for_log(payload)}"
                 )
-                async with session.post(url, params=payload) as resp:
+                async with session.post(url, params=payload, timeout=aiohttp.ClientTimeout(total=120)) as resp:
                     response_text = await resp.text()
                     content_type = (resp.headers.get("Content-Type") or "").lower()
                     log.info(

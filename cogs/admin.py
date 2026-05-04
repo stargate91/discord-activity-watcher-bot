@@ -1109,7 +1109,7 @@ class AdminCog(commands.Cog):
         try:
             summary_text = await workflow_client.fetch_daily_summary(
                 guild_id=str(interaction.guild_id) if interaction.guild_id else None,
-                hours=24
+                hours=36
             )
             chunks = _split_markdown_chunks(summary_text)
             if not chunks:
@@ -1203,7 +1203,7 @@ class AdminCog(commands.Cog):
         try:
             summary_text = await workflow_client.fetch_daily_recommendation(
                 guild_id=str(interaction.guild_id) if interaction.guild_id else None,
-                hours=750
+                hours=36
             )
             chunks = _split_markdown_chunks(summary_text)
             if not chunks:
@@ -1225,12 +1225,12 @@ class AdminCog(commands.Cog):
             )
         except Exception as e:
             log.error(
-                f"AdminCog.ai_daily_summary: failed guild_id={interaction.guild_id} "
+                f"AdminCog.ai_daily_summary_recommendation: failed guild_id={interaction.guild_id} "
                 f"channel_id={interaction.channel_id} user_id={interaction.user.id} error={e}",
                 exc_info=True
             )
             await interaction.followup.send(
-                f"❌ Error posting daily summary: {str(e)}",
+                f"❌ Error posting daily recommendation: {str(e)}",
                 ephemeral=True
             )
             
